@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Post Image",
+  "description": "Schema for a generating an image to accompany a social media post.",
+  "type": "object",
+  "properties": {
+    "image_prompt": {
+      "type": "string",
+      "description": "A comma-separated list of keywords to describe the image for the post."
+    }
+  },
+  "required": [
+    "image_prompt"
+  ]
+}

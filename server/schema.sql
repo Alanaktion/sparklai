@@ -1,0 +1,53 @@
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "chats" (
+	"id"	INTEGER NOT NULL,
+	"user_id"	INTEGER NOT NULL,
+	"role"	TEXT NOT NULL,
+	"message"	TEXT NOT NULL,
+	"image_id"	INTEGER,
+	"created_at"	TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY("id"),
+	FOREIGN KEY("image_id") REFERENCES "images"("id") ON DELETE SET NULL,
+	FOREIGN KEY("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS "comments" (
+	"id"	INTEGER NOT NULL,
+	"post_id"	INTEGER NOT NULL,
+	"user_id"	INTEGER,
+	"body"	TEXT NOT NULL,
+	"created_at"	TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY("id"),
+	FOREIGN KEY("post_id") REFERENCES "posts"("id") ON DELETE CASCADE,
+	FOREIGN KEY("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS "images" (
+	"id"	INTEGER NOT NULL,
+	"user_id"	INTEGER NOT NULL,
+	"params"	TEXT,
+	"data"	BLOB,
+	PRIMARY KEY("id"),
+	FOREIGN KEY("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS "posts" (
+	"id"	INTEGER NOT NULL,
+	"user_id"	INTEGER NOT NULL,
+	"image_id"	INTEGER,
+	"body"	TEXT NOT NULL,
+	"created_at"	TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY("id"),
+	FOREIGN KEY("image_id") REFERENCES "images"("id") ON DELETE SET NULL,
+	FOREIGN KEY("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS "users" (
+	"id"	INTEGER NOT NULL,
+	"name"	TEXT NOT NULL,
+	"pronouns"	TEXT NOT NULL,
+	"bio"	TEXT,
+	"image_id"	INTEGER,
+	"writing_style"	TEXT,
+	"is_human"	INTEGER NOT NULL DEFAULT 0,
+	"is_active"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id"),
+	FOREIGN KEY("image_id") REFERENCES "images"("id") ON DELETE SET NULL
+);
+COMMIT;

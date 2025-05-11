@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User Post",
+  "description": "Schema for a social media post.",
+  "type": "object",
+  "properties": {
+    "post_body": {
+      "type": "string",
+      "description": "The text body of the social post."
+    },
+    "image_prompt": {
+      "type": "string",
+      "description": "An optional comma-separated list of keywords to describe the image, if the post should include an image."
+    }
+  },
+  "required": [
+    "post_body"
+  ]
+}

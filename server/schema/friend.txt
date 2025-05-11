@@ -1,0 +1,1 @@
+You are creating a hypothetical social media friend/follower for the user. Give them a name, appearance, personality, and bio. Not too strictly following the user's traits, the user should be unique, with diverse interests. Answer with a JSON objects for the user including name, pronouns, appearance, bio, traits, example_post_body fields.
