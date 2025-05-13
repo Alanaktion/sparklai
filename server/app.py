@@ -6,8 +6,8 @@ from .lib import db, chat, sd, cron
 from .models import User, Post, Comment, Image, Chat
 
 
-cron.post_every(10)
-cron.comment_every(2)
+# cron.post_every(10)
+# cron.comment_every(2)
 
 app = Flask(__name__)
 
@@ -68,23 +68,42 @@ def generate_user_post(user_id):
 
 
 @app.route('/users', methods=['POST'])
-def generate_user():
+def generate_user(user_prompt: str|None = None):
     # Generate a user
     conv = chat.OpenAIChat()
     profiles = []
     users = User.find_all()
     for user in users:
         profiles.append(f"- {user['name']} ({user['pronouns']}): {user['bio']}")
-    response = conv.schema_completion('friend',
-            f"Create a new user profile. Current users are these:\n{'\n'.join(profiles)}\n\n" +
-            "Be creative, the user does not have to be similar to the others.")
-    id = User.insert(name=response['name'], pronouns=response['pronouns'], bio=response['bio'])
+    # TODO: allow user to give additional prompt on how to create the user.
+    prompt = "Create a new user profile. Do not duplicate an existing user!"
+    if len(users):
+        prompt += f" Current users are:\n{'\n'.join(profiles)}"
+    if user_prompt:
+        prompt += "\n" + user_prompt
+    response = conv.schema_completion('user', prompt)
+    id = User.insert(
+        name=response['name'],
+        age=response['age'],
+        pronouns=response['pronouns'],
+        bio=response['bio'],
+        location=response['location'],
+        occupation=response['occupation'],
+        interests=response['interests'],
+        personality_traits=response['personality_traits'],
+        relationship_status=response['relationship_status'],
+        writing_style=response['writing_style'],
+        appearance=response['appearance'],
+        backstory_snippet=response['backstory_snippet'],
+    )
 
     # Generate a profile image
-    img = sd.StableDiffusion()
-    pic = img.txt2img(response['appearance'])
-    img_id = Image.insert(user_id=id, params=json.dumps(pic.params), data=pic.data)
-    User.update(id, image_id=img_id)
+    # TODO: this should probably just call Image.generate_user() in another thread, async.
+    # if response.get('appearance'):
+    #     img = sd.StableDiffusion()
+    #     pic = img.txt2img(json.dumps(response['appearance']))
+    #     img_id = Image.insert(user_id=id, params=pic.params, data=pic.data)
+    #     User.update(id, image_id=img_id)
 
     # Add their first post
     if response.get('example_post_body'):
@@ -96,9 +115,7 @@ def generate_user():
 
 @app.route('/users/<int:user_id>/image', methods=['POST'])
 def generate_user_image(user_id):
-    img = sd.StableDiffusion()
-    pic = img.txt2img(request.form['prompt'])
-    img_id = Image.insert(user_id=user_id, params=json.dumps(pic.params), data=pic.data)
+    img_id = Image.generate_user(user_id)
     User.update(user_id, image_id=img_id)
     return jsonify(img_id), 201
 
@@ -173,7 +190,7 @@ def create_post_image(id):
     # Generate the image
     img = sd.StableDiffusion()
     pic = img.txt2img(response['image_prompt'])
-    img_id = Image.insert(user_id=post['user_id'], params=json.dumps(pic.params), data=pic.data)
+    img_id = Image.insert(user_id=post['user_id'], params=pic.params, data=pic.data)
 
     Post.update(id, image_id=img_id)
     post_dict = post.asdict()

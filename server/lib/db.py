@@ -1,3 +1,4 @@
+import json
 import sqlite3
 
 
@@ -6,7 +7,12 @@ class SerializableRow(sqlite3.Row):
         return {key: self[key] for key in self.keys()}
 
 
-con = sqlite3.connect("db.sqlite3", check_same_thread=False, autocommit=True)
+sqlite3.register_adapter(dict, json.dumps)
+sqlite3.register_adapter(list, json.dumps)
+sqlite3.register_adapter(tuple, json.dumps)
+sqlite3.register_converter("JSON", json.loads)
+
+con = sqlite3.connect("db.sqlite3", check_same_thread=False, autocommit=True, detect_types=sqlite3.PARSE_DECLTYPES)
 con.row_factory = SerializableRow
 
 with open('schema.sql') as file:

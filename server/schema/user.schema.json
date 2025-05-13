@@ -1,0 +1,172 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Social Profile",
+	"description": "Schema for generating a detailed profile of a fictional user.",
+	"type": "object",
+	"properties": {
+		"name": {
+			"type": "string",
+			"description": "Either the user's full name or what the user would like to be called"
+		},
+		"age": {
+			"type": "integer",
+			"minimum": 13,
+			"maximum": 120,
+			"description": "Reasonable age range"
+		},
+		"pronouns": {
+			"type": "string",
+			"enum": ["she/her", "he/him", "they/them", "she/they", "he/they"]
+		},
+		"bio": {
+			"type": "string",
+			"description": "A brief bio/description written by the user for their profile"
+		},
+		"location": {
+			"type": "object",
+			"properties": {
+				"city": { "type": "string" },
+				"state_province": { "type": "string" },
+				"country": { "type": "string" }
+			},
+			"required": ["city", "state_province", "country"]
+		},
+		"occupation": { "type": "string" },
+		"interests": {
+			"type": "array",
+			"items": { "type": "string" },
+			"minItems": 3,
+			"maxItems": 10,
+			"description": "At least a few interests"
+		},
+		"personality_traits": {
+			"type": "object",
+			"properties": {
+				"openness": { "type": "number", "minimum": 0, "maximum": 1 },
+				"conscientiousness": { "type": "number", "minimum": 0, "maximum": 1 },
+				"extraversion": { "type": "number", "minimum": 0, "maximum": 1 },
+				"agreeableness": { "type": "number", "minimum": 0, "maximum": 1 },
+				"neuroticism": { "type": "number", "minimum": 0, "maximum": 1 }
+			},
+			"required": ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]
+		},
+		"relationship_status": {
+			"type": "string",
+			"enum": ["Single", "Married", "Divorced", "Dating", "Complicated"]
+		},
+		"writing_style": {
+			"type": "object",
+			"properties": {
+				"formality": { "type": "string", "enum": ["Formal", "Informal"] },
+				"emoji_frequency": {
+					"type": "integer",
+					"minimum": 0,
+					"maximum": 10,
+					"description": "Scale of emoji use"
+				},
+				"slang_usage": {
+					"type": "string",
+					"description": "Describe slang usage (e.g., 'moderate', 'rarely', 'frequent') and type (dialect, etc.)"
+				},
+				"punctuation_style": {
+					"type": "string",
+					"description": "Describe punctuation style (e.g., 'Excessive commas', 'Minimal punctuation')"
+				}
+			},
+			"required": ["formality", "emoji_frequency", "slang_usage", "punctuation_style"]
+		},
+		"appearance": {
+			"type": "object",
+			"properties": {
+				"gender_expression": {
+					"type": "string",
+					"description": "How the character presents their gender (e.g., masculine, feminine, androgynous).  Not necessarily tied to assigned gender.",
+					"default": "neutral"
+				},
+				"body_type": {
+					"type": "string",
+					"enum": ["slim", "average", "athletic", "curvy", "stocky", "other"],
+					"description": "General body build. 'Other' allows for more specific descriptions.",
+					"default": "average"
+				},
+				"height": {
+					"type": "string",
+					"description": "Height in centimeters or inches (e.g., '175 cm' or '69 in'). Allows for numerical parsing."
+				},
+				"hair": {
+					"type": "object",
+					"properties": {
+						"color": {
+							"type": "string",
+							"description": "Hair color (e.g., black, brown, blonde, red, gray).  Allow for more specific shades."
+						},
+						"style": {
+							"type": "string",
+							"description": "Hair style (e.g., short, long, curly, straight, braided, ponytail, shaved)."
+						},
+						"length": {
+							"type": "string",
+							"enum": ["short", "medium", "long"],
+							"description": "General hair length."
+						}
+					},
+					"required": ["color", "style"]
+				},
+				"eyes": {
+					"type": "object",
+					"properties": {
+						"color": {
+							"type": "string",
+							"description": "Eye color (e.g., blue, brown, green, hazel)."
+						},
+						"shape": {
+							"type": "string",
+							"description": "Eye shape (e.g., round, almond, hooded)."
+						}
+					},
+					"required": ["color"]
+				},
+				"skin_tone": {
+					"type": "string",
+					"description": "Skin tone description.  Be mindful of inclusive language and avoid harmful stereotypes."
+				},
+				"facial_features": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "List of notable facial features (e.g., freckles, scars, prominent nose, strong jawline, dimples)."
+				},
+				"clothing_style": {
+					"type": "string",
+					"description": "General clothing style (e.g., casual, formal, gothic, steampunk)"
+				},
+				"accessories": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "List of accessories (e.g., glasses, earrings, necklace, hat, tattoos)."
+				}
+			}
+		},
+		"backstory_snippet": {
+			"type": "string",
+			"description": "A short, evocative backstory (2-3 sentences)"
+		}
+	},
+	"required": [
+		"name",
+		"age",
+		"pronouns",
+		"bio",
+		"location",
+		"occupation",
+		"interests",
+		"personality_traits",
+		"relationship_status",
+		"writing_style",
+		"backstory_snippet",
+		"appearance"
+	]
+}

@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from .lib.db import con, Model, SerializableRow
 from .lib import chat, sd
@@ -13,8 +14,8 @@ class Post(Model):
         return con.execute("SELECT * FROM posts WHERE user_id = ? ORDER BY created_at DESC", (user_id,)).fetchall()
 
     @classmethod
-    def find_user_meta(cls, user_id: int) -> list[SerializableRow]:
-        return con.execute("SELECT p.*, i.params FROM posts AS p LEFT JOIN images AS i ON i.id = p.image_id WHERE p.user_id = ?", (user_id,)).fetchall()
+    def find_user_meta(cls, user_id: int, limit: int=10) -> list[SerializableRow]:
+        return con.execute(f"SELECT p.*, i.params FROM posts AS p LEFT JOIN images AS i ON i.id = p.image_id WHERE p.user_id = ? ORDEr BY created_at DESC LIMIT {limit}", (user_id,)).fetchall()
 
     @classmethod
     def find_latest(cls, limit: int=20) -> list[SerializableRow]:
@@ -24,31 +25,43 @@ class Post(Model):
     def generate(cls, user_id: int) -> int:
         user = User.find(id=user_id)
 
-        # TODO: tune prompt to not give such Instagram-like posts, something more diverse would be better. Also fewer hashtags and Emoji.
+        # TODO: integrate the new user details to get posts to be more accurate to their personness.
 
         # Generate a post for the user
         conv = chat.OpenAIChat()
-        posts = Post.find_user_meta(user_id)
+        posts = Post.find_user_meta(user_id, 5)
         if posts:
             history = [{
                 "role": "user",
-                "content": f"Write a new post for {user['name']} ({user['pronouns']}).\nUser bio: {user['bio']}"
+                "content": f"Write a new post for {user['name']} ({user['pronouns']}). The current date/time is " + datetime.now().strftime("%A, %d %B %Y %I:%M %p")
             }]
+            if user['location']:
+                history[0]['content'] += f"\nLocation: {user['location']['city']}, {user['location']['state_province']}, {user['location']['country']}"
+            if user['occupation']:
+                history[0]['content'] += f"\nOccupation: {user['occupation']}"
+            if user['interests']:
+                history[0]['content'] += f"\nInterests: {', '.join(user['interests'])}"
             if user['writing_style']:
-                history[0]['content'] += f"\nWriting style:{user['writing_style']}"
+                history[0]['content'] += f"\nWriting style: {json.dumps(user['writing_style'])}"
+            if user['personality_traits']:
+                history[0]['content'] += f"\nPersonality traits: {json.dumps(user['personality_traits'])}"
+            if user['relationship_status']:
+                history[0]['content'] += f"\nRelationship status: {user['relationship_status']}"
+            if user['backstory_snippet']:
+                history[0]['content'] += f"\nBackstory: {user['backstory_snippet']}"
             for post in posts:
-                prompt = None
-                if post['image_id']:
-                    image_params = json.loads(post['params'])
-                    prompt = image_params[0]['prompt'].partition("\n")[0]
+                # prompt = None
+                # if post['image_id']:
+                #     image_params = json.loads(post['params'])
+                #     prompt = image_params[0]['prompt'].partition("\n")[0]
 
                 history.append({"role": "assistant", "content": json.dumps({
-                    'post_body': post['body'],
-                    'image_prompt': prompt,
+                    'timestamp': post['created_at'],
+                    'post_text': post['body'],
                 })})
                 history.append({"role": "user", "content": "Write the next post for the user."})
 
-            response = conv.schema_completion('post', "Write the next post for the user. The post does not have to be related to the bio or the user's other posts.", history)
+            response = conv.schema_completion('post', "Write the next post for the user. The post does not have to be related to the user's other posts.", history)
         else:
             response = conv.schema_completion('post',
                     f"Write a new post for {user['name']} ({user['pronouns']}). User bio: {user['bio']}\n" +
@@ -58,10 +71,11 @@ class Post(Model):
         img_id = None
         if response.get('image_prompt'):
             img = sd.StableDiffusion()
-            pic = img.txt2img(response['image_prompt'])
-            img_id = Image.insert(user_id=user['id'], params=json.dumps(pic.params), data=pic.data)
+            pic = img.txt2img(response['image_generation']['image_keywords'],
+                              response['image_generation'].get('image_negative_prompt'))
+            img_id = Image.insert(user_id=user['id'], params=pic.params, data=pic.data)
 
-        return Post.insert(user_id=user['id'], body=response['post_body'], image_id=img_id)
+        return Post.insert(user_id=user['id'], body=response['post_text'], image_id=img_id)
 
 class Image(Model):
     table_name = 'images'
@@ -69,6 +83,36 @@ class Image(Model):
     @classmethod
     def find_user(cls, user_id: int) -> list[SerializableRow]:
         return con.execute("SELECT * FROM images WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
+
+    @classmethod
+    def generate_user(cls, user_id: int) -> int:
+        """Generate a profile image for the user"""
+        user = User.find(id=user_id)
+
+        prompt = "Write a brief list of keywords used to generate a profile image for the given user. Include generic keywords like 'brown hair', 'tall woman', etc."
+        if user['location']:
+            prompt += f"\nLocation: {user['location'].get('city')}, {user['location'].get('state_province')}, {user['location'].get('country')}"
+        if user['occupation']:
+            prompt += f"\nOccupation: {user['occupation']}"
+        if user['interests']:
+            prompt += f"\nInterests: {', '.join(user['interests'])}"
+        if user['writing_style']:
+            prompt += f"\nWriting style: {json.dumps(user['writing_style'])}"
+        if user['personality_traits']:
+            prompt += f"\nPersonality traits: {json.dumps(user['personality_traits'])}"
+        if user['backstory_snippet']:
+            prompt += f"\nBackstory: {user['backstory_snippet']}"
+        if user['appearance']:
+            prompt += f"\nAppearance: {json.dumps(user['appearance'])}"
+
+        prompt += "\n\nSeparate keywords with commas. Ensure most important identifying traits are included. *Do not write any other content apart from a list of keywords for image generation!*"
+
+        conv = chat.OpenAIChat()
+        response = conv.completions(prompt)
+
+        img = sd.StableDiffusion()
+        pic = img.txt2img(response)
+        return Image.insert(user_id=user['id'], params=pic.params, data=pic.data)
 
 class Comment(Model):
     table_name = 'comments'

@@ -15,7 +15,7 @@ class OpenAIChat:
     }
 
     # Model should be trained for tool use and capable of structured output
-    model: str = config.get("chat-url", "qwen2.5-7b-instruct-1m")
+    model: str = config.get("chat-model", "qwen2.5-7b-instruct-1m")
     temperature: float = 0.7
 
     system_message: str|None = None
@@ -29,12 +29,12 @@ class OpenAIChat:
 
         with open(f'schema/{schema}.txt') as file:
             self.system_message = file.read().strip()
-        with open(f'schema/{schema}.json') as file:
+        with open(f'schema/{schema}.schema.json') as file:
             self.response_schema = json.load(file)
 
     def schema_completion(self, schema, user_prompt, history=[]) -> dict:
         self.load_schema(schema)
-        return self.completions(user_prompt) # type: ignore
+        return self.completions(user_prompt, history) # type: ignore
 
     def completions(self, user_prompt, history=[]) -> str|dict:
         data = {

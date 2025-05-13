@@ -1,0 +1,85 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Character Appearance Description",
+	"description": "Schema for describing a character's appearance, optimized for image generation.",
+	"type": "object",
+	"properties": {
+		"age_range": {
+			"type": "string",
+			"enum": ["child", "teenager", "young_adult", "adult", "senior"],
+			"description": "General age category. Influences facial features and body type."
+		},
+		"gender_expression": {
+			"type": "string",
+			"description": "How the character presents their gender (e.g., masculine, feminine, androgynous).  Not necessarily tied to assigned gender.",
+			"default": "neutral"
+		},
+		"body_type": {
+			"type": "string",
+			"enum": ["slim", "average", "athletic", "curvy", "stocky", "other"],
+			"description": "General body build. 'Other' allows for more specific descriptions.",
+			"default": "average"
+		},
+		"height": {
+			"type": "string",
+			"pattern": "^(\\d+)\\s*(cm|in)$",
+			"description": "Height in centimeters or inches (e.g., '175 cm' or '69 in').  Allows for numerical parsing."
+		},
+		"hair": {
+			"type": "object",
+			"properties": {
+				"color": {
+					"type": "string",
+					"description": "Hair color (e.g., black, brown, blonde, red, gray).  Allow for more specific shades."
+				},
+				"style": {
+					"type": "string",
+					"description": "Hair style (e.g., short, long, curly, straight, braided, ponytail, shaved)."
+				},
+				"length": {
+					"type": "string",
+					"enum": ["short", "medium", "long"],
+					"description": "General hair length."
+				}
+			},
+			"required": ["color", "style"]
+		},
+		"eyes": {
+			"type": "object",
+			"properties": {
+				"color": {
+					"type": "string",
+					"description": "Eye color (e.g., blue, brown, green, hazel)."
+				},
+				"shape": {
+					"type": "string",
+					"description": "Eye shape (e.g., round, almond, hooded)."
+				}
+			},
+			"required": ["color"]
+		},
+		"skin_tone": {
+			"type": "string",
+			"description": "Skin tone description.  Be mindful of inclusive language and avoid harmful stereotypes."
+		},
+		"facial_features": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "List of notable facial features (e.g., freckles, scars, prominent nose, strong jawline, dimples)."
+		},
+		"clothing_style": {
+			"type": "string",
+			"description": "General clothing style (e.g., casual, formal, gothic, steampunk)"
+		},
+		"accessories": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "List of accessories (e.g., glasses, earrings, necklace, hat, tattoos)."
+		}
+	},
+	"required": ["age_range", "gender_expression", "body_type", "height", "hair", "eyes", "skin_tone"]
+}

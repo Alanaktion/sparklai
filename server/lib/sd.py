@@ -28,10 +28,10 @@ class StableDiffusion:
         })
         response.raise_for_status()
 
-    def txt2img(self, prompt, height=512, width=512) -> SDImage:
+    def txt2img(self, prompt, negative_prompt=None, height=512, width=512) -> SDImage:
         data = {
             'prompt': prompt + "\n" + self.prompt_suffix,
-            'negative_prompt': self.negative_prompt,
+            'negative_prompt': negative_prompt + "\n" + self.negative_prompt if negative_prompt else self.negative_prompt,
             'num_inference_steps': self.steps,
             'height': height,
             'width': width,

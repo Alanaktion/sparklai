@@ -1,129 +1,95 @@
 <script lang="ts">
-import { onMount } from 'svelte'
+	import { Loader, WandSparkles } from 'lucide-svelte';
+	import type { PageProps } from './$types';
+	let { data }: PageProps = $props();
+	import { loadJson } from '$lib/api';
 
-import Post from '$lib/components/Post.svelte'
-import Avatar from '$lib/components/Avatar.svelte'
+	import Post from '$lib/components/Post.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
 
-let users = $state([])
-let posts = $state([])
-const loadData = () => {
-  fetch(`http://127.0.0.1:5000/users`)
-    .then(response => response.json())
-    .then(body => {
-      users = body
-    })
-  fetch(`http://127.0.0.1:5000/posts`)
-    .then(response => response.json())
-    .then(body => {
-      posts = body
-    })
-}
-onMount(loadData)
+	let users = $state(data.users);
+	let posts = $state(data.posts);
+	const fetchPosts = () => {
+		loadJson(`posts`).then((body) => {
+			posts = body;
+		});
+	};
 
-let creating = $state(false)
-const newUser = () => {
-  creating = true
-  fetch(`http://127.0.0.1:5000/users`, {method: 'POST'})
-    .then(() => {
-      creating = false
-      fetchPosts()
-    })
-    .catch(() => creating = false)
-}
+	let creating = $state(false);
+	const newUser = () => {
+		creating = true;
+		loadJson(`users`, { method: 'POST' })
+			.then(() => {
+				creating = false;
+				fetchPosts();
+			})
+			.catch(() => (creating = false));
+	};
 
-const user = id => {
-  const matches = users.filter(u => u.id == id)
-  return matches ? matches[0] : {}
-}
+	const user = (id) => {
+		const matches = users.filter((u) => u.id == id);
+		return matches ? matches[0] : {};
+	};
 </script>
 
 <svelte:head>
-  <title>Home ✨</title>
+	<title>Home ✨</title>
 </svelte:head>
 
 {#if users && posts}
-<div class="max-w-4xl sm:mx-auto px-4 gap-6 lg:gap-8 sm:grid grid-cols-3 my-4">
+	<div class="my-4 max-w-4xl grid-cols-3 gap-6 px-4 sm:mx-auto sm:grid lg:gap-8">
+		<div class="col-span-2">
+			<h2 class="mb-4 text-xl">Posts</h2>
 
-  <div class="col-span-2">
-    <h2 class="text-xl mb-4">Posts</h2>
+			{#if posts.length}
+				{#each posts as post}
+					<Post {post} user={user(post.user_id)} />
+				{/each}
+			{:else}
+				<Loader class="mx-auto my-6 size-12 animate-spin text-slate-600 dark:text-slate-400" />
+			{/if}
+		</div>
 
-    {#if posts.length}
-    {#each posts as post}
-    <Post post={post} user={user(post.user_id)} />
-    {/each}
-    {:else}
-    <svg xmlns="http://www.w3.org/2000/svg" class="size-12 mx-auto my-6 text-slate-600 dark:text-slate-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2v4"/>
-      <path d="m16.2 7.8 2.9-2.9"/>
-      <path d="M18 12h4"/>
-      <path d="m16.2 16.2 2.9 2.9"/>
-      <path d="M12 18v4"/>
-      <path d="m4.9 19.1 2.9-2.9"/>
-      <path d="M2 12h4"/>
-      <path d="m4.9 4.9 2.9 2.9"/>
-    </svg>
-    {/if}
-  </div>
+		<div>
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-xl">Users</h2>
+				{#if creating}
+					<Loader class="mx-1 size-4 animate-spin text-slate-600 dark:text-slate-400" />
+				{:else}
+					<button
+						onclick={newUser}
+						type="button"
+						class="rounded p-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+					>
+						<span class="sr-only">Add AI user</span>
+						<WandSparkles class="size-4" />
+					</button>
+				{/if}
+			</div>
 
-  <div>
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl">Users</h2>
-      {#if creating}
-      <svg xmlns="http://www.w3.org/2000/svg" class="size-4 mx-1 text-slate-600 dark:text-slate-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2v4"/>
-        <path d="m16.2 7.8 2.9-2.9"/>
-        <path d="M18 12h4"/>
-        <path d="m16.2 16.2 2.9 2.9"/>
-        <path d="M12 18v4"/>
-        <path d="m4.9 19.1 2.9-2.9"/>
-        <path d="M2 12h4"/>
-        <path d="m4.9 4.9 2.9 2.9"/>
-      </svg>
-      {:else}
-      <button onclick={newUser} type="button" class="hover:bg-sky-100 dark:hover:bg-sky-800 text-sky-600 dark:text-sky-400 text-sm p-1 rounded">
-        <span class="sr-only">Add AI user</span>
-        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/>
-          <path d="m14 7 3 3"/>
-          <path d="M5 6v4"/>
-          <path d="M19 14v4"/>
-          <path d="M10 2v2"/>
-          <path d="M7 8H3"/>
-          <path d="M21 16h-4"/>
-          <path d="M11 3H9"/>
-        </svg>
-      </button>
-      {/if}
-    </div>
-
-    <div class="shadow bg-slate-50 dark:bg-slate-900 rounded sticky top-4">
-      {#if users.length}
-      {#each users as user}
-      <div class="flex items-center border-slate-200 dark:border-slate-700 border-b first:rounded-t last:rounded-b last:border-none p-3 hover:bg-slate-100 dark:hover:bg-slate-700 relative">
-        <Avatar user={user} class="size-10 mr-3" />
-        <div>
-          <a class="block text-slate-700 dark:text-slate-300 font-medium text-sm" href="/users/{user.id}">
-            <div class="absolute inset-0"></div>
-            {user.name}
-          </a>
-          <p class="text-sm text-slate-400 dark:text-slate-500">{user.pronouns}</p>
-        </div>
-      </div>
-      {/each}
-      {:else}
-      <svg xmlns="http://www.w3.org/2000/svg" class="size-12 mx-auto py-2 text-slate-600 dark:text-slate-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2v4"/>
-        <path d="m16.2 7.8 2.9-2.9"/>
-        <path d="M18 12h4"/>
-        <path d="m16.2 16.2 2.9 2.9"/>
-        <path d="M12 18v4"/>
-        <path d="m4.9 19.1 2.9-2.9"/>
-        <path d="M2 12h4"/>
-        <path d="m4.9 4.9 2.9 2.9"/>
-      </svg>
-      {/if}
-    </div>
-  </div>
-
-</div>
+			<div class="sticky top-4 rounded bg-slate-50 shadow dark:bg-slate-900">
+				{#if users.length}
+					{#each users as user}
+						<div
+							class="relative flex items-center border-b border-slate-200 p-3 first:rounded-t last:rounded-b last:border-none hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
+						>
+							<Avatar {user} class="mr-3 size-10" />
+							<div>
+								<a
+									class="block text-sm font-medium text-slate-700 dark:text-slate-300"
+									href="/users/{user.id}"
+								>
+									<div class="absolute inset-0"></div>
+									{user.name}
+								</a>
+								<p class="text-sm text-slate-400 dark:text-slate-500">{user.pronouns}</p>
+							</div>
+						</div>
+					{/each}
+				{:else}
+					<Loader class="mx-auto size-12 animate-spin py-2 text-slate-600 dark:text-slate-400" />
+				{/if}
+			</div>
+		</div>
+	</div>
 {/if}
