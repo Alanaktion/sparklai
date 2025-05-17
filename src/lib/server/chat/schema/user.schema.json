@@ -20,7 +20,7 @@
 		},
 		"bio": {
 			"type": "string",
-			"description": "A brief bio/description written by the user for their profile"
+			"description": "A brief bio/description written by the user for their profile. Written in first person, with the user's writing style."
 		},
 		"location": {
 			"type": "object",

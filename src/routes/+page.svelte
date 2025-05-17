@@ -6,24 +6,34 @@
 
 	import Post from '$lib/components/Post.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import Dialog from '$lib/components/base/dialog.svelte';
+
+	let open = $state(false);
 
 	let users = $state(data.users);
 	let posts = $state(data.posts);
-	const fetchPosts = () => {
-		loadJson(`posts`).then((body) => {
-			posts = body;
-		});
-	};
 
 	let creating = $state(false);
-	const newUser = () => {
+	let user_prompt = $state('');
+	const newUser = (e: Event) => {
+		e.preventDefault();
 		creating = true;
-		loadJson(`users`, { method: 'POST' })
+		loadJson(`users`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			body: `prompt=${encodeURIComponent(user_prompt)}`
+		})
 			.then((body) => {
 				creating = false;
+				open = false;
 				users.push(body);
 			})
-			.catch(() => (creating = false));
+			.catch(() => {
+				creating = false;
+				open = false;
+			});
 	};
 
 	const user = (id: number) => {
@@ -57,13 +67,35 @@
 					<Loader class="mx-1 size-4 animate-spin text-slate-600 dark:text-slate-400" />
 				{:else}
 					<button
-						onclick={newUser}
+						onclick={() => (open = true)}
 						type="button"
 						class="rounded p-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
 					>
 						<span class="sr-only">Add AI user</span>
 						<WandSparkles class="size-4" />
 					</button>
+					<Dialog title="Add AI user" bind:open>
+						<form
+							class="grid gap-2"
+							onsubmit={newUser}
+							method="POST"
+						>
+							<textarea
+								bind:value={user_prompt}
+								name="message"
+								rows="6"
+								class="flex w-full rounded border border-slate-500 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-300 focus:border-sky-600 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:outline-none disabled:opacity-50 dark:placeholder:text-slate-600"
+								placeholder="User prompt (optional)"
+							></textarea>
+							<button
+								disabled={creating}
+								type="submit"
+								class="rounded-2xl px-2 py-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+							>
+								Create User
+							</button>
+						</form>
+					</Dialog>
 				{/if}
 			</div>
 
