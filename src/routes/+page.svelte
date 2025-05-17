@@ -19,14 +19,14 @@
 	const newUser = () => {
 		creating = true;
 		loadJson(`users`, { method: 'POST' })
-			.then(() => {
+			.then((body) => {
 				creating = false;
-				fetchPosts();
+				users.push(body);
 			})
 			.catch(() => (creating = false));
 	};
 
-	const user = (id) => {
+	const user = (id: number) => {
 		const matches = users.filter((u) => u.id == id);
 		return matches ? matches[0] : {};
 	};

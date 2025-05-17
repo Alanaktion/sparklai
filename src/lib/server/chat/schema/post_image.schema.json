@@ -1,0 +1,28 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Image Prompt Generation Output",
+	"description": "Schema for the output of an AI image prompt generation request.",
+	"type": "object",
+	"properties": {
+		"keywords": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "A list of keywords for the image. These should be simple keywords like 'girl', 'brown hair', 'outdoors', etc."
+		},
+		"aspect_ratio": {
+			"type": "string",
+			"enum": ["square", "portrait", "landscape"]
+		},
+		"negative_keywords": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "A list of negative keywords to exclude from the generated image. Optional.",
+			"default": []
+		}
+	},
+	"required": ["keywords", "aspect_ratio"]
+}

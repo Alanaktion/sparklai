@@ -33,7 +33,7 @@
 		>
 		{#if post.image_id}
 			<div class="my-3">
-				<img src="http://127.0.0.1:5000/images/{post.image_id}" alt class="w-full {imgClass}" />
+				<img src="/images/{post.image_id}" alt class="w-full {imgClass}" />
 			</div>
 		{/if}
 		<p class="mb-2">{post.body}</p>

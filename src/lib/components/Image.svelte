@@ -11,21 +11,19 @@
 	}
 </script>
 
-<img
-	src="http://127.0.0.1:5000/images/{image.id}"
-	alt
-	class="w-full {imgClass}"
-	onclick={() => (lightbox = true)}
-/>
+<button type="button" onclick={() => (lightbox = true)}>
+	<img src="/images/{image.id}" alt="" class="w-full {imgClass}" />
+</button>
 
 {#if lightbox}
-	<div
+	<button
+		type="button"
 		class="fixed inset-0 flex items-center justify-center bg-white/80 dark:bg-black/80"
 		onclick={() => (lightbox = false)}
 	>
-		<img src="http://127.0.0.1:5000/images/{image.id}" alt={params.prompt} />
+		<img src="/images/{image.id}" alt={params.prompt} />
 		<p class="fixed inset-x-3 bottom-3 text-xs">{params.prompt}</p>
-	</div>
+	</button>
 {/if}
 
 <svelte:window onkeyup={keyup} />

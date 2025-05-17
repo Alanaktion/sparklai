@@ -7,5 +7,5 @@
 </script>
 
 <div class="{cls} max-w-lg rounded-2xl px-3 py-1">
-	<p class="whitespace-pre-wrap">{chat.message}</p>
+	<p class="whitespace-pre-wrap">{chat.body}</p>
 </div>

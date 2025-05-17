@@ -12,19 +12,14 @@
 	let user = $state(data.user);
 	let posts = $state(data.posts);
 	let images = $state(data.images);
-	const fetchPosts = () => {
-		loadJson(`users/${data.id}/posts`).then((body) => {
-			posts = body;
-		});
-	};
 
 	let creating = $state(false);
 	const newPost = () => {
 		creating = true;
 		loadJson(`users/${data.id}/posts`, { method: 'POST' })
-			.then(() => {
+			.then((body) => {
+				posts = [body, ...posts];
 				creating = false;
-				fetchPosts();
 			})
 			.catch(() => {
 				creating = false;
@@ -48,7 +43,7 @@
 					<p class="text-sm text-slate-400">{user.pronouns}</p>
 				</div>
 				<a
-					href="/chat/{user.id}"
+					href="/users/{user.id}/chat"
 					class="rounded p-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
 				>
 					<span class="sr-only">Messages</span>

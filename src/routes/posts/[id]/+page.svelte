@@ -7,7 +7,7 @@
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 
-	let user = data.user;
+	let user = $state(data.user);
 	let post = $state(data.post);
 	let comments = $state(data.comments);
 
@@ -17,7 +17,7 @@
 		loadJson(`posts/${data.id}/image`, { method: 'POST' })
 			.then((body) => {
 				creating = false;
-				post = body;
+				post.image_id = body;
 			})
 			.catch(() => (creating = false));
 	}
@@ -25,7 +25,7 @@
 	let responding = $state(false);
 	function respond() {
 		responding = true;
-		loadJson(`posts/${data.id}/respond`, { method: 'POST' })
+		loadJson(`posts/${data.id}/comments/respond`, { method: 'POST' })
 			.then((body) => {
 				responding = false;
 				comments.push(body);
@@ -35,7 +35,7 @@
 
 	let form: HTMLFormElement | undefined = $state();
 	let message = $state('');
-	function submit(e) {
+	function submit(e: Event) {
 		e.preventDefault();
 		loadJson(`posts/${data.id}/comments`, {
 			method: 'POST',
@@ -94,16 +94,16 @@
 					<Avatar user={comment.user} class="size-10" />
 					<div>
 						<div class="text-sm leading-tight">
-							{#if comment.user_id}
+							{#if comment?.user?.id}
 								<a
 									class="text-sky-600 hover:underline dark:text-sky-400"
-									href="/users/{comment.user_id}">{comment.user.name}</a
+									href="/users/{comment.user.id}">{comment.user.name}</a
 								>
 							{:else}
 								<span class="text-slate-500">User</span>
 							{/if}
 						</div>
-						<p>{comment.body}</p>
+						<p>{comment.comment.body}</p>
 					</div>
 				</div>
 			{/each}

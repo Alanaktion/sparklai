@@ -12,11 +12,7 @@
 </script>
 
 {#if user?.image_id}
-	<img
-		src="http://127.0.0.1:5000/images/{user?.image_id}"
-		alt={user?.name}
-		class="{cls} rounded-full"
-	/>
+	<img src="/images/{user?.image_id}" alt={user?.name} class="{cls} rounded-full" />
 {:else}
 	<div class="{cls} relative rounded-full bg-slate-100 p-2 dark:bg-slate-600">
 		<UserRound class="aspect-square h-full w-full text-slate-400" />

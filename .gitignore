@@ -29,3 +29,6 @@ __pycache__
 *.log
 /server/config.toml
 /server/venv
+
+# SQLite
+*.db

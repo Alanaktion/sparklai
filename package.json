@@ -10,15 +10,23 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && eslint ."
+		"lint": "prettier --check . && eslint .",
+		"db:push": "drizzle-kit push",
+		"db:migrate": "drizzle-kit migrate",
+		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.9",
 		"@eslint/js": "^9.26.0",
+		"@fluentui/svg-icons": "^1.1.300",
 		"@sveltejs/adapter-auto": "^6.0.1",
+		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.21.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.3",
 		"@tailwindcss/vite": "^4.1.6",
+		"@types/better-sqlite3": "^7.6.12",
+		"@types/node": "^22",
+		"drizzle-kit": "^0.30.2",
 		"eslint": "^9.26.0",
 		"eslint-config-prettier": "^10.1.5",
 		"eslint-plugin-svelte": "^3.6.0",
@@ -37,7 +45,13 @@
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"esbuild"
+			"@tailwindcss/oxide",
+			"esbuild",
+			"better-sqlite3"
 		]
+	},
+	"dependencies": {
+		"better-sqlite3": "^11.8.0",
+		"drizzle-orm": "^0.40.0"
 	}
 }
