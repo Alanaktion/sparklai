@@ -24,7 +24,7 @@ export async function POST({ params }) {
 	const users_result = await db
 		.select()
 		.from(users)
-		.where(and(eq(users.is_active, 1), eq(users.is_human, 0)))
+		.where(and(eq(users.is_active, true), eq(users.is_human, false)))
 		.orderBy(sql`random()`)
 		.limit(1);
 	const user = users_result[0];
@@ -37,13 +37,13 @@ export async function POST({ params }) {
 				`You are ${user.name} (${user.pronouns}), writing a comment on the given social media post. It can be a reply to other comments (if any), or directly responding to the post itself. *Do not include any meta-text, only the comment body.*\n` +
 				`Your bio: ${user.bio}\n` +
 				`Writing style: ${JSON.stringify(user.writing_style)}\n` +
-				'Do not include any roleplay metatext, just write the actual response.'
+				"Write a new comment. Do not include any roleplay or metatext, just write the actual response. If you don't know the language the original post is in, you can use your preferred language."
 		},
 		{
 			role: 'user',
 			content: is_own_post
-				? `Post by ${author.name} (${author.pronouns}): ${post.body}`
-				: `This is your own post that you wrote: ${post.body}`
+				? `This is your own post that you wrote: ${post.body}`
+				: `Post by ${author.name} (${author.pronouns}): ${post.body}`
 		}
 	];
 
@@ -68,5 +68,5 @@ export async function POST({ params }) {
 			body: response
 		})
 		.returning();
-	return json({ ...result[0], user });
+	return json({ comment: result[0], user });
 }

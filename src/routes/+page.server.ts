@@ -9,6 +9,6 @@ export const load: PageLoad = async () => {
 		users: await db
 			.select()
 			.from(users)
-			.where(and(eq(users.is_active, 1), eq(users.is_human, 0)))
+			.where(and(eq(users.is_active, true), eq(users.is_human, false)))
 	};
 };

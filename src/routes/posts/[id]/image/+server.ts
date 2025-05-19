@@ -42,9 +42,9 @@ export async function POST({ params }) {
 		height = 512;
 	if (response.aspect_ratio === 'portrait') {
 		height = 640;
-		width = 360;
+		width = 480;
 	} else if (response.aspect_ratio === 'landscape') {
-		height = 360;
+		height = 480;
 		width = 640;
 	}
 
@@ -54,7 +54,7 @@ export async function POST({ params }) {
 		params: pic.params,
 		data: pic.data
 	});
-	const img_id = img_result.lastInsertRowid;
+	const img_id = Number(img_result.lastInsertRowid);
 
 	await db.update(posts).set({ image_id: img_id }).where(eq(posts.id, post.id));
 

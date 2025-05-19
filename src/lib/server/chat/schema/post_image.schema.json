@@ -20,7 +20,7 @@
 			"items": {
 				"type": "string"
 			},
-			"description": "A list of negative keywords to exclude from the generated image. Optional.",
+			"description": "A list of keywords to exclude from the image.",
 			"default": []
 		}
 	},

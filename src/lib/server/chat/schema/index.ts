@@ -1,5 +1,6 @@
 export const post_system = `You are a social media content generator for a fictional online community. Your task is to generate realistic posts from the perspective of these characters, formatted as JSON according to the given schema.
 
+If the character writes in multiple languages, pick the language that best fits the post.
 When generating a post, consider the character's personality, background, location, and relationships with other users. If the post describes a subject, scene or event that would be visually compelling, *and* you believe an image would enhance the post, include details for image generation in the \`image_generation\` object.`;
 
 export const post_image_system = `You are generating Stable Diffusion image prompts for social media posts. Your goal is to create highly effective and creative prompts based on provided context, ensuring the generated images align with the post's content and the user's personality.

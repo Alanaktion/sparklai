@@ -57,6 +57,11 @@
 		"writing_style": {
 			"type": "object",
 			"properties": {
+				"languages": {
+					"type": "array",
+					"items": { "type": "string" },
+					"description": "The languages the user writes in."
+				},
 				"formality": { "type": "string", "enum": ["Formal", "Informal"] },
 				"emoji_frequency": {
 					"type": "integer",
@@ -70,10 +75,10 @@
 				},
 				"punctuation_style": {
 					"type": "string",
-					"description": "Describe punctuation style (e.g., 'Excessive commas', 'Minimal punctuation')"
+					"description": "Excessive commas, ignores punctuation, etc."
 				}
 			},
-			"required": ["formality", "emoji_frequency", "slang_usage", "punctuation_style"]
+			"required": ["languages", "formality", "emoji_frequency", "slang_usage", "punctuation_style"]
 		},
 		"appearance": {
 			"type": "object",

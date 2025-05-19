@@ -9,7 +9,7 @@ import { post_system, post_image_system, profile_image_system, user_system } fro
 
 if (!env.CHAT_URL) throw new Error('CHAT_URL is not set');
 
-const model = env.CHAT_MODEL;
+export let model = env.CHAT_MODEL;
 const temperature = 0.7;
 
 export type LlamaMessage = {
@@ -30,6 +30,18 @@ type LlamaRequest = {
 		};
 	};
 };
+
+export function init(new_model: string | null = null) {
+	model = new_model || model;
+}
+
+type LlamaModel = {
+	id: string;
+};
+export async function fetch_models(): Promise<LlamaModel[]> {
+	const response = await fetch(`${env.CHAT_URL}models`);
+	return (await response.json()).data;
+}
 
 async function fetch_completions(data: LlamaRequest) {
 	const response = await fetch(`${env.CHAT_URL}chat/completions`, {

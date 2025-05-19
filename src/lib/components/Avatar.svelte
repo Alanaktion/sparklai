@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { loadJson } from '$lib/api';
-	import { CirclePlus, UserRound } from 'lucide-svelte';
+	import { CirclePlus, Loader, UserRound } from 'lucide-svelte';
 	let { user, class: cls = 'size-12' } = $props();
 	let generating = $state(false);
 	async function generate() {
 		generating = true;
 		const response = await loadJson(`users/${user.id}/image`, { method: 'POST' });
-		user.image_id = response;
+		user.image_id = response.id;
 		generating = false;
 	}
 </script>
@@ -20,6 +20,10 @@
 			<button type="button" class="absolute top-0 right-0 size-4 cursor-pointer" onclick={generate}>
 				<CirclePlus />
 			</button>
+		{:else if generating}
+			<Loader
+				class="absolute top-0 right-0 size-4 animate-spin text-slate-600 dark:text-slate-400"
+			/>
 		{/if}
 	</div>
 {/if}

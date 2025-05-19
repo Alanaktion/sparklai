@@ -9,9 +9,9 @@ export async function POST({ params, request }) {
 		.insert(comments)
 		.values({
 			post_id: Number(params.id),
-			user_id: 0, // TODO: current logged-in user which no existy yet.
+			user_id: null,
 			body: data.get('message')?.toString()
 		})
 		.returning();
-	return json(result[0]);
+	return json({ user: null, comment: result[0] });
 }

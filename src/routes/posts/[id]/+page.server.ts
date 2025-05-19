@@ -2,10 +2,14 @@ import type { PageLoad } from './$types';
 import { db } from '$lib/server/db';
 import { users, posts, comments } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { error } from '@sveltejs/kit';
 
 export const load: PageLoad = async ({ params }) => {
 	const { id } = params;
 	const _post = (await db.select().from(posts).where(eq(posts.id, id)))[0];
+	if (!_post) {
+		error(404, 'Not Found');
+	}
 	const _comments = await db
 		.select({
 			comment: comments,

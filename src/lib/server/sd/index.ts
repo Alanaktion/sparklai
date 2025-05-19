@@ -1,28 +1,40 @@
 import { env } from '$env/dynamic/private';
+import type { StableDiffusionParams } from '../db/schema';
 
 if (!env.SD_URL) throw new Error('SD_URL is not set');
 
-const model = env.SD_MODEL;
+export let model = env.SD_MODEL;
 const prompt_suffix = env.SD_PROMPT;
 const negative_prompt_suffix = env.SD_NEGATIVE_PROMPT;
 const steps = 20;
 const format = 'webp';
 
-export async function init() {
+export async function init(new_model: string | null = null) {
 	await fetch(`${env.SD_URL}options`, {
 		method: 'POST',
 		body: JSON.stringify({
-			sd_model_checkpoint: model,
+			sd_model_checkpoint: new_model || model,
 			samples_format: format
 		}),
 		headers: {
 			'Content-Type': 'application/json'
 		}
 	});
+	model = new_model || model;
+}
+
+type SDModel = {
+	title: string;
+	model_name: string;
+	hash: string;
+};
+export async function fetch_models(): Promise<SDModel[]> {
+	const response = await fetch(`${env.SD_URL}sd-models`);
+	return await response.json();
 }
 
 export type SDImage = {
-	params: object;
+	params: StableDiffusionParams;
 	data: Uint8Array;
 };
 
@@ -39,13 +51,18 @@ export async function txt2img(
 	prompt: string,
 	negative_prompt: string | null = null,
 	width = 512,
-	height = 512
+	height = 512,
+	include_default_prompt = true
 ) {
 	const data = {
-		prompt: `${prompt}\n${prompt_suffix}`,
+		prompt: include_default_prompt ? `${prompt}\n${prompt_suffix}` : prompt,
 		negative_prompt: negative_prompt
-			? `${negative_prompt}\n${negative_prompt_suffix}`
-			: negative_prompt_suffix,
+			? include_default_prompt
+				? `${negative_prompt}\n${negative_prompt_suffix}`
+				: negative_prompt
+			: include_default_prompt
+				? negative_prompt_suffix
+				: '',
 		num_inference_steps: steps,
 		height: height,
 		width: width,

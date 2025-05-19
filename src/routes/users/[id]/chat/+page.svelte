@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { Ellipsis, Loader, WandSparkles } from 'lucide-svelte';
+	import { browser } from '$app/environment';
 
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
@@ -46,7 +47,7 @@
 	let responding = $state(false);
 	const debouncedResponse = debounce(respond);
 
-	let form;
+	let form = $state<HTMLFormElement>();
 	let message = $state('');
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
@@ -89,38 +90,41 @@
 		{/if}
 	</div>
 
-	<form
-		bind:this={form}
-		onsubmit={submit}
-		class="sticky bottom-0 mt-6 flex items-center gap-2 bg-white/80 py-2 backdrop-blur dark:bg-slate-800/80"
-	>
-		{#if responding}
-			<Loader class="mx-1 size-4 animate-spin text-slate-600 dark:text-slate-400" />
-		{:else}
-			<button
-				onclick={respond}
-				type="button"
-				class="rounded p-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
-			>
-				<span class="sr-only">Add AI response</span>
-				<WandSparkles class="size-4" />
-			</button>
-		{/if}
-		<input
-			autocomplete="off"
-			bind:value={message}
-			onchange={change}
-			name="message"
-			autofocus
-			class="flex w-full rounded-2xl border border-slate-500 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-sky-600 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:outline-none disabled:opacity-50"
-			type="text"
-			placeholder="Message"
-		/>
-		<button
-			type="submit"
-			class="rounded-2xl px-2 py-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+	{#if browser}
+		<form
+			bind:this={form}
+			onsubmit={submit}
+			class="sticky bottom-0 mt-6 flex items-center gap-2 bg-white/80 py-2 backdrop-blur dark:bg-slate-800/80"
 		>
-			Send
-		</button>
-	</form>
+			{#if responding}
+				<Loader class="mx-1 size-4 animate-spin text-slate-600 dark:text-slate-400" />
+			{:else}
+				<button
+					onclick={respond}
+					type="button"
+					class="rounded p-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+				>
+					<span class="sr-only">Add AI response</span>
+					<WandSparkles class="size-4" />
+				</button>
+			{/if}
+			<input
+				autocomplete="off"
+				bind:value={message}
+				onchange={change}
+				name="message"
+				autofocus
+				required
+				class="flex w-full rounded-2xl border border-slate-500 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-300 focus:border-sky-600 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:outline-none disabled:opacity-50 dark:placeholder:text-slate-600"
+				type="text"
+				placeholder="Message"
+			/>
+			<button
+				type="submit"
+				class="rounded-2xl px-2 py-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+			>
+				Send
+			</button>
+		</form>
+	{/if}
 </div>

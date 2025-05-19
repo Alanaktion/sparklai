@@ -3,7 +3,14 @@ import { images } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET({ params }) {
-	const image = (await db.select().from(images).where(eq(images.id, params.id)))[0];
+	const image_result = await db
+		.select()
+		.from(images)
+		.where(eq(images.id, Number(params.id)));
+	if (!image_result.length) {
+		return new Response(null, { status: 404 });
+	}
+	const image = image_result[0];
 
 	return new Response(image.data, {
 		headers: {
@@ -11,4 +18,9 @@ export async function GET({ params }) {
 			'Cache-Control': 'public'
 		}
 	});
+}
+
+export async function DELETE({ params }) {
+	await db.delete(images).where(eq(images.id, Number(params.id)));
+	return new Response(null, { status: 204 });
 }

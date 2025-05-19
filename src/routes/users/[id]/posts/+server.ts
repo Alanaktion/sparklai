@@ -5,7 +5,7 @@ import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { txt2img } from '$lib/server/sd/index.js';
 
-export async function POST({ params }) {
+export async function POST({ params, request }) {
 	const users_result = await db
 		.select()
 		.from(users)
@@ -64,22 +64,26 @@ export async function POST({ params }) {
 		});
 	});
 
-	history.push({ role: 'user', content: 'Write the next post for the user.' });
+	let prompt = 'Write the next post for the user.';
+	if (request.headers.get('Content-Type')?.includes('form')) {
+		const data = await request.formData();
+		if (data.has('prompt')) {
+			prompt += '\n\n' + data.get('prompt')?.toString();
+		}
+	}
+	history.push({ role: 'user', content: prompt });
 
 	const response = await schema_completion('post', null, history);
 
 	let img_id = null;
-	if (response.image_prompt) {
-		const pic = await txt2img(
-			response.image_generation.image_keywords,
-			response.image_generation?.image_negative_prompt
-		);
+	if (response.image_generation) {
+		const pic = await txt2img(response.image_generation.image_keywords);
 		const img_result = await db.insert(images).values({
 			user_id: user.id,
 			params: pic.params,
 			data: pic.data
 		});
-		img_id = img_result.lastInsertRowid;
+		img_id = Number(img_result.lastInsertRowid);
 	}
 
 	const insert_result = await db
