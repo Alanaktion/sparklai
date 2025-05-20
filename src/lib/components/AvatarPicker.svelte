@@ -17,7 +17,7 @@
 	}
 </script>
 
-<button type="button" class="group relative cursor-pointer" onclick={() => (open = true)}>
+<button type="button" class="group relative cursor-pointer min-w-24" onclick={() => (open = true)}>
 	<Avatar {user} class="size-24" />
 	<div
 		class="invisible absolute inset-0 flex items-center justify-center rounded-full bg-black/25 group-hover:visible group-focus:visible"

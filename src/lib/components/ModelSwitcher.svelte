@@ -32,7 +32,7 @@
 </script>
 
 <div
-	class="flex flex-col justify-center gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 sm:flex-row sm:items-center"
+	class="flex flex-col justify-center mx-4 gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 sm:flex-row sm:items-center"
 >
 	<LetterText class="text-slate-400 dark:text-slate-500" />
 	<Select bind:value={chat_model} class="max-w-3xs text-sm">
