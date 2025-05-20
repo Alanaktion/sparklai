@@ -112,7 +112,7 @@
 					</p>
 					<p class="whitespace-pre-wrap">{user.backstory_snippet}</p>
 				{:else if bio_tab == 'interests'}
-					<ul class="list-disc list-inside">
+					<ul class="list-inside list-disc">
 						{#each user.interests || [] as interest}
 							<li>{interest}</li>
 						{/each}

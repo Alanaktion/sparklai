@@ -16,12 +16,16 @@ export async function GET({ params }) {
 // Add a user message to the chat history
 export async function POST({ params, request }) {
 	const data = await request.formData();
+	const message = data.get('message');
+	if (message === null) {
+		return new Response(null, { status: 400 });
+	}
 	const result = await db
 		.insert(chats)
 		.values({
 			user_id: Number(params.user_id),
 			role: 'user',
-			body: data.get('message')?.toString()
+			body: message.toString()
 		})
 		.returning();
 	return json(result[0]);

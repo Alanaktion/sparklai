@@ -100,7 +100,9 @@
 				{/if}
 			</div>
 
-			<div class="sticky top-4 rounded bg-slate-50 shadow-lg shadow-slate-500/10 dark:shadow-slate-900/20 dark:bg-slate-900">
+			<div
+				class="sticky top-4 rounded bg-slate-50 shadow-lg shadow-slate-500/10 dark:bg-slate-900 dark:shadow-slate-900/20"
+			>
 				{#if users.length}
 					{#each users as user}
 						<div

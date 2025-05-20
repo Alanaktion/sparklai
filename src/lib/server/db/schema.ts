@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, blob, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
+import type { LlamaMessage } from '../chat';
 
 type Location = {
 	city: string;
@@ -103,7 +104,7 @@ export const chats = sqliteTable('chats', {
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
 	image_id: integer().references(() => images.id, { onDelete: 'set null' }),
-	role: text().notNull(),
+	role: text().notNull().$type<LlamaMessage['role']>(),
 	body: text().notNull(),
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });

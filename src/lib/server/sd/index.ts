@@ -29,8 +29,12 @@ type SDModel = {
 	hash: string;
 };
 export async function fetch_models(): Promise<SDModel[]> {
-	const response = await fetch(`${env.SD_URL}sd-models`);
-	return await response.json();
+	try {
+		const response = await fetch(`${env.SD_URL}sd-models`);
+		return await response.json();
+	} catch (_) {
+		return [];
+	}
 }
 
 export type SDImage = {

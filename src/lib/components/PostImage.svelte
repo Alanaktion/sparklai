@@ -7,12 +7,8 @@
 	let lightbox = $state(false);
 </script>
 
-<button
-	type="button"
-	onclick={() => (lightbox = true)}
-	class="block cursor-pointer"
->
-	<img src={src} alt="" class={imgClass} />
+<button type="button" onclick={() => (lightbox = true)} class="block cursor-pointer">
+	<img {src} alt="" class={imgClass} />
 </button>
 
 {#if lightbox}
@@ -28,6 +24,6 @@
 			'bg-slate-300/80 backdrop-blur-xs dark:bg-slate-900/80' // background
 		)}
 	>
-		<img src={src} alt="" />
+		<img {src} alt="" />
 	</button>
 {/if}
