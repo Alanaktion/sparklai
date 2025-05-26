@@ -23,14 +23,14 @@
 
 <!-- Customize container here -->
 <div
-	class="relative flex w-fit items-center rounded bg-slate-50 text-slate-950 dark:bg-slate-700 dark:text-slate-100"
+	class="relative flex w-fit items-center rounded bg-gray-50 text-gray-950 dark:bg-gray-700 dark:text-gray-100"
 >
 	<select
 		class={twMerge(
 			'w-fit py-1 pr-10 pl-2', // box sizing
-			'cursor-pointer appearance-none rounded border border-slate-300 dark:border-slate-600', // visual
-			'outline-0 outline-sky-500 hover:outline focus:outline', // outline
-			disabled && 'cursor-not-allowed bg-slate-200 text-slate-400 outline-none dark:bg-slate-800',
+			'cursor-pointer appearance-none rounded border border-gray-300 dark:border-gray-600', // visual
+			'outline-0 outline-blue-500 hover:outline focus:outline', // outline
+			disabled && 'cursor-not-allowed bg-gray-200 text-gray-400 outline-none dark:bg-gray-800',
 			className
 		)}
 		{disabled}
@@ -46,6 +46,6 @@
 <!-- Customize icon for indicator -->
 {#snippet ArrowDown()}
 	<ChevronDown
-		class="pointer-events-none absolute right-2 size-5 text-slate-400 dark:text-slate-600"
+		class="pointer-events-none absolute right-2 size-5 text-gray-400 dark:text-gray-600"
 	/>
 {/snippet}

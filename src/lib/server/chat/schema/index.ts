@@ -9,6 +9,5 @@ export const profile_image_system = ``;
 
 export const user_system = `Generate a realistic user profile as a JSON object, adhering to the provided schema for data types and constraints.`;
 
-export const user_themed = (
-	theme: string
-) => `Generate a realistic user profile as a JSON object, adhering to the provided schema for data types and constraints. The theme of the site is ${theme}.`;
+export const user_themed = (theme: string) =>
+	`Generate a realistic user profile as a JSON object, adhering to the provided schema for data types and constraints. The theme of the site is ${theme}.`;

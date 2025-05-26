@@ -17,7 +17,7 @@
 	}
 </script>
 
-<button type="button" class="group relative cursor-pointer min-w-24" onclick={() => (open = true)}>
+<button type="button" class="group relative min-w-24 cursor-pointer" onclick={() => (open = true)}>
 	<Avatar {user} class="size-24" />
 	<div
 		class="invisible absolute inset-0 flex items-center justify-center rounded-full bg-black/25 group-hover:visible group-focus:visible"
@@ -40,16 +40,23 @@
 					/>
 					<label
 						for={image.id}
-						class="block rounded-full opacity-75 ring-sky-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
+						class="relative block overflow-hidden rounded-full opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
 					>
-						<img src="/images/{image.id}" class="aspect-square rounded-full object-cover" alt="" />
+						<img
+							src="/images/{image.id}"
+							class={[
+								'aspect-square object-cover',
+								image.blur && 'blur-lg transition hover:blur-none'
+							]}
+							alt=""
+						/>
 					</label>
 				</div>
 			{/each}
 		</div>
 		<button
 			type="submit"
-			class="rounded-2xl px-3 py-2 text-sm leading-none text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+			class="rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 		>
 			Set image
 		</button>

@@ -1,18 +1,20 @@
 import type { LlamaMessage } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
 import { comments, posts, users } from '$lib/server/db/schema';
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { and, eq, sql } from 'drizzle-orm';
 import { completion } from '$lib/server/chat/index.js';
 
 // Generate a new comment on the post
-export async function POST({ params }) {
+export async function POST({ params, request }) {
 	const post_result = await db
 		.select()
 		.from(posts)
 		.where(eq(posts.id, Number(params.id)));
 	if (!post_result.length) {
-		return new Response(null, { status: 404 });
+		return error(404, {
+			message: 'Not found'
+		});
 	}
 
 	// Load post info
@@ -21,13 +23,20 @@ export async function POST({ params }) {
 	const author = author_result[0];
 
 	// Load a random user to write the new comment
-	const users_result = await db
-		.select()
-		.from(users)
-		.where(and(eq(users.is_active, true), eq(users.is_human, false)))
-		.orderBy(sql`random()`)
-		.limit(1);
-	const user = users_result[0];
+	const data = await request.json();
+	let user;
+	if (data && data.user_id) {
+		const users_result = await db.select().from(users).where(eq(users.id, data.user_id));
+		user = users_result[0];
+	} else {
+		const users_result = await db
+			.select()
+			.from(users)
+			.where(and(eq(users.is_active, true), eq(users.is_human, false)))
+			.orderBy(sql`random()`)
+			.limit(1);
+		user = users_result[0];
+	}
 
 	const is_own_post = user.id === author.id;
 	const history: LlamaMessage[] = [
@@ -60,13 +69,17 @@ export async function POST({ params }) {
 	});
 
 	const response = await completion(null, history);
-	const result = await db
-		.insert(comments)
-		.values({
-			post_id: post.id,
-			user_id: user.id,
-			body: response
+	const result = await db.insert(comments).values({
+		post_id: post.id,
+		user_id: user.id,
+		body: response
+	});
+	return json(
+		await db.query.comments.findFirst({
+			with: {
+				user: { columns: { id: true, name: true, image_id: true } }
+			},
+			where: eq(comments.id, result.lastInsertRowid)
 		})
-		.returning();
-	return json({ comment: result[0], user });
+	);
 }

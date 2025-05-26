@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { loadJson } from '$lib/api';
 	import Select from '$lib/components/base/select.svelte';
-	import { Image, LetterText } from 'lucide-svelte';
+	import ChatMultiple from '$lib/icons/ChatMultiple.svelte';
+	import Image from '$lib/icons/Image.svelte';
 
 	type ChatModel = {
 		id: string;
@@ -14,12 +14,14 @@
 	let chat_model = $state<ChatModel | null>(null);
 	let sd_models = $state<SDModel[]>([]);
 	let sd_model = $state<SDModel | null>(null);
-	loadJson('models').then((data) => {
-		chat_models = data.chat_models;
-		chat_model = data.chat_model;
-		sd_models = data.sd_models;
-		sd_model = data.sd_model;
-	});
+	fetch('/models')
+		.then((response) => response.json())
+		.then((data) => {
+			chat_models = data.chat_models;
+			chat_model = data.chat_model;
+			sd_models = data.sd_models;
+			sd_model = data.sd_model;
+		});
 	$effect(() => {
 		fetch('/models', {
 			method: 'post',
@@ -32,19 +34,23 @@
 </script>
 
 <div
-	class="flex flex-col justify-center mx-4 gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 sm:flex-row sm:items-center"
+	class="mx-4 flex flex-col justify-center gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 sm:flex-row sm:items-center"
 >
-	<LetterText class="text-slate-400 dark:text-slate-500" />
-	<Select bind:value={chat_model} class="max-w-3xs text-sm">
-		{#each chat_models as model}
-			<option value={model.id}>{model.id}</option>
-		{/each}
-	</Select>
+	{#if chat_models.length}
+		<ChatMultiple class="text-gray-400 dark:text-gray-500" />
+		<Select bind:value={chat_model} class="max-w-3xs text-sm">
+			{#each chat_models as model}
+				<option value={model.id}>{model.id}</option>
+			{/each}
+		</Select>
+	{/if}
 	<div class="sm:mx-2"></div>
-	<Image class="text-slate-400 dark:text-slate-500" />
-	<Select bind:value={sd_model} class="max-w-3xs text-sm">
-		{#each sd_models as model}
-			<option value={model.model_name}>{model.model_name}</option>
-		{/each}
-	</Select>
+	{#if sd_models.length}
+		<Image class="text-gray-400 dark:text-gray-500" />
+		<Select bind:value={sd_model} class="max-w-3xs text-sm">
+			{#each sd_models as model}
+				<option value={model.model_name}>{model.model_name}</option>
+			{/each}
+		</Select>
+	{/if}
 </div>

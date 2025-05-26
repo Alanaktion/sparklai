@@ -1,6 +1,6 @@
+import { schema_completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import { schema_completion } from '$lib/server/chat/index.js';
 import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 

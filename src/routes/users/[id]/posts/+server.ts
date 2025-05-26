@@ -1,19 +1,20 @@
+import { schema_completion, type LlamaMessage } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
 import { images, posts, users } from '$lib/server/db/schema';
-import { schema_completion, type LlamaMessage } from '$lib/server/chat/index.js';
-import { json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { txt2img } from '$lib/server/sd/index.js';
+import { error, json } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 
 export async function POST({ params, request }) {
-	const users_result = await db
-		.select()
-		.from(users)
-		.where(eq(users.id, Number(params.id)));
-	if (!users_result.length) {
-		return new Response(null, { status: 404 });
+	const user = await db.query.users.findFirst({
+		where: eq(users.id, Number(params.id)),
+		with: { posts: { columns: { id: true, created_at: true, body: true } } }
+	});
+	if (!user) {
+		return error(404, {
+			message: 'Not found'
+		});
 	}
-	const user = users_result[0];
 
 	const datetime = new Date().toLocaleString(undefined, {
 		weekday: 'long',
@@ -53,8 +54,7 @@ export async function POST({ params, request }) {
 			content
 		}
 	];
-	const posts_result = await db.select().from(posts).where(eq(posts.user_id, user.id));
-	posts_result.forEach((post) => {
+	user.posts.forEach((post) => {
 		history.push({
 			role: 'assistant',
 			content: JSON.stringify({

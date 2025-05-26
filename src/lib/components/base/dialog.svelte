@@ -23,23 +23,23 @@
 		class={twMerge(
 			'grid place-content-center', // layout
 			'fixed top-0 right-0 bottom-0 left-0 z-1000', // position
-			'bg-slate-300/80 backdrop-blur-xs dark:bg-slate-900/80' // background
+			'bg-gray-300/80 backdrop-blur-xs dark:bg-gray-900/80' // background
 		)}
 	>
 		<div
 			use:focusTrap
 			use:escapeKey={() => (open = false)}
 			class={twMerge(
-				'relative z-10', // layout and positioning
+				'relative z-10 max-h-[80vh] overflow-y-auto', // layout and positioning
 				'w-screen sm:w-max sm:min-w-md', // width
-				'bg-white text-left dark:bg-slate-900', // background and text
+				'bg-white text-left dark:bg-gray-900', // background and text
 				'shadow-md dark:shadow-none', // shadow
-				'border-y border-slate-300 p-4 sm:rounded sm:border dark:border-slate-800', // border
+				'border-y border-gray-300 p-4 sm:rounded sm:border dark:border-gray-800', // border
 				className // override
 			)}
 		>
 			<button
-				class="absolute top-4 right-4 cursor-pointer rounded p-1 outline-slate-400 hover:outline"
+				class="absolute top-4 right-4 cursor-pointer rounded p-1 outline-gray-400 hover:outline"
 				onclick={() => (open = false)}
 			>
 				{@render IconClose()}

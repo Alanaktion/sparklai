@@ -5,7 +5,7 @@ import post_image_schema from './schema/post_image.schema.json';
 import profile_image_schema from './schema/profile_image.schema.json';
 import user_schema from './schema/user.schema.json';
 
-import { post_system, post_image_system, profile_image_system, user_system } from './schema';
+import { post_image_system, post_system, profile_image_system, user_system } from './schema';
 
 if (!env.CHAT_URL) throw new Error('CHAT_URL is not set');
 

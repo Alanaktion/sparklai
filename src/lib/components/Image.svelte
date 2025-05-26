@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
-	import { twMerge } from 'tailwind-merge';
 	import { escapeKey } from '$lib/actions/escape-key.svelte';
 	import { Trash2 } from 'lucide-svelte';
+	import { fade, slide } from 'svelte/transition';
+	import { twMerge } from 'tailwind-merge';
 
 	let { image } = $props();
 	let params = $state(image.params);
@@ -20,9 +20,21 @@
 <button
 	type="button"
 	onclick={() => (lightbox = true)}
-	class={['cursor-pointer', deleted && 'opacity-25']}
+	class={['relative block cursor-pointer overflow-hidden', deleted && 'opacity-25']}
 >
-	<img src="/images/{image.id}" alt={params?.prompt} class="aspect-square w-full object-contain" />
+	<img
+		loading="lazy"
+		src="/images/{image.id}"
+		alt={params?.prompt}
+		class="aspect-square w-full object-contain"
+	/>
+	{#if image.blur}
+		<div
+			class={[
+				'group absolute inset-0 flex items-center justify-center backdrop-blur-xl transition hover:backdrop-blur-lg'
+			]}
+		></div>
+	{/if}
 </button>
 
 {#if lightbox}
@@ -35,7 +47,7 @@
 		class={twMerge(
 			'grid place-content-center', // layout
 			'fixed top-0 right-0 bottom-0 left-0 z-1000', // position
-			'bg-slate-300/80 backdrop-blur-xs dark:bg-slate-900/80' // background
+			'bg-gray-300/80 backdrop-blur-xs dark:bg-gray-900/80' // background
 		)}
 	>
 		<img src="/images/{image.id}" alt={params?.prompt} />

@@ -1,5 +1,4 @@
 import { env } from '$env/dynamic/private';
-import type { StableDiffusionParams } from '../db/schema';
 
 if (!env.SD_URL) throw new Error('SD_URL is not set');
 
@@ -8,6 +7,16 @@ const prompt_suffix = env.SD_PROMPT;
 const negative_prompt_suffix = env.SD_NEGATIVE_PROMPT;
 const steps = 20;
 const format = 'webp';
+
+// Only properties we actually care about will be defined here:
+export type StableDiffusionParams = {
+	prompt: string;
+	negative_prompt: string;
+	width: number;
+	height: number;
+	cfg_scale: number;
+	seed: number;
+};
 
 export async function init(new_model: string | null = null) {
 	await fetch(`${env.SD_URL}options`, {
@@ -32,7 +41,7 @@ export async function fetch_models(): Promise<SDModel[]> {
 	try {
 		const response = await fetch(`${env.SD_URL}sd-models`);
 		return await response.json();
-	} catch (_) {
+	} catch {
 		return [];
 	}
 }

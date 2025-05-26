@@ -1,7 +1,9 @@
-import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, blob, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
+import { relations, sql } from 'drizzle-orm';
+import { blob, integer, sqliteTable, text, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { LlamaMessage } from '../chat';
+import type { StableDiffusionParams } from '../sd';
 
+// Field Types
 type Location = {
 	city: string;
 	state_province: string;
@@ -40,16 +42,7 @@ type Appearance = {
 	accessories?: string[];
 };
 
-// Only properties we actually care about will be defined here:
-export type StableDiffusionParams = {
-	prompt: string;
-	negative_prompt: string;
-	width: number;
-	height: number;
-	cfg_scale: number;
-	seed: number;
-};
-
+// Models
 export const users = sqliteTable('users', {
 	id: integer().primaryKey(),
 	name: text().notNull(),
@@ -75,7 +68,8 @@ export const images = sqliteTable('images', {
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
 	params: text({ mode: 'json' }).$type<StableDiffusionParams>(),
-	data: blob().notNull()
+	data: blob({ mode: 'buffer' }).notNull(),
+	blur: integer({ mode: 'boolean' }).notNull().default(false)
 });
 
 export const posts = sqliteTable('posts', {
@@ -108,3 +102,63 @@ export const chats = sqliteTable('chats', {
 	body: text().notNull(),
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
+
+// Model relations
+export const userRelations = relations(users, ({ one, many }) => ({
+	image: one(images, {
+		fields: [users.image_id],
+		references: [images.id]
+	}),
+	posts: many(posts),
+	images: many(images),
+	comments: many(comments),
+	chats: many(chats)
+}));
+
+export const imageRelations = relations(images, ({ one }) => ({
+	user: one(users, {
+		fields: [images.user_id],
+		references: [users.id]
+	})
+}));
+
+export const postRelations = relations(posts, ({ one, many }) => ({
+	user: one(users, {
+		fields: [posts.user_id],
+		references: [users.id]
+	}),
+	image: one(images, {
+		fields: [posts.image_id],
+		references: [images.id]
+	}),
+	comments: many(comments)
+}));
+
+export const commentRelations = relations(comments, ({ one }) => ({
+	post: one(posts, {
+		fields: [comments.post_id],
+		references: [posts.id]
+	}),
+	user: one(users, {
+		fields: [comments.user_id],
+		references: [users.id]
+	})
+}));
+
+export const chatRelations = relations(chats, ({ one }) => ({
+	user: one(users, {
+		fields: [chats.user_id],
+		references: [users.id]
+	}),
+	image: one(images, {
+		fields: [chats.image_id],
+		references: [images.id]
+	})
+}));
+
+// Model Types
+export type UserType = typeof users.$inferSelect;
+export type ImageType = typeof images.$inferSelect;
+export type PostType = typeof posts.$inferSelect;
+export type CommentType = typeof comments.$inferSelect;
+export type ChatType = typeof chats.$inferSelect;

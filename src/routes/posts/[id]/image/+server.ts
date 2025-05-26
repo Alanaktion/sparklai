@@ -1,9 +1,9 @@
+import { schema_completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
 import { images, posts, users } from '$lib/server/db/schema';
-import { json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { txt2img } from '$lib/server/sd/index.js';
-import { schema_completion } from '$lib/server/chat/index.js';
+import { error, json } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 
 export async function POST({ params }) {
 	const posts_result = await db
@@ -11,7 +11,9 @@ export async function POST({ params }) {
 		.from(posts)
 		.where(eq(posts.id, Number(params.id)));
 	if (!posts_result.length) {
-		return new Response(null, { status: 404 });
+		return error(404, {
+			message: 'Not found'
+		});
 	}
 	const post = posts_result[0];
 	const users_result = await db.select().from(users).where(eq(users.id, post.user_id));

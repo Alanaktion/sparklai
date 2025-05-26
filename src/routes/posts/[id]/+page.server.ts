@@ -1,28 +1,34 @@
-import type { PageLoad } from './$types';
 import { db } from '$lib/server/db';
-import { users, posts, comments } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { images, posts, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
+import { and, eq } from 'drizzle-orm';
+import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {
 	const { id } = params;
-	const _post = (await db.select().from(posts).where(eq(posts.id, id)))[0];
-	if (!_post) {
+	const post = await db.query.posts.findFirst({
+		where: eq(posts.id, id),
+		with: {
+			image: { columns: { id: true, params: true, blur: true } },
+			comments: {
+				with: { user: true }
+			},
+			user: true
+		}
+	});
+	if (!post) {
 		error(404, 'Not Found');
 	}
-	const _comments = await db
-		.select({
-			comment: comments,
-			user: users
-		})
-		.from(comments)
-		.leftJoin(users, eq(users.id, comments.user_id))
-		.where(eq(comments.post_id, id));
-	const _users = await db.select().from(users).where(eq(users.id, _post.user_id));
 	return {
 		id,
-		post: _post,
-		comments: _comments,
-		user: _users[0]
+		post,
+		images: await db
+			.select({ id: images.id, blur: images.blur })
+			.from(images)
+			.where(eq(images.user_id, post.user_id)),
+		users: await db
+			.select()
+			.from(users)
+			.where(and(eq(users.is_active, true), eq(users.is_human, false)))
 	};
 };

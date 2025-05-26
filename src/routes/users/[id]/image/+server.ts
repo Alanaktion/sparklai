@@ -1,19 +1,19 @@
+import { completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
 import { images, users } from '$lib/server/db/schema';
-import { json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { txt2img } from '$lib/server/sd/index.js';
-import { completion } from '$lib/server/chat/index.js';
+import { error, json } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 
 export async function POST({ params, request }) {
-	const users_result = await db
-		.select()
-		.from(users)
-		.where(eq(users.id, Number(params.id)));
-	if (!users_result.length) {
-		return new Response(null, { status: 404 });
+	const user = await db.query.users.findFirst({
+		where: eq(users.id, Number(params.id))
+	});
+	if (!user) {
+		return error(404, {
+			message: 'User not found'
+		});
 	}
-	const user = users_result[0];
 
 	let image_prompt: string | undefined = '';
 	let set_user_image = false;

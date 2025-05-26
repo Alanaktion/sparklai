@@ -1,21 +1,21 @@
 import type { LlamaMessage } from '$lib/server/chat/index.js';
+import { completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
 import { chats, users } from '$lib/server/db/schema';
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { completion } from '$lib/server/chat/index.js';
 
 // Generate a new response to the conversation
 export async function POST({ params }) {
-	const user_result = await db
-		.select()
-		.from(users)
-		.where(eq(users.id, Number(params.user_id)));
-	if (!user_result.length) {
-		return new Response(null, { status: 404 });
+	const user = await db.query.users.findFirst({
+		where: eq(users.id, Number(params.id))
+	});
+	if (!user) {
+		return error(404, {
+			message: 'Not found'
+		});
 	}
 
-	const user = user_result[0];
 	const history: LlamaMessage[] = [
 		{
 			role: 'system',
@@ -30,7 +30,7 @@ export async function POST({ params }) {
 	const chat_result = await db
 		.select()
 		.from(chats)
-		.where(eq(chats.user_id, Number(params.user_id)));
+		.where(eq(chats.user_id, Number(params.id)));
 	chat_result.forEach((chat) => {
 		history.push({
 			role: chat.role,
@@ -42,7 +42,7 @@ export async function POST({ params }) {
 	const result = await db
 		.insert(chats)
 		.values({
-			user_id: Number(params.user_id),
+			user_id: Number(params.id),
 			role: 'assistant',
 			body: response
 		})

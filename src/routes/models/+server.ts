@@ -1,8 +1,14 @@
-import { fetch_models as fetch_chat_models, model as chat_model } from '$lib/server/chat';
-import { fetch_models as fetch_sd_models, model as sd_model } from '$lib/server/sd';
+import {
+	init as chat_init,
+	model as chat_model,
+	fetch_models as fetch_chat_models
+} from '$lib/server/chat';
+import {
+	fetch_models as fetch_sd_models,
+	init as sd_init,
+	model as sd_model
+} from '$lib/server/sd';
 import { json } from '@sveltejs/kit';
-import { init as chat_init } from '$lib/server/chat';
-import { init as sd_init } from '$lib/server/sd';
 
 export async function GET() {
 	return json({

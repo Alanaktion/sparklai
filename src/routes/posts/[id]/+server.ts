@@ -13,5 +13,5 @@ export async function PATCH({ params, request }) {
 		.update(posts)
 		.set(body)
 		.where(eq(posts.id, Number(params.id)));
-	return new Response(null);
+	return new Response();
 }

@@ -1,25 +1,27 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
-	import { Ellipsis, Loader, WandSparkles } from 'lucide-svelte';
 	import { browser } from '$app/environment';
-
+	import type { ChatType, UserType } from '$lib/server/db/schema';
+	import { Ellipsis, Loader } from 'lucide-svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 
-	import { loadJson } from '$lib/api';
-
 	import Avatar from '$lib/components/Avatar.svelte';
 	import ChatMessage from '$lib/components/ChatMessage.svelte';
+	import Send from '$lib/icons/Send.svelte';
+	import SlideTextSparkle from '$lib/icons/SlideTextSparkle.svelte';
 
-	let user = $state(data.user);
-	let chats = $state([]);
+	let user = $state<UserType>(data.user);
+	let chats = $state<ChatType[]>([]);
 	onMount(async () => {
-		loadJson(`chats/${user.id}`).then((body) => {
-			chats = body;
-		});
+		fetch(`/users/${user.id}/chat/messages`)
+			.then((response) => response.json())
+			.then((body) => {
+				chats = body;
+			});
 	});
 
-	let timeoutId: number;
+	let timeoutId: number | NodeJS.Timeout;
 	function debounce(callback: CallableFunction, delay = 5e3) {
 		return function () {
 			clearTimeout(timeoutId);
@@ -29,14 +31,15 @@
 		};
 	}
 	onDestroy(() => clearTimeout(timeoutId));
-	function change() {
-		// TODO: cancel handler if user starts typing again so they can queue up a few messages.
+	function onInput() {
+		// TODO: should user still respond after some period of inactivity?
 		clearTimeout(timeoutId);
 	}
 
 	function respond() {
 		responding = true;
-		loadJson(`chats/${user.id}/respond`, { method: 'POST' })
+		fetch(`/users/${user.id}/chat/respond`, { method: 'POST' })
+			.then((response) => response.json())
 			.then((body) => {
 				responding = false;
 				chats.push(body);
@@ -51,16 +54,18 @@
 	let message = $state('');
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
-		loadJson(`chats/${user.id}`, {
+		fetch(`/users/${user.id}/chat/messages`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
 			},
 			body: `message=${encodeURIComponent(message)}`
-		}).then((body) => {
-			chats.push(body);
-			debouncedResponse();
-		});
+		})
+			.then((response) => response.json())
+			.then((body) => {
+				chats.push(body);
+				debouncedResponse();
+			});
 		message = '';
 	}
 </script>
@@ -71,7 +76,7 @@
 
 {#if user}
 	<div
-		class="sticky top-0 my-2 flex flex-col items-center bg-white/80 py-2 backdrop-blur dark:bg-slate-800/80"
+		class="sticky top-0 my-2 flex flex-col items-center bg-white/80 py-2 backdrop-blur dark:bg-gray-900/80"
 	>
 		<Avatar {user} />
 		<a href="/users/{user.id}">{user.name}</a>
@@ -84,8 +89,8 @@
 			<ChatMessage {chat} />
 		{/each}
 		{#if responding}
-			<div class="self-start rounded-2xl bg-slate-50 px-3 pt-2 dark:bg-slate-900">
-				<Ellipsis class="size-6 animate-bounce text-slate-500" />
+			<div class="self-start rounded-2xl bg-gray-50 px-3 pt-2 dark:bg-gray-900">
+				<Ellipsis class="size-6 animate-bounce text-gray-500" />
 			</div>
 		{/if}
 	</div>
@@ -94,36 +99,38 @@
 		<form
 			bind:this={form}
 			onsubmit={submit}
-			class="sticky bottom-0 mt-6 flex items-center gap-2 bg-white/80 py-2 backdrop-blur dark:bg-slate-800/80"
+			class="sticky bottom-0 mt-6 flex items-center gap-2 bg-white/80 py-2 backdrop-blur dark:bg-gray-900/80"
 		>
 			{#if responding}
-				<Loader class="mx-1 size-4 animate-spin text-slate-600 dark:text-slate-400" />
+				<Loader class="mx-1 size-4 animate-spin text-gray-600 dark:text-gray-400" />
 			{:else}
 				<button
 					onclick={respond}
 					type="button"
-					class="rounded p-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+					class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 				>
 					<span class="sr-only">Add AI response</span>
-					<WandSparkles class="size-4" />
+					<SlideTextSparkle class="size-4" />
 				</button>
 			{/if}
+			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				autocomplete="off"
 				bind:value={message}
-				onchange={change}
+				oninput={onInput}
 				name="message"
 				autofocus
 				required
-				class="flex w-full rounded-2xl border border-slate-500 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-300 focus:border-sky-600 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:outline-none disabled:opacity-50 dark:placeholder:text-slate-600"
+				class="flex w-full rounded-2xl border border-gray-500 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-gray-300 focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none disabled:opacity-50 dark:placeholder:text-gray-600"
 				type="text"
 				placeholder="Message"
 			/>
 			<button
 				type="submit"
-				class="rounded-2xl px-2 py-1 text-sm text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-800"
+				class="rounded-2xl px-2 py-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 			>
-				Send
+				<Send class="size-6" />
+				<span class="sr-only">Send</span>
 			</button>
 		</form>
 	{/if}

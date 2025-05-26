@@ -1,20 +1,29 @@
-import type { PageLoad } from './$types';
 import { db } from '$lib/server/db';
-import { users, posts, images } from '$lib/server/db/schema';
+import { images, posts, users } from '$lib/server/db/schema';
+import { error } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
+import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {
 	const id = params.id;
+	const user = await db.query.users.findFirst({
+		where: eq(users.id, id)
+	});
+	if (!user) {
+		error(404, 'Not Found');
+	}
 	return {
 		id,
-		user: (await db.select().from(users).where(eq(users.id, id)))[0],
-		posts: await db
-			.select()
-			.from(posts)
-			.where(eq(posts.user_id, id))
-			.orderBy(desc(posts.created_at)),
+		user,
+		posts: await db.query.posts.findMany({
+			with: {
+				image: { columns: { id: true, params: true, blur: true } }
+			},
+			orderBy: desc(posts.created_at),
+			where: eq(posts.user_id, id)
+		}),
 		images: await db
-			.select({ id: images.id, params: images.params })
+			.select({ id: images.id, params: images.params, blur: images.blur })
 			.from(images)
 			.where(eq(images.user_id, id))
 	};

@@ -9,7 +9,7 @@ export async function GET({ params }) {
 		await db
 			.select()
 			.from(chats)
-			.where(eq(chats.user_id, Number(params.user_id)))
+			.where(eq(chats.user_id, Number(params.id)))
 	);
 }
 
@@ -23,7 +23,7 @@ export async function POST({ params, request }) {
 	const result = await db
 		.insert(chats)
 		.values({
-			user_id: Number(params.user_id),
+			user_id: Number(params.id),
 			role: 'user',
 			body: message.toString()
 		})

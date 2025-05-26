@@ -28,7 +28,7 @@
 </script>
 
 <button
-	class="cursor-pointer {active === value ? 'border-sky-500' : 'border-transparent'} border-b-2"
+	class="cursor-pointer {active === value ? 'border-blue-500' : 'border-transparent'} border-b-2"
 	type="button"
 	onclick={handleOnClick}
 	{disabled}
