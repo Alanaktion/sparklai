@@ -13,24 +13,25 @@
 	let chat_models = $state<ChatModel[]>([]);
 	let chat_model = $state<ChatModel | null>(null);
 	let sd_models = $state<SDModel[]>([]);
-	let sd_model = $state<SDModel | null>(null);
+	let sd_style = $state('photo');
 	fetch('/models')
 		.then((response) => response.json())
 		.then((data) => {
 			chat_models = data.chat_models;
 			chat_model = data.chat_model;
 			sd_models = data.sd_models;
-			sd_model = data.sd_model;
+			sd_style = data.sd_style;
 		});
-	$effect(() => {
+
+	function onchange() {
 		fetch('/models', {
 			method: 'post',
 			body: JSON.stringify({
 				chat_model,
-				sd_model
+				sd_style,
 			})
 		});
-	});
+	}
 </script>
 
 <div
@@ -38,7 +39,7 @@
 >
 	{#if chat_models.length}
 		<ChatMultiple class="text-gray-400 dark:text-gray-500" />
-		<Select bind:value={chat_model} class="max-w-3xs text-sm">
+		<Select bind:value={chat_model} onchange={onchange} class="max-w-60 text-sm">
 			{#each chat_models as model}
 				<option value={model.id}>{model.id}</option>
 			{/each}
@@ -47,10 +48,10 @@
 	<div class="sm:mx-2"></div>
 	{#if sd_models.length}
 		<Image class="text-gray-400 dark:text-gray-500" />
-		<Select bind:value={sd_model} class="max-w-3xs text-sm">
-			{#each sd_models as model}
-				<option value={model.model_name}>{model.model_name}</option>
-			{/each}
+		<Select bind:value={sd_style} onchange={onchange} class="max-w-40 text-sm">
+			<option value="photo">Photo</option>
+			<option value="drawing">Drawing</option>
+			<option value="stylized">Stylized</option>
 		</Select>
 	{/if}
 </div>

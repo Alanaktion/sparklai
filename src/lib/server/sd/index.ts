@@ -2,11 +2,28 @@ import { env } from '$env/dynamic/private';
 
 if (!env.SD_URL) throw new Error('SD_URL is not set');
 
-export let model = env.SD_MODEL;
-const prompt_suffix = env.SD_PROMPT;
-const negative_prompt_suffix = env.SD_NEGATIVE_PROMPT;
+export let model = env.SD_PHOTO_MODEL;
 const steps = 20;
 const format = 'webp';
+
+export const styles = {
+	photo: {
+		model: env.SD_PHOTO_MODEL,
+		prompt: env.SD_PHOTO_PROMPT,
+		negative_prompt: env.SD_PHOTO_NEGATIVE_PROMPT,
+	},
+	drawing: {
+		model: env.SD_DRAWING_MODEL,
+		prompt: env.SD_DRAWING_PROMPT,
+		negative_prompt: env.SD_DRAWING_NEGATIVE_PROMPT,
+	},
+	stylized: {
+		model: env.SD_STYLIZED_MODEL,
+		prompt: env.SD_STYLIZED_PROMPT,
+		negative_prompt: env.SD_STYLIZED_NEGATIVE_PROMPT,
+	},
+}
+export let style: keyof typeof styles = 'photo';
 
 // Only properties we actually care about will be defined here:
 export type StableDiffusionParams = {
@@ -30,6 +47,11 @@ export async function init(new_model: string | null = null) {
 		}
 	});
 	model = new_model || model;
+}
+
+export async function init_style(new_style: typeof style) {
+	style = new_style;
+	await init(styles[style].model);
 }
 
 type SDModel = {
@@ -68,13 +90,13 @@ export async function txt2img(
 	include_default_prompt = true
 ) {
 	const data = {
-		prompt: include_default_prompt ? `${prompt}\n${prompt_suffix}` : prompt,
+		prompt: include_default_prompt ? `${prompt}\n${styles[style].prompt}` : prompt,
 		negative_prompt: negative_prompt
 			? include_default_prompt
-				? `${negative_prompt}\n${negative_prompt_suffix}`
+				? `${negative_prompt}\n${styles[style].negative_prompt}`
 				: negative_prompt
 			: include_default_prompt
-				? negative_prompt_suffix
+				? styles[style].negative_prompt
 				: '',
 		num_inference_steps: steps,
 		height: height,

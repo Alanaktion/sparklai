@@ -26,6 +26,7 @@
 	let creating = $state(false);
 	let open = $state(false);
 	let prompt = $state('');
+	let aspect = $state('square');
 	const newPost = (e: Event) => {
 		e.preventDefault();
 		creating = true;
@@ -55,7 +56,7 @@
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
 			},
-			body: `prompt=${encodeURIComponent(prompt)}`
+			body: `prompt=${encodeURIComponent(prompt)}&aspect=${aspect}`
 		})
 			.then((response) => response.json())
 			.then((body) => {
@@ -154,6 +155,28 @@
 							class="flex w-full rounded border border-gray-300 bg-transparent px-2 py-1 text-sm shadow-sm transition-colors placeholder:text-gray-300 focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none disabled:opacity-50 dark:border-gray-500 dark:placeholder:text-gray-600"
 							placeholder="{tab == 'posts' ? 'Post' : 'Image'} prompt (optional)"
 						></textarea>
+						{#if tab == 'images'}
+							<div class="flex gap-2">
+								<label
+									class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
+								>
+									<input type="radio" class="sr-only" bind:group={aspect} value="square" />
+									Square
+								</label>
+								<label
+									class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
+								>
+									<input type="radio" class="sr-only" bind:group={aspect} value="landscape" />
+									Wide
+								</label>
+								<label
+									class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
+								>
+									<input type="radio" class="sr-only" bind:group={aspect} value="portrait" />
+									Tall
+								</label>
+							</div>
+						{/if}
 						{#if creating}
 							<Loader class="mx-auto my-2 size-4 animate-spin text-gray-600 dark:text-gray-400" />
 						{:else}

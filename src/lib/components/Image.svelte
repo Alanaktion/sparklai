@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { escapeKey } from '$lib/actions/escape-key.svelte';
+  import { hotkey } from '$lib/actions/hotkey.svelte';
 	import { Trash2 } from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
@@ -54,6 +55,7 @@
 	</button>
 	<button
 		onclick={deleteImage}
+		use:hotkey={{ code: 'Digit3', shiftKey: true, onKeydown: deleteImage }}
 		type="button"
 		class="fixed top-3 right-3 z-1000 rounded p-1 text-sm text-red-600 hover:bg-red-200/50 dark:text-red-400 dark:hover:bg-red-700/50"
 	>

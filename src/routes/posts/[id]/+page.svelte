@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { hotkey } from '$lib/actions/hotkey.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import DropdownOption from '$lib/components/base/dropdown-option.svelte';
 	import Dropdown from '$lib/components/base/dropdown.svelte';
@@ -99,6 +100,7 @@
 				{/if}
 				<button
 					onclick={deletePost}
+					use:hotkey={{ code: 'Digit3', shiftKey: true, onKeydown: deletePost }}
 					type="button"
 					class="rounded p-1 text-sm text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-800"
 				>

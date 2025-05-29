@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatISODate } from '$lib';
+	import { formatDate, localDateTime } from '$lib';
 	import CommentMultiple from '$lib/icons/CommentMultiple.svelte';
 	import { ChevronDown } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
@@ -62,8 +62,12 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-2 border-t border-gray-200 py-2 dark:border-gray-700">
-			<a href="/posts/{post.id}" class="mr-auto pr-4 text-sm text-gray-400">
-				{formatISODate(post.created_at)}
+			<a
+				href="/posts/{post.id}"
+				class="mr-auto pr-4 text-sm text-gray-400"
+				title={localDateTime(post.created_at)}
+			>
+				<time datetime={post.created_at}>{formatDate(post.created_at)}</time>
 			</a>
 			{#if !full}
 				<a

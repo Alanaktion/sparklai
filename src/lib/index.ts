@@ -1,6 +1,6 @@
-export function formatISODate(isoDate: string) {
+export function formatDate(isoDate: string) {
 	const now = new Date();
-	const date = new Date(`${isoDate}-00:00`);
+	const date = new Date(`${isoDate}Z`);
 
 	const seconds = (now.getTime() - date.getTime()) / 1000;
 	if (seconds < 60) {
@@ -17,4 +17,14 @@ export function formatISODate(isoDate: string) {
 		hour: 'numeric',
 		minute: '2-digit'
 	});
+}
+
+export function localDate(isoDate: string) {
+	const date = new Date(`${isoDate}Z`);
+	return date.toLocaleDateString();
+}
+
+export function localDateTime(isoDate: string) {
+	const date = new Date(`${isoDate}Z`);
+	return date.toLocaleString();
 }

@@ -15,12 +15,16 @@ export async function POST({ params, request }) {
 		});
 	}
 
+	let aspect_ratio: string | undefined = 'square';
 	let image_prompt: string | undefined = '';
 	let set_user_image = false;
 	if (request.headers.get('Content-Type')?.includes('form')) {
 		const data = await request.formData();
 		if (data.has('prompt')) {
 			image_prompt = data.get('prompt')?.toString();
+		}
+		if (data.has('aspect')) {
+			aspect_ratio = data.get('aspect')?.toString();
 		}
 	}
 	if (image_prompt === '' || typeof image_prompt === 'undefined') {
@@ -52,7 +56,17 @@ export async function POST({ params, request }) {
 		set_user_image = true;
 	}
 
-	const pic = await txt2img(image_prompt);
+	let width,
+		height = 512;
+	if (aspect_ratio === 'portrait') {
+		height = 640;
+		width = 480;
+	} else if (aspect_ratio === 'landscape') {
+		height = 480;
+		width = 640;
+	}
+
+	const pic = await txt2img(image_prompt, null, width, height);
 	const image_result = await db
 		.insert(images)
 		.values({

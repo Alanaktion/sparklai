@@ -27,7 +27,7 @@
 >
 	<select
 		class={twMerge(
-			'w-fit py-1 pr-10 pl-2', // box sizing
+			'w-fit py-1 pr-7 pl-2', // box sizing
 			'cursor-pointer appearance-none rounded border border-gray-300 dark:border-gray-600', // visual
 			'outline-0 outline-blue-500 hover:outline focus:outline', // outline
 			disabled && 'cursor-not-allowed bg-gray-200 text-gray-400 outline-none dark:bg-gray-800',

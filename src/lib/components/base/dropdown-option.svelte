@@ -27,12 +27,10 @@
 
 <button
 	class={twMerge(
-		'relative flex cursor-pointer items-center gap-2 rounded', // base
+		'relative flex cursor-pointer items-center gap-2 rounded outline-0', // base
 		'w-full py-1 pr-12 pl-3', // box model
-		'-outline-offset-1 outline-blue-500', // outline
-		'hover:bg-blue-500/10 hover:outline', // hover
-		'focus-visible:bg-blue-500/10 focus-visible:outline', // focus
-		'active:outline-2 active:-outline-offset-2', // active
+		'hover:bg-blue-200 dark:hover:bg-blue-900', // hover
+		'focus-visible:bg-blue-300 dark:focus-visible:bg-blue-800', // focus
 
 		variant === 'destructive' && [
 			'text-rose-500 outline-rose-500',

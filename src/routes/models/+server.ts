@@ -6,7 +6,9 @@ import {
 import {
 	fetch_models as fetch_sd_models,
 	init as sd_init,
-	model as sd_model
+	init_style as sd_init_style,
+	model as sd_model,
+	style as sd_style,
 } from '$lib/server/sd';
 import { json } from '@sveltejs/kit';
 
@@ -15,13 +17,18 @@ export async function GET() {
 		chat_models: await fetch_chat_models(),
 		chat_model,
 		sd_models: await fetch_sd_models(),
-		sd_model
+		sd_model,
+		sd_style,
 	});
 }
 
 export async function POST({ request }) {
 	const body = await request.json();
 	chat_init(body.chat_model);
-	await sd_init(body.sd_model);
+	if (body.sd_style) {
+		await sd_init_style(body.sd_style);
+	} else {
+		await sd_init(body.sd_model);
+	}
 	return new Response(null, { status: 204 });
 }
