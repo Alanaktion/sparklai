@@ -139,7 +139,7 @@
 								<DismissCircle class="size-4" />
 							</button>
 						</div>
-						<p>{comment.body}</p>
+						<p class="whitespace-pre-wrap">{comment.body}</p>
 					</div>
 				</div>
 			{/each}
