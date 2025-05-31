@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Select from '$lib/components/base/select.svelte';
-	import ChatMultiple from '$lib/icons/ChatMultiple.svelte';
-	import Image from '$lib/icons/Image.svelte';
+	import ChatMultiple from 'virtual:icons/fluent-color/chat-multiple-24';
+	import Image from 'virtual:icons/fluent-color/image-24';
 
 	type ChatModel = {
 		id: string;
@@ -14,6 +14,7 @@
 	let chat_model = $state<ChatModel | null>(null);
 	let sd_models = $state<SDModel[]>([]);
 	let sd_style = $state('photo');
+	let sd_model = $state<SDModel | null>(null);
 	fetch('/models')
 		.then((response) => response.json())
 		.then((data) => {
@@ -21,6 +22,7 @@
 			chat_model = data.chat_model;
 			sd_models = data.sd_models;
 			sd_style = data.sd_style;
+			sd_model = data.sd_model;
 		});
 
 	function onchange() {
@@ -28,9 +30,26 @@
 			method: 'post',
 			body: JSON.stringify({
 				chat_model,
-				sd_style,
+				sd_style
 			})
-		});
+		})
+			.then((response) => response.json())
+			.then((data) => {
+				sd_model = data.sd_model;
+			});
+	}
+	function onchange_sd() {
+		fetch('/models', {
+			method: 'post',
+			body: JSON.stringify({
+				chat_model,
+				sd_model
+			})
+		})
+			.then((response) => response.json())
+			.then((data) => {
+				sd_model = data.sd_model;
+			});
 	}
 </script>
 
@@ -39,7 +58,7 @@
 >
 	{#if chat_models.length}
 		<ChatMultiple class="text-gray-400 dark:text-gray-500" />
-		<Select bind:value={chat_model} onchange={onchange} class="max-w-60 text-sm">
+		<Select bind:value={chat_model} {onchange} class="max-w-60 text-sm">
 			{#each chat_models as model}
 				<option value={model.id}>{model.id}</option>
 			{/each}
@@ -48,10 +67,15 @@
 	<div class="sm:mx-2"></div>
 	{#if sd_models.length}
 		<Image class="text-gray-400 dark:text-gray-500" />
-		<Select bind:value={sd_style} onchange={onchange} class="max-w-40 text-sm">
+		<Select bind:value={sd_style} {onchange} class="max-w-40 text-sm">
 			<option value="photo">Photo</option>
 			<option value="drawing">Drawing</option>
 			<option value="stylized">Stylized</option>
+		</Select>
+		<Select bind:value={sd_model} onchange={onchange_sd} class="max-w-60 text-sm">
+			{#each sd_models as model}
+				<option value={model.model_name}>{model.model_name}</option>
+			{/each}
 		</Select>
 	{/if}
 </div>

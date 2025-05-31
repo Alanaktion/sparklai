@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { formatDate, localDateTime } from '$lib';
-	import CommentMultiple from '$lib/icons/CommentMultiple.svelte';
+	import CommentMultiple from 'virtual:icons/fluent-color/comment-multiple-24';
 	import { ChevronDown } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import Avatar from './Avatar.svelte';

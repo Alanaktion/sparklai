@@ -30,5 +30,9 @@ export async function POST({ request }) {
 	} else {
 		await sd_init(body.sd_model);
 	}
-	return new Response(null, { status: 204 });
+	return json({
+		chat_model,
+		sd_model,
+		sd_style,
+	});
 }

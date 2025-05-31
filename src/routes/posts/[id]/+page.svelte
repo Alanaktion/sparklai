@@ -7,9 +7,9 @@
 	import Dropdown from '$lib/components/base/dropdown.svelte';
 	import ImagePicker from '$lib/components/ImagePicker.svelte';
 	import Post from '$lib/components/Post.svelte';
-	import DismissCircle from '$lib/icons/DismissCircle.svelte';
-	import ImageOff from '$lib/icons/ImageOff.svelte';
-	import SlideTextSparkle from '$lib/icons/SlideTextSparkle.svelte';
+	import DismissCircle from 'virtual:icons/fluent-color/dismiss-circle-16';
+	import ImageOff from 'virtual:icons/fluent-color/image-off-24';
+	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
 	import { Loader } from 'lucide-svelte';
 
 	import type { PostType, UserType } from '$lib/server/db/schema';
@@ -47,6 +47,7 @@
 	let submitting = $state(false);
 	function submit(e: Event) {
 		e.preventDefault();
+		submitting = true;
 		fetch(`/posts/${data.id}/comments`, {
 			method: 'POST',
 			headers: {
@@ -177,13 +178,17 @@
 						placeholder="Comment"
 						required
 					/>
-					<button
-						disabled={submitting}
-						type="submit"
-						class="rounded-2xl px-2 py-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
-					>
-						Post
-					</button>
+					{#if submitting}
+						<Loader class="mx-auto my-2 size-4 animate-spin text-gray-600 dark:text-gray-400" />
+					{:else}
+						<button
+							disabled={submitting}
+							type="submit"
+							class="rounded-2xl px-2 py-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+						>
+							Post
+						</button>
+					{/if}
 				</form>
 			{/if}
 		</div>

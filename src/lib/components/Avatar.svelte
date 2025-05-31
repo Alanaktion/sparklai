@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Person from '$lib/icons/Person.svelte';
+	import Person from 'virtual:icons/fluent-color/person-24';
 	let { user, class: cls = 'size-12' } = $props();
 </script>
 

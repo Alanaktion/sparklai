@@ -21,6 +21,15 @@ export async function GET({ params }) {
 	});
 }
 
+export async function PATCH({ params, request }) {
+	const body = await request.json();
+	await db
+		.update(images)
+		.set(body)
+		.where(eq(images.id, Number(params.id)));
+	return new Response();
+}
+
 export async function DELETE({ params }) {
 	await db.delete(images).where(eq(images.id, Number(params.id)));
 	return new Response(null, { status: 204 });

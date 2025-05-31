@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { escapeKey } from '$lib/actions/escape-key.svelte';
-  import { hotkey } from '$lib/actions/hotkey.svelte';
-	import { Trash2 } from 'lucide-svelte';
+	import { hotkey } from '$lib/actions/hotkey.svelte';
+	import { Eclipse, Trash2 } from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 
@@ -14,6 +14,16 @@
 		fetch(`/images/${image.id}`, { method: 'DELETE' }).then(() => {
 			lightbox = false;
 			deleted = true;
+		});
+	}
+
+	let blur = $state(image.blur);
+	function toggleBlur() {
+		blur = !blur;
+		fetch(`/images/${image.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ blur })
 		});
 	}
 </script>
@@ -29,7 +39,7 @@
 		alt={params?.prompt}
 		class="aspect-square w-full object-contain"
 	/>
-	{#if image.blur}
+	{#if blur}
 		<div
 			class={[
 				'group absolute inset-0 flex items-center justify-center backdrop-blur-xl transition hover:backdrop-blur-lg'
@@ -52,6 +62,14 @@
 		)}
 	>
 		<img src="/images/{image.id}" alt={params?.prompt} />
+	</button>
+	<button
+		onclick={toggleBlur}
+		type="button"
+		class="fixed top-3 right-12 z-1000 rounded p-1 text-sm text-blue-600 hover:bg-blue-200/50 dark:text-blue-400 dark:hover:bg-blue-700/50"
+	>
+		<span class="sr-only">Toggle image blur</span>
+		<Eclipse class="size-4" />
 	</button>
 	<button
 		onclick={deleteImage}

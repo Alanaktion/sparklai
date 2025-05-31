@@ -32,9 +32,9 @@
 			class={twMerge(
 				'relative z-10 max-h-[80vh] overflow-y-auto', // layout and positioning
 				'w-screen sm:w-max sm:min-w-md', // width
-				'bg-white text-left dark:bg-gray-900', // background and text
+				'bg-white text-left dark:bg-gray-800', // background and text
 				'shadow-md dark:shadow-none', // shadow
-				'border-y border-gray-300 p-4 sm:rounded sm:border dark:border-gray-800', // border
+				'border-y border-gray-300 p-4 sm:rounded sm:border dark:border-gray-700', // border
 				className // override
 			)}
 		>

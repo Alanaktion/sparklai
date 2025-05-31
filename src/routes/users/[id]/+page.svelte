@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import type { ImageType, PostType, UserType } from '$lib/server/db/schema';
-	import { Loader } from 'lucide-svelte';
+	import { Loader, Ratio } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 
-	import Chat from '$lib/icons/Chat.svelte';
-	import ImageIcon from '$lib/icons/Image.svelte';
-	import SlideTextSparkle from '$lib/icons/SlideTextSparkle.svelte';
+	import Chat from 'virtual:icons/fluent-color/chat-24';
+	import ImageIcon from 'virtual:icons/fluent-color/image-24';
+	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
 
 	import TabsItem from '$lib/components/base/tabs-item.svelte';
 
@@ -156,7 +156,8 @@
 							placeholder="{tab == 'posts' ? 'Post' : 'Image'} prompt (optional)"
 						></textarea>
 						{#if tab == 'images'}
-							<div class="flex gap-2">
+							<div class="flex gap-2 items-center focus-within:ring rounded">
+								<Ratio class="size-4 text-gray-400 dark:text-gray-500" />
 								<label
 									class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
 								>
@@ -201,6 +202,11 @@
 				{#each images as image}
 					<Image {image} />
 				{/each}
+				{#if creating}
+					<div class="aspect-square flex w-full bg-gray-200 dark:bg-gray-800">
+						<Loader class="m-auto size-8 animate-spin text-gray-600 dark:text-gray-400" />
+					</div>
+				{/if}
 			</div>
 		{/if}
 	</section>

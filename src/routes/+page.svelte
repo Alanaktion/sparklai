@@ -5,7 +5,7 @@
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 
-	import PersonAdd from '$lib/icons/PersonAdd.svelte';
+	import PersonAdd from 'virtual:icons/fluent-color/person-add-24';
 
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Dialog from '$lib/components/base/dialog.svelte';
@@ -29,7 +29,7 @@
 			body: `prompt=${encodeURIComponent(user_prompt)}`
 		})
 			.then((response) => response.json())
-			.then((body: User) => {
+			.then((body: UserType) => {
 				creating = false;
 				open = false;
 				user_prompt = '';

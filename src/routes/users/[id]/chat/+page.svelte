@@ -8,8 +8,8 @@
 
 	import Avatar from '$lib/components/Avatar.svelte';
 	import ChatMessage from '$lib/components/ChatMessage.svelte';
-	import Send from '$lib/icons/Send.svelte';
-	import SlideTextSparkle from '$lib/icons/SlideTextSparkle.svelte';
+	import Send from 'virtual:icons/fluent-color/send-24';
+	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
 
 	let user = $state<UserType>(data.user);
 	let chats = $state<ChatType[]>([]);

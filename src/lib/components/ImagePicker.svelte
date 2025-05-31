@@ -1,6 +1,6 @@
 <script lang="ts">
-	import AddStarburst from '$lib/icons/AddStarburst.svelte';
-	import Image from '$lib/icons/Image.svelte';
+	import AddStarburst from 'virtual:icons/fluent-color/add-starburst-16';
+	import Image from 'virtual:icons/fluent-color/image-24';
 	import Dialog from './base/dialog.svelte';
 
 	const { post, images } = $props();
