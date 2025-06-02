@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import type { PostType, UserType } from '$lib/server/db/schema';
-	import { Loader } from 'lucide-svelte';
+	import Loader from 'virtual:icons/lucide/loader';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 

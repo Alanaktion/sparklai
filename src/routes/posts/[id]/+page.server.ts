@@ -10,6 +10,7 @@ export const load: PageLoad = async ({ params }) => {
 		where: eq(posts.id, id),
 		with: {
 			image: { columns: { id: true, params: true, blur: true } },
+			media: { columns: { id: true, type: true } },
 			comments: {
 				with: { user: true }
 			},

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { ChevronDown } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLSelectAttributes } from 'svelte/elements';
 	import { twMerge } from 'tailwind-merge';
+	import ChevronDown from 'virtual:icons/lucide/chevron-down';
 
 	type Props = {
 		children?: Snippet;

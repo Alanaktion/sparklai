@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatDate, localDateTime } from '$lib';
 	import CommentMultiple from 'virtual:icons/fluent-color/comment-multiple-24';
-	import { ChevronDown } from 'lucide-svelte';
+	import ChevronDown from 'virtual:icons/lucide/chevron-down';
 	import { onMount, tick } from 'svelte';
 	import Avatar from './Avatar.svelte';
 	import PostImage from './PostImage.svelte';
@@ -40,6 +40,17 @@
 					class="w-full rounded {imgClass}"
 				/>
 			</div>
+		{/if}
+		{#if post.media_id && post.media.type.startsWith('audio/')}
+			<audio controls class="block w-full mb-4">
+				<source src="/media/{post.media_id}" type={post.media.type} />
+			</audio>
+		{/if}
+		{#if post.media_id && post.media.type.startsWith('video/')}
+			<!-- svelte-ignore a11y_media_has_caption -->
+			<video controls class="block w-full mb-4">
+				<source src="/media/{post.media_id}" type={post.media.type} />
+			</video>
 		{/if}
 		<div
 			class={['relative mb-2', showExpand && !expanded && 'max-h-96 overflow-hidden']}

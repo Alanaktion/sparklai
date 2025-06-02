@@ -68,8 +68,19 @@ export const images = sqliteTable('images', {
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
 	params: text({ mode: 'json' }).$type<StableDiffusionParams>(),
+	type: text().notNull().default('image/webp'),
 	data: blob({ mode: 'buffer' }).notNull(),
 	blur: integer({ mode: 'boolean' }).notNull().default(false)
+});
+
+export const media = sqliteTable('media', {
+	id: integer().primaryKey(),
+	user_id: integer()
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	params: text({ mode: 'json' }),
+	type: text().notNull(),
+	data: blob({ mode: 'buffer' }).notNull()
 });
 
 export const posts = sqliteTable('posts', {
@@ -78,6 +89,7 @@ export const posts = sqliteTable('posts', {
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
 	image_id: integer().references(() => images.id, { onDelete: 'set null' }),
+	media_id: integer().references(() => media.id, { onDelete: 'set null' }),
 	body: text().notNull(),
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
@@ -111,15 +123,25 @@ export const userRelations = relations(users, ({ one, many }) => ({
 	}),
 	posts: many(posts),
 	images: many(images),
+	media: many(media),
 	comments: many(comments),
 	chats: many(chats)
 }));
 
-export const imageRelations = relations(images, ({ one }) => ({
+export const imageRelations = relations(images, ({ one, many }) => ({
 	user: one(users, {
 		fields: [images.user_id],
 		references: [users.id]
-	})
+	}),
+	posts: many(posts)
+}));
+
+export const mediaRelations = relations(media, ({ one, many }) => ({
+	user: one(users, {
+		fields: [media.user_id],
+		references: [users.id]
+	}),
+	posts: many(posts)
 }));
 
 export const postRelations = relations(posts, ({ one, many }) => ({
@@ -130,6 +152,10 @@ export const postRelations = relations(posts, ({ one, many }) => ({
 	image: one(images, {
 		fields: [posts.image_id],
 		references: [images.id]
+	}),
+	media: one(media, {
+		fields: [posts.media_id],
+		references: [media.id]
 	}),
 	comments: many(comments)
 }));

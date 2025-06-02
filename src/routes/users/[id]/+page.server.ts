@@ -17,7 +17,8 @@ export const load: PageLoad = async ({ params }) => {
 		user,
 		posts: await db.query.posts.findMany({
 			with: {
-				image: { columns: { id: true, params: true, blur: true } }
+				image: { columns: { id: true, params: true, blur: true } },
+				media: { columns: { id: true, type: true } }
 			},
 			orderBy: desc(posts.created_at),
 			where: eq(posts.user_id, id)

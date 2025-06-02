@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import type { ImageType, PostType, UserType } from '$lib/server/db/schema';
-	import { Loader, Ratio } from 'lucide-svelte';
+	import Loader from 'virtual:icons/lucide/loader';
+	import Ratio from 'virtual:icons/lucide/ratio';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 
@@ -156,7 +157,7 @@
 							placeholder="{tab == 'posts' ? 'Post' : 'Image'} prompt (optional)"
 						></textarea>
 						{#if tab == 'images'}
-							<div class="flex gap-2 items-center focus-within:ring rounded">
+							<div class="flex items-center gap-2 rounded focus-within:ring">
 								<Ratio class="size-4 text-gray-400 dark:text-gray-500" />
 								<label
 									class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
@@ -203,7 +204,7 @@
 					<Image {image} />
 				{/each}
 				{#if creating}
-					<div class="aspect-square flex w-full bg-gray-200 dark:bg-gray-800">
+					<div class="flex aspect-square w-full bg-gray-200 dark:bg-gray-800">
 						<Loader class="m-auto size-8 animate-spin text-gray-600 dark:text-gray-400" />
 					</div>
 				{/if}

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { escapeKey } from '$lib/actions/escape-key.svelte';
 	import { hotkey } from '$lib/actions/hotkey.svelte';
-	import { Eclipse, Trash2 } from 'lucide-svelte';
+	import Eclipse from 'virtual:icons/lucide/eclipse';
+	import Trash2 from 'virtual:icons/lucide/trash-2';
 	import { fade, slide } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 

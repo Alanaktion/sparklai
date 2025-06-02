@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import type { ChatType, UserType } from '$lib/server/db/schema';
-	import { Ellipsis, Loader } from 'lucide-svelte';
+	import Ellipsis from 'virtual:icons/lucide/ellipsis';
+	import Loader from 'virtual:icons/lucide/loader';
 	import { onDestroy, onMount } from 'svelte';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();

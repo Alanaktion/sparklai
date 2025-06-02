@@ -10,7 +10,7 @@
 	import DismissCircle from 'virtual:icons/fluent-color/dismiss-circle-16';
 	import ImageOff from 'virtual:icons/fluent-color/image-off-24';
 	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
-	import { Loader } from 'lucide-svelte';
+	import Loader from 'virtual:icons/lucide/loader';
 
 	import type { PostType, UserType } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';

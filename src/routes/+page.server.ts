@@ -7,7 +7,8 @@ export const load: PageLoad = async () => {
 	return {
 		posts: await db.query.posts.findMany({
 			with: {
-				image: { columns: { id: true, params: true, blur: true } }
+				image: { columns: { id: true, params: true, blur: true } },
+				media: { columns: { id: true, type: true } }
 			},
 			orderBy: desc(posts.created_at),
 			limit: 30

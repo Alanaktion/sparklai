@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Aperture } from 'lucide-svelte';
+	import Aperture from 'virtual:icons/lucide/aperture';
 	import Avatar from './Avatar.svelte';
 	import Dialog from './base/dialog.svelte';
 

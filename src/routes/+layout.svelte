@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import ModelSwitcher from '$lib/components/ModelSwitcher.svelte';
-	import { Sparkles } from 'lucide-svelte';
+	import Sparkles from 'virtual:icons/lucide/sparkles';
 	import '../app.css';
 
 	let { children } = $props();
