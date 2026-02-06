@@ -314,7 +314,7 @@
 					<!-- Personality Traits -->
 					<div class="grid gap-3">
 						<h3 class="font-semibold text-gray-800 dark:text-gray-200">
-							Personality Traits (1-5 scale)
+							Personality Traits (1-10 scale)
 						</h3>
 						<div class="grid gap-2">
 							<label class="flex items-center justify-between gap-2">
@@ -322,7 +322,7 @@
 								<input
 									type="number"
 									min="1"
-									max="5"
+									max="10"
 									step="0.1"
 									bind:value={user.personality_traits!.openness}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
@@ -333,7 +333,7 @@
 								<input
 									type="number"
 									min="1"
-									max="5"
+									max="10"
 									step="0.1"
 									bind:value={user.personality_traits!.conscientiousness}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
@@ -344,7 +344,7 @@
 								<input
 									type="number"
 									min="1"
-									max="5"
+									max="10"
 									step="0.1"
 									bind:value={user.personality_traits!.extraversion}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
@@ -355,7 +355,7 @@
 								<input
 									type="number"
 									min="1"
-									max="5"
+									max="10"
 									step="0.1"
 									bind:value={user.personality_traits!.agreeableness}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
@@ -366,7 +366,7 @@
 								<input
 									type="number"
 									min="1"
-									max="5"
+									max="10"
 									step="0.1"
 									bind:value={user.personality_traits!.neuroticism}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
