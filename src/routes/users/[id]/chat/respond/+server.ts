@@ -35,7 +35,14 @@ export async function POST({ params }) {
 			systemPrompt += `\nTheir interests: ${humanProfile.interests.join(', ')}`;
 		}
 		if (humanProfile.location) {
-			systemPrompt += `\nTheir location: ${humanProfile.location.city}, ${humanProfile.location.state_province}, ${humanProfile.location.country}`;
+			const locationParts = [
+				humanProfile.location.city,
+				humanProfile.location.state_province,
+				humanProfile.location.country
+			].filter(Boolean);
+			if (locationParts.length > 0) {
+				systemPrompt += `\nTheir location: ${locationParts.join(', ')}`;
+			}
 		}
 	}
 

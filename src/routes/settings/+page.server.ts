@@ -24,8 +24,11 @@ export const actions = {
 		if (!currentProfile) return fail(404, { message: 'Human user not found' });
 
 		const extractField = (fieldName: string) => formData.get(fieldName)?.toString() || null;
-		const parseAge = (ageStr: string | null) =>
-			ageStr ? parseInt(ageStr, 10) : currentProfile.age;
+		const parseAge = (ageStr: string | null) => {
+			if (!ageStr) return currentProfile.age;
+			const parsed = parseInt(ageStr, 10);
+			return isNaN(parsed) ? currentProfile.age : parsed;
+		};
 
 		const interestsList = extractField('interests');
 		const parsedInterests = interestsList
