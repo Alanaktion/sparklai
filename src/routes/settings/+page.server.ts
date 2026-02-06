@@ -13,7 +13,7 @@ export const load: PageServerLoad = async () => {
 	const profile = await fetchHumanProfile();
 	// Return null user if no human profile exists - the page will show empty form
 	return {
-		user: profile || null
+		user: profile ?? null
 	};
 };
 
