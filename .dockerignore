@@ -51,3 +51,7 @@ temp
 Dockerfile*
 docker-compose*
 .dockerignore
+
+# Stable Diffusion models and outputs
+/models
+/outputs
