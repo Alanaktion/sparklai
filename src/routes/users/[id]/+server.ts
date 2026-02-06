@@ -13,5 +13,15 @@ export async function PATCH({ params, request }) {
 		.update(users)
 		.set(body)
 		.where(eq(users.id, Number(params.id)));
-	return new Response(null);
+
+	// Return the updated user
+	const updatedUser = await db.query.users.findFirst({
+		where: eq(users.id, Number(params.id))
+	});
+
+	return new Response(JSON.stringify(updatedUser), {
+		headers: {
+			'Content-Type': 'application/json'
+		}
+	});
 }
