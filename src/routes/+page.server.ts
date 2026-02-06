@@ -1,9 +1,9 @@
 import { db } from '$lib/server/db';
 import { posts, users } from '$lib/server/db/schema';
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async () => {
+export const load: PageServerLoad = async () => {
 	const active_user_ids = db
 		.select({ id: users.id })
 		.from(users)

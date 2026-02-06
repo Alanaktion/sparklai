@@ -37,12 +37,14 @@ SparklAI is a fake social media site that generates all of its users, posts, ima
 ## Code Standards
 
 ### TypeScript
+
 - Use strict TypeScript mode (already enabled in `tsconfig.json`)
 - Never use `any` type - use proper typing or `unknown` when appropriate
 - Prefer type inference where possible
 - Export types that are used across modules
 
 ### Code Style
+
 - Use tabs for indentation (not spaces)
 - Use single quotes for strings
 - Maximum 100 characters per line
@@ -50,6 +52,7 @@ SparklAI is a fake social media site that generates all of its users, posts, ima
 - Let Prettier handle formatting (configured in `.prettierrc`)
 
 ### Svelte 5 Conventions
+
 - Use Svelte 5 runes syntax: `$state`, `$derived`, `$effect`, `$props`
 - Server-side code must stay in `src/lib/server/` or `+page.server.ts`/`+layout.server.ts` files
 - Never import `src/lib/server/*` code in client-side components
@@ -57,11 +60,13 @@ SparklAI is a fake social media site that generates all of its users, posts, ima
 - Follow SvelteKit's file-based routing conventions
 
 ### Styling
+
 - Use Tailwind CSS utility classes (v4 syntax)
 - Avoid custom CSS unless absolutely necessary
 - Tailwind class ordering is handled automatically by prettier-plugin-tailwindcss
 
 ### Database (Drizzle ORM)
+
 - All database operations use Drizzle ORM
 - Schema definitions are in `src/lib/server/db/schema.ts`
 - After schema changes, run `pnpm run db:push` to sync with the database
@@ -70,6 +75,7 @@ SparklAI is a fake social media site that generates all of its users, posts, ima
 ## Environment Setup
 
 Copy `.env.example` to `.env` and configure:
+
 - `DATABASE_URL` - Database connection (default: `file:local.db`)
 - `CHAT_URL`, `CHAT_MODEL` - LLM API configuration (OpenAI-compatible endpoint)
 - `SD_URL`, `SD_*_MODEL`, `SD_*_PROMPT` - Stable Diffusion API configuration
@@ -87,16 +93,19 @@ Copy `.env.example` to `.env` and configure:
 ## AI Integration (Key Modules)
 
 ### LLM Chat (`src/lib/server/chat/`)
+
 - Uses OpenAI-compatible API for Llama models
 - Functions: `completion()`, `schema_completion()`
 - Generates user posts, comments, and messages based on user personality/context
 
 ### Image Generation (`src/lib/server/sd/`)
+
 - Stable Diffusion via HTTP API
 - Function: `txt2img()`
 - Supports photo, drawing, and stylized models (configured via environment)
 
 ### Content Generation Pattern
+
 - User profiles have personality traits, interests, writing style, backstory
 - Generated content respects these user characteristics
 - Context includes location, occupation, relationship status
@@ -104,6 +113,7 @@ Copy `.env.example` to `.env` and configure:
 ## Common Code Patterns
 
 **Database query with Drizzle ORM:**
+
 ```typescript
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
@@ -113,15 +123,15 @@ const user = await db.select().from(users).where(eq(users.id, userId));
 ```
 
 **LLM completion for content generation:**
+
 ```typescript
 import { completion } from '$lib/server/chat';
 
-const response = await completion([
-	{ role: 'user', content: 'Generate a post...' }
-]);
+const response = await completion([{ role: 'user', content: 'Generate a post...' }]);
 ```
 
 **Svelte 5 component with runes:**
+
 ```svelte
 <script lang="ts">
 	let count = $state(0);
@@ -142,6 +152,7 @@ const response = await completion([
 ## Future Roadmap
 
 When implementing features, consider these planned improvements:
+
 - Defining relationships between specific users (friends, followers)
 - Human user profile customization
 - Multiple AI models with automatic selection based on task

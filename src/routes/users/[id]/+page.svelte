@@ -10,6 +10,7 @@
 	import ImageIcon from 'virtual:icons/fluent-color/image-24';
 	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
 
+	import Avatar from '$lib/components/Avatar.svelte';
 	import TabsItem from '$lib/components/base/tabs-item.svelte';
 
 	import AvatarPicker from '$lib/components/AvatarPicker.svelte';
@@ -23,6 +24,12 @@
 	let user = $state<UserType>(data.user);
 	let posts = $state<PostType[]>(data.posts);
 	let images = $state<Partial<ImageType>[]>(data.images);
+	let followers = $state<
+		Array<{ id: number; name: string; pronouns: string; image_id: number | null }>
+	>(data.followers);
+	let following = $state<
+		Array<{ id: number; name: string; pronouns: string; image_id: number | null }>
+	>(data.following);
 
 	let creating = $state(false);
 	let open = $state(false);
@@ -106,6 +113,7 @@
 			<TabsItem bind:active={bio_tab} value="bio">Bio</TabsItem>
 			<TabsItem bind:active={bio_tab} value="detail">Detail</TabsItem>
 			<TabsItem bind:active={bio_tab} value="interests">Interests</TabsItem>
+			<TabsItem bind:active={bio_tab} value="relationships">Relationships</TabsItem>
 		</div>
 		<div class="font-sm grid gap-1 py-4 text-gray-700 dark:text-gray-400">
 			{#if bio_tab == 'bio'}
@@ -124,6 +132,59 @@
 						<li>{interest}</li>
 					{/each}
 				</ul>
+			{:else if bio_tab == 'relationships'}
+				<div class="grid gap-4 md:grid-cols-2">
+					<div>
+						<h3 class="mb-2 font-semibold text-gray-800 dark:text-gray-200">
+							Followers ({followers.length})
+						</h3>
+						{#if followers.length > 0}
+							<div class="grid gap-2">
+								{#each followers as follower}
+									<a
+										href="/users/{follower.id}"
+										class="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+									>
+										<Avatar user={follower} class="size-8" />
+										<div>
+											<div class="text-sm font-medium text-gray-800 dark:text-gray-200">
+												{follower.name}
+											</div>
+											<div class="text-xs text-gray-500">{follower.pronouns}</div>
+										</div>
+									</a>
+								{/each}
+							</div>
+						{:else}
+							<p class="text-sm text-gray-500">No followers yet</p>
+						{/if}
+					</div>
+					<div>
+						<h3 class="mb-2 font-semibold text-gray-800 dark:text-gray-200">
+							Following ({following.length})
+						</h3>
+						{#if following.length > 0}
+							<div class="grid gap-2">
+								{#each following as followed}
+									<a
+										href="/users/{followed.id}"
+										class="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+									>
+										<Avatar user={followed} class="size-8" />
+										<div>
+											<div class="text-sm font-medium text-gray-800 dark:text-gray-200">
+												{followed.name}
+											</div>
+											<div class="text-xs text-gray-500">{followed.pronouns}</div>
+										</div>
+									</a>
+								{/each}
+							</div>
+						{:else}
+							<p class="text-sm text-gray-500">Not following anyone</p>
+						{/if}
+					</div>
+				</div>
 			{/if}
 		</div>
 	</section>

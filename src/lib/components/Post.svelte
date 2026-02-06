@@ -42,13 +42,13 @@
 			</div>
 		{/if}
 		{#if post.media_id && post.media.type.startsWith('audio/')}
-			<audio controls class="block w-full mb-4">
+			<audio controls class="mb-4 block w-full">
 				<source src="/media/{post.media_id}" type={post.media.type} />
 			</audio>
 		{/if}
 		{#if post.media_id && post.media.type.startsWith('video/')}
 			<!-- svelte-ignore a11y_media_has_caption -->
-			<video controls class="block w-full mb-4">
+			<video controls class="mb-4 block w-full">
 				<source src="/media/{post.media_id}" type={post.media.type} />
 			</video>
 		{/if}

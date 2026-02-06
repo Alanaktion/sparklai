@@ -1,7 +1,7 @@
 import type { LlamaMessage } from '$lib/server/chat/index.js';
 import { completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
-import { chats, users } from '$lib/server/db/schema';
+import { chats, relationships, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
@@ -16,6 +16,23 @@ export async function POST({ params }) {
 		});
 	}
 
+	// Get relationships for context
+	const followingData = await db
+		.select({
+			name: users.name,
+			pronouns: users.pronouns
+		})
+		.from(relationships)
+		.innerJoin(users, eq(relationships.following_id, users.id))
+		.where(eq(relationships.follower_id, Number(params.id)))
+		.limit(5);
+
+	let relationshipContext = '';
+	if (followingData.length > 0) {
+		const followingNames = followingData.map((u) => `${u.name} (${u.pronouns})`).join(', ');
+		relationshipContext = `\nYou follow: ${followingNames}`;
+	}
+
 	const history: LlamaMessage[] = [
 		{
 			role: 'system',
@@ -23,7 +40,8 @@ export async function POST({ params }) {
 				`You are ${user.name} (${user.pronouns}), having an IM conversation.\n` +
 				`Your bio: ${user.bio}\n` +
 				`Writing style: ${JSON.stringify(user.writing_style)}\n` +
-				'Do not include any roleplay metatext, just write the actual response.'
+				relationshipContext +
+				'\nDo not include any roleplay metatext, just write the actual response.'
 		}
 	];
 

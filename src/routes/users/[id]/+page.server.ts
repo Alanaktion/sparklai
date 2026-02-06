@@ -1,19 +1,44 @@
 import { db } from '$lib/server/db';
-import { images, posts, users } from '$lib/server/db/schema';
+import { images, posts, relationships, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
-	const id = params.id;
+export const load: PageServerLoad = async ({ params }) => {
+	const id = Number(params.id);
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, id)
 	});
 	if (!user) {
 		error(404, 'Not Found');
 	}
+
+	// Get followers (users who follow this user)
+	const followersData = await db
+		.select({
+			id: users.id,
+			name: users.name,
+			pronouns: users.pronouns,
+			image_id: users.image_id
+		})
+		.from(relationships)
+		.innerJoin(users, eq(relationships.follower_id, users.id))
+		.where(eq(relationships.following_id, id));
+
+	// Get following (users this user follows)
+	const followingData = await db
+		.select({
+			id: users.id,
+			name: users.name,
+			pronouns: users.pronouns,
+			image_id: users.image_id
+		})
+		.from(relationships)
+		.innerJoin(users, eq(relationships.following_id, users.id))
+		.where(eq(relationships.follower_id, id));
+
 	return {
-		id,
+		id: params.id,
 		user,
 		posts: await db.query.posts.findMany({
 			with: {
@@ -26,6 +51,8 @@ export const load: PageLoad = async ({ params }) => {
 		images: await db
 			.select({ id: images.id, params: images.params, blur: images.blur })
 			.from(images)
-			.where(eq(images.user_id, id))
+			.where(eq(images.user_id, id)),
+		followers: followersData,
+		following: followingData
 	};
 };
