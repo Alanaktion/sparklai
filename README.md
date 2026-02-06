@@ -18,22 +18,50 @@ Do the thing first with `pnpm run db:push` to database it up.
 
 The default `docker-compose.yml` includes everything you need to run SparklAI with Ollama and Stable Diffusion:
 
-1. Start all services:
+1. Download a Stable Diffusion model (first time only):
+   
+   The Stable Diffusion service requires at least one model file to be present before starting. You can download a model from Hugging Face:
+   
+   ```bash
+   # Create the models directory
+   docker volume create sd-models
+   
+   # Download a model (e.g., Stable Diffusion v1.5)
+   # Option 1: Using a temporary container to download
+   docker run --rm -v sd-models:/models alpine sh -c "\
+     apk add --no-cache wget && \
+     wget -O /models/Stable-diffusion/v1-5-pruned-emaonly.safetensors \
+     https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
+   
+   # Option 2: Download locally and copy to volume
+   # Download the model to your current directory first:
+   wget https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors
+   # Then copy to the volume:
+   docker run --rm -v sd-models:/models -v $(pwd):/host alpine \
+     sh -c "mkdir -p /models/Stable-diffusion && cp /host/v1-5-pruned-emaonly.safetensors /models/Stable-diffusion/"
+   ```
+   
+   Alternative models you can use:
+   - [Stable Diffusion v1.5](https://huggingface.co/runwayml/stable-diffusion-v1-5)
+   - [Stable Diffusion v2.1](https://huggingface.co/stabilityai/stable-diffusion-2-1)
+   - [Dreamshaper](https://huggingface.co/Lykon/DreamShaper) (recommended for better results)
+
+2. Start all services:
    ```bash
    docker compose up -d
    ```
 
-2. Pull the Ollama model (first time only):
+3. Pull the Ollama model (first time only):
    ```bash
    docker compose exec ollama ollama pull llama3.1:8b
    ```
 
-3. Initialize the database (first time only):
+4. Initialize the database (first time only):
    ```bash
    docker compose exec app sh -c "pnpm run db:push"
    ```
 
-4. Access the application at http://localhost:3000
+5. Access the application at http://localhost:3000
 
 **Note:** The Stable Diffusion service requires an NVIDIA GPU by default. If you don't have a GPU, edit `docker-compose.yml` and remove the `deploy.resources.reservations` section for the `stable-diffusion` service.
 

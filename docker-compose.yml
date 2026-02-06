@@ -12,8 +12,8 @@ services:
   stable-diffusion:
     image: universonic/stable-diffusion-webui:latest
     volumes:
-      - sd-data:/data
-      - sd-output:/output
+      - sd-models:/app/stable-diffusion-webui/models
+      - sd-outputs:/app/stable-diffusion-webui/outputs
     ports:
       - "7860:7860"
     restart: unless-stopped
@@ -68,5 +68,5 @@ services:
 volumes:
   sparklai-data:
   ollama-data:
-  sd-data:
-  sd-output:
+  sd-models:
+  sd-outputs:
