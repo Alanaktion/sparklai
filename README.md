@@ -9,6 +9,7 @@ Do the thing first with `pnpm run db:push` to database it up.
 ## Docker Deployment
 
 **Important:** The LLM and Stable Diffusion services must be accessible from within the Docker container. They cannot use `localhost` - use one of these options:
+
 - **Included services** (default): The `docker-compose.yml` includes Ollama and Stable Diffusion services
 - **Host services**: Use `host.docker.internal:PORT` to access services running on your host machine
 - **External services**: Use third-party API endpoints (e.g., `https://api.openai.com/v1/` for OpenAI)
@@ -19,36 +20,40 @@ Do the thing first with `pnpm run db:push` to database it up.
 The default `docker-compose.yml` includes everything you need to run SparklAI with Ollama and Stable Diffusion:
 
 1. Download a Stable Diffusion model (first time only):
-   
+
    The Stable Diffusion service requires at least one model file to be present before starting. Download a model from Hugging Face to your local `models` directory:
-   
+
    ```bash
    # Create the models directory structure
    mkdir -p models/Stable-diffusion
-   
+
    # Download a model (e.g., Stable Diffusion v1.5)
    wget -O models/Stable-diffusion/v1-5-pruned-emaonly.safetensors \
      https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors
    ```
-   
+
    Alternative models you can use:
+
    - [Stable Diffusion v1.5](https://huggingface.co/runwayml/stable-diffusion-v1-5) - Good general-purpose model
    - [Stable Diffusion v2.1](https://huggingface.co/stabilityai/stable-diffusion-2-1) - Improved version
    - [Dreamshaper](https://huggingface.co/Lykon/DreamShaper) - Recommended for better, more artistic results
-   
+
    **Note:** Models are large files (2-7GB). Download time will vary based on your internet connection.
 
 2. Start all services:
+
    ```bash
    docker compose up -d
    ```
 
 3. Pull the Ollama model (first time only):
+
    ```bash
    docker compose exec ollama ollama pull llama3.1:8b
    ```
 
 4. Initialize the database (first time only):
+
    ```bash
    docker compose exec app sh -c "pnpm run db:push"
    ```
@@ -62,11 +67,13 @@ The default `docker-compose.yml` includes everything you need to run SparklAI wi
 If you want to use external or host-based services instead of the included ones:
 
 1. Copy `.env.docker.example` to `.env` and configure your environment variables:
+
    ```bash
    cp .env.docker.example .env
    ```
 
 2. Edit `.env` to point to your LLM and Stable Diffusion services:
+
    - `CHAT_URL`: Your LLM API endpoint
      - For services on host: `http://host.docker.internal:1234/v1/`
      - For OpenAI: `https://api.openai.com/v1/` (set `OPENAI_API_KEY` as well)
@@ -75,11 +82,13 @@ If you want to use external or host-based services instead of the included ones:
      - For external API: Use the full URL of your SD service
 
 3. Start only the app service:
+
    ```bash
    docker compose up -d app
    ```
 
 4. Initialize the database (first time only):
+
    ```bash
    docker compose exec app sh -c "pnpm run db:push"
    ```
@@ -89,11 +98,13 @@ If you want to use external or host-based services instead of the included ones:
 ### Using Docker Only
 
 1. Build the Docker image:
+
    ```bash
    docker build -t sparklai .
    ```
 
 2. Run the container:
+
    ```bash
    docker run -d \
      -p 3000:3000 \
@@ -127,6 +138,7 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 This configuration includes:
+
 - Environment file support (`.env`)
 - Health checks
 - Security options (no-new-privileges)

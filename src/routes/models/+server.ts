@@ -8,7 +8,7 @@ import {
 	init as sd_init,
 	init_style as sd_init_style,
 	model as sd_model,
-	style as sd_style,
+	style as sd_style
 } from '$lib/server/sd';
 import { json } from '@sveltejs/kit';
 
@@ -18,7 +18,7 @@ export async function GET() {
 		chat_model,
 		sd_models: await fetch_sd_models(),
 		sd_model,
-		sd_style,
+		sd_style
 	});
 }
 
@@ -33,6 +33,6 @@ export async function POST({ request }) {
 	return json({
 		chat_model,
 		sd_model,
-		sd_style,
+		sd_style
 	});
 }

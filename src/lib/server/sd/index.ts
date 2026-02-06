@@ -10,19 +10,19 @@ export const styles = {
 	photo: {
 		model: env.SD_PHOTO_MODEL,
 		prompt: env.SD_PHOTO_PROMPT,
-		negative_prompt: env.SD_PHOTO_NEGATIVE_PROMPT,
+		negative_prompt: env.SD_PHOTO_NEGATIVE_PROMPT
 	},
 	drawing: {
 		model: env.SD_DRAWING_MODEL,
 		prompt: env.SD_DRAWING_PROMPT,
-		negative_prompt: env.SD_DRAWING_NEGATIVE_PROMPT,
+		negative_prompt: env.SD_DRAWING_NEGATIVE_PROMPT
 	},
 	stylized: {
 		model: env.SD_STYLIZED_MODEL,
 		prompt: env.SD_STYLIZED_PROMPT,
-		negative_prompt: env.SD_STYLIZED_NEGATIVE_PROMPT,
-	},
-}
+		negative_prompt: env.SD_STYLIZED_NEGATIVE_PROMPT
+	}
+};
 export let style: keyof typeof styles = 'photo';
 
 // Only properties we actually care about will be defined here:
@@ -87,8 +87,14 @@ export async function txt2img(
 	negative_prompt: string | null = null,
 	width = 512,
 	height = 512,
-	include_default_prompt = true
+	include_default_prompt = true,
+	image_style: keyof typeof styles = 'photo'
 ) {
+	// Switch to the requested style/model if needed
+	if (image_style !== style) {
+		await init_style(image_style);
+	}
+
 	const data = {
 		prompt: include_default_prompt ? `${prompt}\n${styles[style].prompt}` : prompt,
 		negative_prompt: negative_prompt
