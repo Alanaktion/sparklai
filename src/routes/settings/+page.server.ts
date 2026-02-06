@@ -42,11 +42,11 @@ export const actions = {
 		};
 
 		const locationObj =
-			locationParts.cityValue && locationParts.stateValue && locationParts.countryValue
+			locationParts.cityValue || locationParts.stateValue || locationParts.countryValue
 				? {
-						city: locationParts.cityValue,
-						state_province: locationParts.stateValue,
-						country: locationParts.countryValue
+						city: locationParts.cityValue || '',
+						state_province: locationParts.stateValue || '',
+						country: locationParts.countryValue || ''
 					}
 				: null;
 
