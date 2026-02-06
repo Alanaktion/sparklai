@@ -1,4 +1,12 @@
 {
-	"python.analysis.typeCheckingMode": "standard",
-	"editor.tabSize": 2
+	"editor.tabSize": 2,
+	"sqltools.useNodeRuntime": true,
+	"sqltools.connections": [
+		{
+			"previewLimit": 50,
+			"driver": "SQLite",
+			"name": "sparklai",
+			"database": "${workspaceFolder:sparklai}/local.db"
+		}
+	]
 }
