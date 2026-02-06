@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -12,8 +12,10 @@ async function fetchHumanProfile() {
 
 export const load: PageServerLoad = async () => {
 	const profile = await fetchHumanProfile();
-	if (!profile) error(404, 'Human user not found');
-	return { user: profile };
+	// Return null user if no human profile exists - the page will show empty form
+	return {
+		user: profile || null
+	};
 };
 
 export const actions = {
@@ -21,13 +23,11 @@ export const actions = {
 		const formData = await request.formData();
 		const currentProfile = await fetchHumanProfile();
 
-		if (!currentProfile) return fail(404, { message: 'Human user not found' });
-
 		const extractField = (fieldName: string) => formData.get(fieldName)?.toString() || null;
-		const parseAge = (ageStr: string | null) => {
-			if (!ageStr) return currentProfile.age;
+		const parseAge = (ageStr: string | null, defaultAge: number = 25) => {
+			if (!ageStr) return defaultAge;
 			const parsed = parseInt(ageStr, 10);
-			return isNaN(parsed) ? currentProfile.age : parsed;
+			return isNaN(parsed) ? defaultAge : parsed;
 		};
 
 		const interestsList = extractField('interests');
@@ -53,18 +53,30 @@ export const actions = {
 					}
 				: null;
 
-		const updatedFields = {
-			name: extractField('name') || currentProfile.name,
-			age: parseAge(extractField('age')),
-			pronouns: extractField('pronouns') || currentProfile.pronouns,
+		const name = extractField('name') || (currentProfile?.name ?? 'You');
+		const age = parseAge(extractField('age'), currentProfile?.age ?? 25);
+		const pronouns = extractField('pronouns') || (currentProfile?.pronouns ?? 'they/them');
+
+		const fieldsToSave = {
+			name,
+			age,
+			pronouns,
 			bio: extractField('bio'),
 			location: locationObj,
 			occupation: extractField('occupation'),
 			interests: parsedInterests,
-			relationship_status: extractField('relationship_status')
+			relationship_status: extractField('relationship_status'),
+			is_human: true
 		};
 
-		await db.update(users).set(updatedFields).where(eq(users.id, currentProfile.id));
+		if (currentProfile) {
+			// Update existing human user
+			await db.update(users).set(fieldsToSave).where(eq(users.id, currentProfile.id));
+		} else {
+			// Create new human user if none exists
+			await db.insert(users).values(fieldsToSave);
+		}
+
 		return { success: true };
 	}
 } satisfies Actions;

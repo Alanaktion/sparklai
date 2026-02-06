@@ -8,16 +8,16 @@
 	let { data }: PageProps = $props();
 
 	let profileData = $state({
-		fullName: data.user.name,
-		ageValue: data.user.age,
-		pronounsText: data.user.pronouns,
-		bioText: data.user.bio || '',
-		cityName: data.user.location?.city || '',
-		stateOrProvince: data.user.location?.state_province || '',
-		countryName: data.user.location?.country || '',
-		jobTitle: data.user.occupation || '',
-		hobbiesList: (data.user.interests || []).join(', '),
-		relationshipType: data.user.relationship_status || ''
+		fullName: data.user?.name ?? 'You',
+		ageValue: data.user?.age ?? 25,
+		pronounsText: data.user?.pronouns ?? 'they/them',
+		bioText: data.user?.bio || '',
+		cityName: data.user?.location?.city || '',
+		stateOrProvince: data.user?.location?.state_province || '',
+		countryName: data.user?.location?.country || '',
+		jobTitle: data.user?.occupation || '',
+		hobbiesList: (data.user?.interests || []).join(', '),
+		relationshipType: data.user?.relationship_status || ''
 	});
 
 	let submittingForm = $state(false);
@@ -46,9 +46,13 @@
 		class="rounded-lg border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
 	>
 		<div class="mb-6 flex items-center gap-4">
-			<Avatar user={data.user} class="size-16" />
+			{#if data.user}
+				<Avatar user={data.user} class="size-16" />
+			{/if}
 			<div>
-				<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{data.user.name}</h2>
+				<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+					{data.user?.name ?? 'Your Profile'}
+				</h2>
 				<p class="text-sm text-gray-500 dark:text-gray-400">Human User</p>
 			</div>
 		</div>
