@@ -20,31 +20,23 @@ The default `docker-compose.yml` includes everything you need to run SparklAI wi
 
 1. Download a Stable Diffusion model (first time only):
    
-   The Stable Diffusion service requires at least one model file to be present before starting. You can download a model from Hugging Face:
+   The Stable Diffusion service requires at least one model file to be present before starting. Download a model from Hugging Face to your local `models` directory:
    
    ```bash
-   # Create the models directory
-   docker volume create sd-models
+   # Create the models directory structure
+   mkdir -p models/Stable-diffusion
    
    # Download a model (e.g., Stable Diffusion v1.5)
-   # Option 1: Using a temporary container to download
-   docker run --rm -v sd-models:/models alpine sh -c "\
-     apk add --no-cache wget && \
-     wget -O /models/Stable-diffusion/v1-5-pruned-emaonly.safetensors \
-     https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
-   
-   # Option 2: Download locally and copy to volume
-   # Download the model to your current directory first:
-   wget https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors
-   # Then copy to the volume:
-   docker run --rm -v sd-models:/models -v $(pwd):/host alpine \
-     sh -c "mkdir -p /models/Stable-diffusion && cp /host/v1-5-pruned-emaonly.safetensors /models/Stable-diffusion/"
+   wget -O models/Stable-diffusion/v1-5-pruned-emaonly.safetensors \
+     https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors
    ```
    
    Alternative models you can use:
-   - [Stable Diffusion v1.5](https://huggingface.co/runwayml/stable-diffusion-v1-5)
-   - [Stable Diffusion v2.1](https://huggingface.co/stabilityai/stable-diffusion-2-1)
-   - [Dreamshaper](https://huggingface.co/Lykon/DreamShaper) (recommended for better results)
+   - [Stable Diffusion v1.5](https://huggingface.co/runwayml/stable-diffusion-v1-5) - Good general-purpose model
+   - [Stable Diffusion v2.1](https://huggingface.co/stabilityai/stable-diffusion-2-1) - Improved version
+   - [Dreamshaper](https://huggingface.co/Lykon/DreamShaper) - Recommended for better, more artistic results
+   
+   **Note:** Models are large files (2-7GB). Download time will vary based on your internet connection.
 
 2. Start all services:
    ```bash
