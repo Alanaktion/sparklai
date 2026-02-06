@@ -16,9 +16,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # Set temporary environment variables for the build process
 # These will be overridden at runtime
 ENV DATABASE_URL="file:/tmp/build.db"
-ENV CHAT_URL="http://localhost:1234/v1/"
+ENV CHAT_URL="http://host.docker.internal:1234/v1/"
 ENV CHAT_MODEL="meta-llama-3.1-8b-instruct"
-ENV SD_URL="http://localhost:7860/sdapi/v1/"
+ENV SD_URL="http://host.docker.internal:7860/sdapi/v1/"
 ENV SD_PHOTO_MODEL="dreamshaper_8_93211"
 ENV SD_PHOTO_PROMPT="RAW photo,8k uhd,dslr,high quality"
 ENV SD_PHOTO_NEGATIVE_PROMPT="nsfw,underexposed,underexposure,overexposure,overexposed,canvas frame,cartoon,3d,3d render,CGI,computer graphics"

@@ -8,7 +8,38 @@ Do the thing first with `pnpm run db:push` to database it up.
 
 ## Docker Deployment
 
+**Important:** The LLM and Stable Diffusion services must be accessible from within the Docker container. They cannot use `localhost` - use one of these options:
+- **Included services** (default): The `docker-compose.yml` includes Ollama and Stable Diffusion services
+- **Host services**: Use `host.docker.internal:PORT` to access services running on your host machine
+- **External services**: Use third-party API endpoints (e.g., `https://api.openai.com/v1/` for OpenAI)
+- **Container services**: Use Docker service names if running LLM/SD in other containers
+
 ### Using Docker Compose (Recommended)
+
+The default `docker-compose.yml` includes everything you need to run SparklAI with Ollama and Stable Diffusion:
+
+1. Start all services:
+   ```bash
+   docker compose up -d
+   ```
+
+2. Pull the Ollama model (first time only):
+   ```bash
+   docker compose exec ollama ollama pull llama3.1:8b
+   ```
+
+3. Initialize the database (first time only):
+   ```bash
+   docker compose exec app sh -c "pnpm run db:push"
+   ```
+
+4. Access the application at http://localhost:3000
+
+**Note:** The Stable Diffusion service requires an NVIDIA GPU by default. If you don't have a GPU, edit `docker-compose.yml` and remove the `deploy.resources.reservations` section for the `stable-diffusion` service.
+
+### Using External Services
+
+If you want to use external or host-based services instead of the included ones:
 
 1. Copy `.env.docker.example` to `.env` and configure your environment variables:
    ```bash
@@ -16,12 +47,16 @@ Do the thing first with `pnpm run db:push` to database it up.
    ```
 
 2. Edit `.env` to point to your LLM and Stable Diffusion services:
-   - `CHAT_URL`: Your LLM API endpoint (default uses host.docker.internal to access localhost services)
+   - `CHAT_URL`: Your LLM API endpoint
+     - For services on host: `http://host.docker.internal:1234/v1/`
+     - For OpenAI: `https://api.openai.com/v1/` (set `OPENAI_API_KEY` as well)
    - `SD_URL`: Your Stable Diffusion API endpoint
+     - For services on host: `http://host.docker.internal:7860/sdapi/v1/`
+     - For external API: Use the full URL of your SD service
 
-3. Build and start the application:
+3. Start only the app service:
    ```bash
-   docker compose up -d
+   docker compose up -d app
    ```
 
 4. Initialize the database (first time only):

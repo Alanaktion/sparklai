@@ -1,4 +1,33 @@
 services:
+  # Ollama LLM service
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  # Stable Diffusion WebUI service
+  stable-diffusion:
+    image: universonic/stable-diffusion-webui:latest
+    volumes:
+      - sd-data:/data
+      - sd-output:/output
+    ports:
+      - "7860:7860"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Remove the deploy section above if you don't have an NVIDIA GPU
+    # The service will fall back to CPU mode
+
+  # SparklAI application
   app:
     build: .
     ports:
@@ -7,12 +36,12 @@ services:
       # Database configuration
       DATABASE_URL: file:/data/local.db
       
-      # Chat/LLM configuration (update these to match your setup)
-      CHAT_URL: http://host.docker.internal:1234/v1/
-      CHAT_MODEL: meta-llama-3.1-8b-instruct
+      # Chat/LLM configuration - using ollama service
+      CHAT_URL: http://ollama:11434/v1/
+      CHAT_MODEL: llama3.1:8b
       
-      # Stable Diffusion configuration (update these to match your setup)
-      SD_URL: http://host.docker.internal:7860/sdapi/v1/
+      # Stable Diffusion configuration - using stable-diffusion service
+      SD_URL: http://stable-diffusion:7860/sdapi/v1/
       
       # Photo model settings
       SD_PHOTO_MODEL: dreamshaper_8_93211
@@ -32,9 +61,12 @@ services:
       # Persist the SQLite database
       - sparklai-data:/data
     restart: unless-stopped
-    # Optional: use host network to access localhost services
-    # network_mode: host
-    # Note: If using network_mode: host, remove the ports section above
+    depends_on:
+      - ollama
+      - stable-diffusion
 
 volumes:
   sparklai-data:
+  ollama-data:
+  sd-data:
+  sd-output:
