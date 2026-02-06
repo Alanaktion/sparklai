@@ -6,6 +6,63 @@ Front-end is a SvelteKit app, with source in `src/`, startable with `pnpm run de
 
 Do the thing first with `pnpm run db:push` to database it up.
 
+## Docker Deployment
+
+### Using Docker Compose (Recommended)
+
+1. Copy `.env.example` to `.env` and configure your environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Update the environment variables in `docker-compose.yml` to point to your LLM and Stable Diffusion services:
+   - `CHAT_URL`: Your LLM API endpoint (default uses host.docker.internal to access localhost services)
+   - `SD_URL`: Your Stable Diffusion API endpoint
+
+3. Build and start the application:
+   ```bash
+   docker compose up -d
+   ```
+
+4. Initialize the database (first time only):
+   ```bash
+   docker compose exec app sh -c "pnpm run db:push"
+   ```
+
+5. Access the application at http://localhost:3000
+
+### Using Docker Only
+
+1. Build the Docker image:
+   ```bash
+   docker build -t sparklai .
+   ```
+
+2. Run the container:
+   ```bash
+   docker run -d \
+     -p 3000:3000 \
+     -v sparklai-data:/data \
+     -e DATABASE_URL="file:/data/local.db" \
+     -e CHAT_URL="http://host.docker.internal:1234/v1/" \
+     -e CHAT_MODEL="meta-llama-3.1-8b-instruct" \
+     -e SD_URL="http://host.docker.internal:7860/sdapi/v1/" \
+     --name sparklai \
+     sparklai
+   ```
+
+3. Initialize the database (first time only):
+   ```bash
+   docker exec sparklai sh -c "pnpm run db:push"
+   ```
+
+### Notes
+
+- The SQLite database is persisted in a Docker volume at `/data/local.db`
+- `host.docker.internal` allows the container to access services running on your host machine
+- If your LLM/SD services are in other containers, use their service names instead
+- For production, consider using environment-specific configuration files
+
 ## Future
 
 There are a few things that would really improve the realism/accuracy of the content generated:
