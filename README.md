@@ -10,12 +10,12 @@ Do the thing first with `pnpm run db:push` to database it up.
 
 ### Using Docker Compose (Recommended)
 
-1. Copy `.env.example` to `.env` and configure your environment variables:
+1. Copy `.env.docker.example` to `.env` and configure your environment variables:
    ```bash
-   cp .env.example .env
+   cp .env.docker.example .env
    ```
 
-2. Update the environment variables in `docker-compose.yml` to point to your LLM and Stable Diffusion services:
+2. Edit `.env` to point to your LLM and Stable Diffusion services:
    - `CHAT_URL`: Your LLM API endpoint (default uses host.docker.internal to access localhost services)
    - `SD_URL`: Your Stable Diffusion API endpoint
 
@@ -62,6 +62,23 @@ Do the thing first with `pnpm run db:push` to database it up.
 - `host.docker.internal` allows the container to access services running on your host machine
 - If your LLM/SD services are in other containers, use their service names instead
 - For production, consider using environment-specific configuration files
+
+### Production Deployment
+
+For production deployments, use the `docker-compose.prod.yml` file:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+This configuration includes:
+- Environment file support (`.env`)
+- Health checks
+- Security options (no-new-privileges)
+- Resource limits (CPU and memory)
+- Automatic restart policy
+
+Make sure to create a `.env` file with your production configuration before deploying.
 
 ## Future
 
