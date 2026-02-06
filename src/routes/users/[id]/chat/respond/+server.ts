@@ -16,14 +16,35 @@ export async function POST({ params }) {
 		});
 	}
 
+	// Fetch the human user's profile to provide context
+	const humanProfile = await db.query.users.findFirst({
+		where: eq(users.is_human, true)
+	});
+
+	let systemPrompt =
+		`You are ${user.name} (${user.pronouns}), having an IM conversation.\n` +
+		`Your bio: ${user.bio}\n` +
+		`Writing style: ${JSON.stringify(user.writing_style)}\n`;
+
+	// Include human user context if available
+	if (humanProfile) {
+		systemPrompt += `\nYou're chatting with ${humanProfile.name} (${humanProfile.pronouns})`;
+		if (humanProfile.bio) systemPrompt += `\nAbout them: ${humanProfile.bio}`;
+		if (humanProfile.occupation) systemPrompt += `\nTheir occupation: ${humanProfile.occupation}`;
+		if (humanProfile.interests && humanProfile.interests.length > 0) {
+			systemPrompt += `\nTheir interests: ${humanProfile.interests.join(', ')}`;
+		}
+		if (humanProfile.location) {
+			systemPrompt += `\nTheir location: ${humanProfile.location.city}, ${humanProfile.location.state_province}, ${humanProfile.location.country}`;
+		}
+	}
+
+	systemPrompt += '\nDo not include any roleplay metatext, just write the actual response.';
+
 	const history: LlamaMessage[] = [
 		{
 			role: 'system',
-			content:
-				`You are ${user.name} (${user.pronouns}), having an IM conversation.\n` +
-				`Your bio: ${user.bio}\n` +
-				`Writing style: ${JSON.stringify(user.writing_style)}\n` +
-				'Do not include any roleplay metatext, just write the actual response.'
+			content: systemPrompt
 		}
 	];
 
