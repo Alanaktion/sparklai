@@ -5,7 +5,7 @@ services:
     volumes:
       - ollama-data:/root/.ollama
     ports:
-      - "11434:11434"
+      - '11434:11434'
     restart: unless-stopped
 
   # Stable Diffusion WebUI service
@@ -15,7 +15,7 @@ services:
       - ./models:/app/stable-diffusion-webui/models
       - ./outputs:/app/stable-diffusion-webui/outputs
     ports:
-      - "7860:7860"
+      - '7860:7860'
     restart: unless-stopped
     # deploy:
     #   resources:
@@ -31,7 +31,7 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
     env_file: .env
     environment:
       - DATABASE_URL=file:/data/local.db
