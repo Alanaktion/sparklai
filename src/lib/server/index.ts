@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { completion, schema_completion, type LlamaMessage } from './chat';
 import { db } from './db';
 import {
@@ -134,15 +134,13 @@ export async function generateComment(user: UserType, post: PostType): Promise<C
 		const userFollowsAuthor = await db
 			.select()
 			.from(relationships)
-			.where(eq(relationships.follower_id, user.id))
-			.where(eq(relationships.following_id, author.id))
+			.where(and(eq(relationships.follower_id, user.id), eq(relationships.following_id, author.id)))
 			.limit(1);
 
 		const authorFollowsUser = await db
 			.select()
 			.from(relationships)
-			.where(eq(relationships.follower_id, author.id))
-			.where(eq(relationships.following_id, user.id))
+			.where(and(eq(relationships.follower_id, author.id), eq(relationships.following_id, user.id)))
 			.limit(1);
 
 		if (userFollowsAuthor.length > 0 && authorFollowsUser.length > 0) {

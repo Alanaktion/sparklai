@@ -2,10 +2,10 @@ import { db } from '$lib/server/db';
 import { images, posts, relationships, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
-	const id = params.id;
+export const load: PageServerLoad = async ({ params }) => {
+	const id = Number(params.id);
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, id)
 	});
@@ -38,7 +38,7 @@ export const load: PageLoad = async ({ params }) => {
 		.where(eq(relationships.follower_id, id));
 
 	return {
-		id,
+		id: params.id,
 		user,
 		posts: await db.query.posts.findMany({
 			with: {
