@@ -10,19 +10,19 @@ export const styles = {
 	photo: {
 		model: env.SD_PHOTO_MODEL,
 		prompt: env.SD_PHOTO_PROMPT,
-		negative_prompt: env.SD_PHOTO_NEGATIVE_PROMPT,
+		negative_prompt: env.SD_PHOTO_NEGATIVE_PROMPT
 	},
 	drawing: {
 		model: env.SD_DRAWING_MODEL,
 		prompt: env.SD_DRAWING_PROMPT,
-		negative_prompt: env.SD_DRAWING_NEGATIVE_PROMPT,
+		negative_prompt: env.SD_DRAWING_NEGATIVE_PROMPT
 	},
 	stylized: {
 		model: env.SD_STYLIZED_MODEL,
 		prompt: env.SD_STYLIZED_PROMPT,
-		negative_prompt: env.SD_STYLIZED_NEGATIVE_PROMPT,
-	},
-}
+		negative_prompt: env.SD_STYLIZED_NEGATIVE_PROMPT
+	}
+};
 export let style: keyof typeof styles = 'photo';
 
 // Only properties we actually care about will be defined here:
