@@ -66,7 +66,8 @@ export async function POST({ params, request }) {
 		width = 640;
 	}
 
-	const pic = await txt2img(image_prompt, null, width, height);
+	// Profile images are typically realistic photos, so default to 'photo' style
+	const pic = await txt2img(image_prompt, null, width, height, true, 'photo');
 	const image_result = await db
 		.insert(images)
 		.values({

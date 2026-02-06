@@ -79,7 +79,22 @@
 				"type": "string"
 			},
 			"description": "List of accessories (e.g., glasses, earrings, necklace, hat, tattoos)."
+		},
+		"image_style": {
+			"type": "string",
+			"enum": ["photo", "drawing", "stylized"],
+			"description": "The style of the profile image to generate. Use 'photo' for realistic/photorealistic images, 'drawing' for anime/cartoon/illustrated styles, 'stylized' for artistic/3D rendered/stylized images.",
+			"default": "photo"
 		}
 	},
-	"required": ["age_range", "gender_expression", "body_type", "height", "hair", "eyes", "skin_tone"]
+	"required": [
+		"age_range",
+		"gender_expression",
+		"body_type",
+		"height",
+		"hair",
+		"eyes",
+		"skin_tone",
+		"image_style"
+	]
 }

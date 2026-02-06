@@ -87,8 +87,14 @@ export async function txt2img(
 	negative_prompt: string | null = null,
 	width = 512,
 	height = 512,
-	include_default_prompt = true
+	include_default_prompt = true,
+	image_style: keyof typeof styles = 'photo'
 ) {
+	// Switch to the requested style/model if needed
+	if (image_style !== style) {
+		await init_style(image_style);
+	}
+
 	const data = {
 		prompt: include_default_prompt ? `${prompt}\n${styles[style].prompt}` : prompt,
 		negative_prompt: negative_prompt

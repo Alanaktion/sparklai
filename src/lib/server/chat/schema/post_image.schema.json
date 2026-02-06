@@ -15,6 +15,12 @@
 			"type": "string",
 			"enum": ["square", "portrait", "landscape"]
 		},
+		"image_style": {
+			"type": "string",
+			"enum": ["photo", "drawing", "stylized"],
+			"description": "The style of the image to generate. Use 'photo' for realistic/photorealistic images, 'drawing' for anime/cartoon/illustrated styles, 'stylized' for artistic/3D rendered/stylized images.",
+			"default": "photo"
+		},
 		"negative_keywords": {
 			"type": "array",
 			"items": {
@@ -24,5 +30,5 @@
 			"default": []
 		}
 	},
-	"required": ["keywords", "aspect_ratio"]
+	"required": ["keywords", "aspect_ratio", "image_style"]
 }
