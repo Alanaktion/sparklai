@@ -24,12 +24,16 @@
 	let user = $state<UserType>(data.user);
 	let posts = $state<PostType[]>(data.posts);
 	let images = $state<Partial<ImageType>[]>(data.images);
-	let followers = $state<
-		Array<{ id: number; name: string; pronouns: string; image_id: number | null }>
-	>(data.followers);
-	let following = $state<
-		Array<{ id: number; name: string; pronouns: string; image_id: number | null }>
-	>(data.following);
+	let relationships = $state<
+		Array<{
+			id: number;
+			name: string;
+			pronouns: string;
+			image_id: number | null;
+			relationship_type: string | null;
+			description: string | null;
+		}>
+	>(data.relationships);
 
 	let creating = $state(false);
 	let open = $state(false);
@@ -133,55 +137,40 @@
 					{/each}
 				</ul>
 			{:else if bio_tab == 'relationships'}
-				<div class="grid gap-4 md:grid-cols-2">
+				<div class="grid gap-4">
 					<div>
 						<h3 class="mb-2 font-semibold text-gray-800 dark:text-gray-200">
-							Followers ({followers.length})
+							Relationships ({relationships.length})
 						</h3>
-						{#if followers.length > 0}
+						{#if relationships.length > 0}
 							<div class="grid gap-2">
-								{#each followers as follower}
+								{#each relationships as relationship}
 									<a
-										href="/users/{follower.id}"
+										href="/users/{relationship.id}"
 										class="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
 									>
-										<Avatar user={follower} class="size-8" />
-										<div>
+										<Avatar user={relationship} class="size-8" />
+										<div class="flex-1">
 											<div class="text-sm font-medium text-gray-800 dark:text-gray-200">
-												{follower.name}
+												{relationship.name}
 											</div>
-											<div class="text-xs text-gray-500">{follower.pronouns}</div>
+											<div class="text-xs text-gray-500">{relationship.pronouns}</div>
+											{#if relationship.relationship_type}
+												<div class="text-xs text-gray-600 dark:text-gray-400">
+													{relationship.relationship_type}
+												</div>
+											{/if}
+											{#if relationship.description}
+												<div class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+													{relationship.description}
+												</div>
+											{/if}
 										</div>
 									</a>
 								{/each}
 							</div>
 						{:else}
-							<p class="text-sm text-gray-500">No followers yet</p>
-						{/if}
-					</div>
-					<div>
-						<h3 class="mb-2 font-semibold text-gray-800 dark:text-gray-200">
-							Following ({following.length})
-						</h3>
-						{#if following.length > 0}
-							<div class="grid gap-2">
-								{#each following as followed}
-									<a
-										href="/users/{followed.id}"
-										class="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-									>
-										<Avatar user={followed} class="size-8" />
-										<div>
-											<div class="text-sm font-medium text-gray-800 dark:text-gray-200">
-												{followed.name}
-											</div>
-											<div class="text-xs text-gray-500">{followed.pronouns}</div>
-										</div>
-									</a>
-								{/each}
-							</div>
-						{:else}
-							<p class="text-sm text-gray-500">Not following anyone</p>
+							<p class="text-sm text-gray-500">No relationships defined</p>
 						{/if}
 					</div>
 				</div>

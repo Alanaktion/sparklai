@@ -13,29 +13,19 @@ export const load: PageServerLoad = async ({ params }) => {
 		error(404, 'Not Found');
 	}
 
-	// Get followers (users who follow this user)
-	const followersData = await db
+	// Get relationships (users this user has relationships with)
+	const relationshipsData = await db
 		.select({
 			id: users.id,
 			name: users.name,
 			pronouns: users.pronouns,
-			image_id: users.image_id
+			image_id: users.image_id,
+			relationship_type: relationships.relationship_type,
+			description: relationships.description
 		})
 		.from(relationships)
-		.innerJoin(users, eq(relationships.follower_id, users.id))
-		.where(eq(relationships.following_id, id));
-
-	// Get following (users this user follows)
-	const followingData = await db
-		.select({
-			id: users.id,
-			name: users.name,
-			pronouns: users.pronouns,
-			image_id: users.image_id
-		})
-		.from(relationships)
-		.innerJoin(users, eq(relationships.following_id, users.id))
-		.where(eq(relationships.follower_id, id));
+		.innerJoin(users, eq(relationships.related_user_id, users.id))
+		.where(eq(relationships.user_id, id));
 
 	return {
 		id: params.id,
@@ -52,7 +42,6 @@ export const load: PageServerLoad = async ({ params }) => {
 			.select({ id: images.id, params: images.params, blur: images.blur })
 			.from(images)
 			.where(eq(images.user_id, id)),
-		followers: followersData,
-		following: followingData
+		relationships: relationshipsData
 	};
 };

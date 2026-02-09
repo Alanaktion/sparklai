@@ -50,19 +50,32 @@ export async function generatePost(
 	}
 
 	// Add relationship information
-	const followingData = await db
+	const relationshipsData = await db
 		.select({
 			name: users.name,
 			pronouns: users.pronouns,
-			occupation: users.occupation
+			occupation: users.occupation,
+			relationship_type: relationships.relationship_type,
+			description: relationships.description
 		})
 		.from(relationships)
-		.innerJoin(users, eq(relationships.following_id, users.id))
-		.where(eq(relationships.follower_id, user.id));
+		.innerJoin(users, eq(relationships.related_user_id, users.id))
+		.where(eq(relationships.user_id, user.id));
 
-	if (followingData.length > 0) {
-		const followingNames = followingData.map((u) => `${u.name} (${u.pronouns})`).join(', ');
-		content += `\nFollowing: ${followingNames}`;
+	if (relationshipsData.length > 0) {
+		const relationshipsText = relationshipsData
+			.map((r) => {
+				let text = `${r.name} (${r.pronouns})`;
+				if (r.relationship_type) {
+					text += ` - ${r.relationship_type}`;
+				}
+				if (r.description) {
+					text += `: ${r.description}`;
+				}
+				return text;
+			})
+			.join('; ');
+		content += `\nRelationships: ${relationshipsText}`;
 	}
 
 	const history: LlamaMessage[] = [
@@ -131,24 +144,24 @@ export async function generateComment(user: UserType, post: PostType): Promise<C
 	// Check if there's a relationship between the commenter and the post author
 	let relationship_context = '';
 	if (!is_own_post) {
-		const userFollowsAuthor = await db
-			.select()
+		const relationship = await db
+			.select({
+				relationship_type: relationships.relationship_type,
+				description: relationships.description
+			})
 			.from(relationships)
-			.where(and(eq(relationships.follower_id, user.id), eq(relationships.following_id, author.id)))
+			.where(and(eq(relationships.user_id, user.id), eq(relationships.related_user_id, author.id)))
 			.limit(1);
 
-		const authorFollowsUser = await db
-			.select()
-			.from(relationships)
-			.where(and(eq(relationships.follower_id, author.id), eq(relationships.following_id, user.id)))
-			.limit(1);
-
-		if (userFollowsAuthor.length > 0 && authorFollowsUser.length > 0) {
-			relationship_context = `\nYou and ${author.name} follow each other.`;
-		} else if (userFollowsAuthor.length > 0) {
-			relationship_context = `\nYou follow ${author.name}.`;
-		} else if (authorFollowsUser.length > 0) {
-			relationship_context = `\n${author.name} follows you.`;
+		if (relationship.length > 0) {
+			const rel = relationship[0];
+			relationship_context = `\nYour relationship with ${author.name}`;
+			if (rel.relationship_type) {
+				relationship_context += `: ${rel.relationship_type}`;
+			}
+			if (rel.description) {
+				relationship_context += ` - ${rel.description}`;
+			}
 		}
 	}
 

@@ -17,20 +17,32 @@ export async function POST({ params }) {
 	}
 
 	// Get relationships for context
-	const followingData = await db
+	const relationshipsData = await db
 		.select({
 			name: users.name,
-			pronouns: users.pronouns
+			pronouns: users.pronouns,
+			relationship_type: relationships.relationship_type,
+			description: relationships.description
 		})
 		.from(relationships)
-		.innerJoin(users, eq(relationships.following_id, users.id))
-		.where(eq(relationships.follower_id, Number(params.id)))
-		.limit(5);
+		.innerJoin(users, eq(relationships.related_user_id, users.id))
+		.where(eq(relationships.user_id, Number(params.id)));
 
 	let relationshipContext = '';
-	if (followingData.length > 0) {
-		const followingNames = followingData.map((u) => `${u.name} (${u.pronouns})`).join(', ');
-		relationshipContext = `\nYou follow: ${followingNames}`;
+	if (relationshipsData.length > 0) {
+		const relationshipsText = relationshipsData
+			.map((r) => {
+				let text = `${r.name} (${r.pronouns})`;
+				if (r.relationship_type) {
+					text += ` - ${r.relationship_type}`;
+				}
+				if (r.description) {
+					text += `: ${r.description}`;
+				}
+				return text;
+			})
+			.join('; ');
+		relationshipContext = `\nYour relationships: ${relationshipsText}`;
 	}
 
 	const history: LlamaMessage[] = [

@@ -117,12 +117,14 @@ export const chats = sqliteTable('chats', {
 
 export const relationships = sqliteTable('relationships', {
 	id: integer().primaryKey(),
-	follower_id: integer()
+	user_id: integer()
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
-	following_id: integer()
+	related_user_id: integer()
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
+	relationship_type: text(),
+	description: text(),
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -137,8 +139,7 @@ export const userRelations = relations(users, ({ one, many }) => ({
 	media: many(media),
 	comments: many(comments),
 	chats: many(chats),
-	followers: many(relationships, { relationName: 'following' }),
-	following: many(relationships, { relationName: 'followers' })
+	relationships: many(relationships, { relationName: 'user' })
 }));
 
 export const imageRelations = relations(images, ({ one, many }) => ({
@@ -196,15 +197,14 @@ export const chatRelations = relations(chats, ({ one }) => ({
 }));
 
 export const relationshipRelations = relations(relationships, ({ one }) => ({
-	follower: one(users, {
-		fields: [relationships.follower_id],
+	user: one(users, {
+		fields: [relationships.user_id],
 		references: [users.id],
-		relationName: 'followers'
+		relationName: 'user'
 	}),
-	following: one(users, {
-		fields: [relationships.following_id],
-		references: [users.id],
-		relationName: 'following'
+	relatedUser: one(users, {
+		fields: [relationships.related_user_id],
+		references: [users.id]
 	})
 }));
 
