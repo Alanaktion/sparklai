@@ -33,7 +33,6 @@ The default `docker-compose.yml` includes everything you need to run SparklAI wi
    ```
 
    Alternative models you can use:
-
    - [Stable Diffusion v1.5](https://huggingface.co/runwayml/stable-diffusion-v1-5) - Good general-purpose model
    - [Stable Diffusion v2.1](https://huggingface.co/stabilityai/stable-diffusion-2-1) - Improved version
    - [Dreamshaper](https://huggingface.co/Lykon/DreamShaper) - Recommended for better, more artistic results
@@ -73,7 +72,6 @@ If you want to use external or host-based services instead of the included ones:
    ```
 
 2. Edit `.env` to point to your LLM and Stable Diffusion services:
-
    - `CHAT_URL`: Your LLM API endpoint
      - For services on host: `http://host.docker.internal:1234/v1/`
      - For OpenAI: `https://api.openai.com/v1/` (set `OPENAI_API_KEY` as well)

@@ -1,7 +1,7 @@
 import type { LlamaMessage } from '$lib/server/chat/index.js';
 import { completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
-import { chats, users } from '$lib/server/db/schema';
+import { chats, relationships, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
@@ -16,6 +16,35 @@ export async function POST({ params }) {
 		});
 	}
 
+	// Get relationships for context
+	const relationshipsData = await db
+		.select({
+			name: users.name,
+			pronouns: users.pronouns,
+			relationship_type: relationships.relationship_type,
+			description: relationships.description
+		})
+		.from(relationships)
+		.innerJoin(users, eq(relationships.related_user_id, users.id))
+		.where(eq(relationships.user_id, Number(params.id)));
+
+	let relationshipContext = '';
+	if (relationshipsData.length > 0) {
+		const relationshipsText = relationshipsData
+			.map((r) => {
+				let text = `${r.name} (${r.pronouns})`;
+				if (r.relationship_type) {
+					text += ` - ${r.relationship_type}`;
+				}
+				if (r.description) {
+					text += `: ${r.description}`;
+				}
+				return text;
+			})
+			.join('; ');
+		relationshipContext = `\nYour relationships: ${relationshipsText}`;
+	}
+
 	// Fetch the human user's profile to provide context
 	const humanProfile = await db.query.users.findFirst({
 		where: eq(users.is_human, true)
@@ -24,7 +53,8 @@ export async function POST({ params }) {
 	let systemPrompt =
 		`You are ${user.name} (${user.pronouns}), having an IM conversation.\n` +
 		`Your bio: ${user.bio}\n` +
-		`Writing style: ${JSON.stringify(user.writing_style)}\n`;
+		`Writing style: ${JSON.stringify(user.writing_style)}\n` +
+		relationshipContext;
 
 	// Include human user context if available
 	if (humanProfile) {

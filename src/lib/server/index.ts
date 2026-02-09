@@ -1,10 +1,11 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { completion, schema_completion, type LlamaMessage } from './chat';
 import { db } from './db';
 import {
 	comments,
 	images,
 	posts,
+	relationships,
 	users,
 	type CommentType,
 	type PostType,
@@ -46,6 +47,35 @@ export async function generatePost(
 	}
 	if (user.backstory_snippet) {
 		content += `\nBackstory: ${user.backstory_snippet}`;
+	}
+
+	// Add relationship information
+	const relationshipsData = await db
+		.select({
+			name: users.name,
+			pronouns: users.pronouns,
+			occupation: users.occupation,
+			relationship_type: relationships.relationship_type,
+			description: relationships.description
+		})
+		.from(relationships)
+		.innerJoin(users, eq(relationships.related_user_id, users.id))
+		.where(eq(relationships.user_id, user.id));
+
+	if (relationshipsData.length > 0) {
+		const relationshipsText = relationshipsData
+			.map((r) => {
+				let text = `${r.name} (${r.pronouns})`;
+				if (r.relationship_type) {
+					text += ` - ${r.relationship_type}`;
+				}
+				if (r.description) {
+					text += `: ${r.description}`;
+				}
+				return text;
+			})
+			.join('; ');
+		content += `\nRelationships: ${relationshipsText}`;
 	}
 
 	const history: LlamaMessage[] = [
@@ -118,6 +148,31 @@ export async function generateComment(user: UserType, post: PostType): Promise<C
 	const author = author_result[0];
 
 	const is_own_post = user.id === author.id;
+
+	// Check if there's a relationship between the commenter and the post author
+	let relationship_context = '';
+	if (!is_own_post) {
+		const relationship = await db
+			.select({
+				relationship_type: relationships.relationship_type,
+				description: relationships.description
+			})
+			.from(relationships)
+			.where(and(eq(relationships.user_id, user.id), eq(relationships.related_user_id, author.id)))
+			.limit(1);
+
+		if (relationship.length > 0) {
+			const rel = relationship[0];
+			relationship_context = `\nYour relationship with ${author.name}`;
+			if (rel.relationship_type) {
+				relationship_context += `: ${rel.relationship_type}`;
+			}
+			if (rel.description) {
+				relationship_context += ` - ${rel.description}`;
+			}
+		}
+	}
+
 	const history: LlamaMessage[] = [
 		{
 			role: 'system',
@@ -125,6 +180,7 @@ export async function generateComment(user: UserType, post: PostType): Promise<C
 				`You are ${user.name} (${user.pronouns}), writing a comment on the given social media post. It can be a reply to other comments (if any), or directly responding to the post itself. *Do not include any meta-text, only the comment body.*\n` +
 				`Your bio: ${user.bio}\n` +
 				`Writing style: ${JSON.stringify(user.writing_style)}\n` +
+				relationship_context +
 				"Write a new comment. Do not include any roleplay or metatext, just write the actual response. If you don't know the language the original post is in, you can use your preferred language."
 		},
 		{
@@ -154,10 +210,16 @@ export async function generateComment(user: UserType, post: PostType): Promise<C
 		body: response
 	});
 
-	return await db.query.comments.findFirst({
+	const comment = await db.query.comments.findFirst({
 		with: {
 			user: { columns: { id: true, name: true, image_id: true } }
 		},
-		where: eq(comments.id, result.lastInsertRowid)
+		where: eq(comments.id, Number(result.lastInsertRowid))
 	});
+
+	if (!comment) {
+		throw new Error('Comment not found after insert');
+	}
+
+	return comment;
 }

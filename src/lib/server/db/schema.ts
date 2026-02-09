@@ -115,6 +115,19 @@ export const chats = sqliteTable('chats', {
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
 
+export const relationships = sqliteTable('relationships', {
+	id: integer().primaryKey(),
+	user_id: integer()
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	related_user_id: integer()
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	relationship_type: text(),
+	description: text(),
+	created_at: text().default(sql`CURRENT_TIMESTAMP`)
+});
+
 // Model relations
 export const userRelations = relations(users, ({ one, many }) => ({
 	image: one(images, {
@@ -125,7 +138,8 @@ export const userRelations = relations(users, ({ one, many }) => ({
 	images: many(images),
 	media: many(media),
 	comments: many(comments),
-	chats: many(chats)
+	chats: many(chats),
+	relationships: many(relationships, { relationName: 'user' })
 }));
 
 export const imageRelations = relations(images, ({ one, many }) => ({
@@ -182,9 +196,22 @@ export const chatRelations = relations(chats, ({ one }) => ({
 	})
 }));
 
+export const relationshipRelations = relations(relationships, ({ one }) => ({
+	user: one(users, {
+		fields: [relationships.user_id],
+		references: [users.id],
+		relationName: 'user'
+	}),
+	relatedUser: one(users, {
+		fields: [relationships.related_user_id],
+		references: [users.id]
+	})
+}));
+
 // Model Types
 export type UserType = typeof users.$inferSelect;
 export type ImageType = typeof images.$inferSelect;
 export type PostType = typeof posts.$inferSelect;
 export type CommentType = typeof comments.$inferSelect;
 export type ChatType = typeof chats.$inferSelect;
+export type RelationshipType = typeof relationships.$inferSelect;

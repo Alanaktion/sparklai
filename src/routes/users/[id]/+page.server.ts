@@ -1,19 +1,34 @@
 import { db } from '$lib/server/db';
-import { images, posts, users } from '$lib/server/db/schema';
+import { images, posts, relationships, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
-	const id = params.id;
+export const load: PageServerLoad = async ({ params }) => {
+	const id = Number(params.id);
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, id)
 	});
 	if (!user) {
 		error(404, 'Not Found');
 	}
+
+	// Get relationships (users this user has relationships with)
+	const relationshipsData = await db
+		.select({
+			id: users.id,
+			name: users.name,
+			pronouns: users.pronouns,
+			image_id: users.image_id,
+			relationship_type: relationships.relationship_type,
+			description: relationships.description
+		})
+		.from(relationships)
+		.innerJoin(users, eq(relationships.related_user_id, users.id))
+		.where(eq(relationships.user_id, id));
+
 	return {
-		id,
+		id: params.id,
 		user,
 		posts: await db.query.posts.findMany({
 			with: {
@@ -26,6 +41,7 @@ export const load: PageLoad = async ({ params }) => {
 		images: await db
 			.select({ id: images.id, params: images.params, blur: images.blur })
 			.from(images)
-			.where(eq(images.user_id, id))
+			.where(eq(images.user_id, id)),
+		relationships: relationshipsData
 	};
 };
