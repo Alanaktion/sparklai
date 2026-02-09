@@ -118,6 +118,7 @@
 			<TabsItem bind:active={bio_tab} value="detail">Detail</TabsItem>
 			<TabsItem bind:active={bio_tab} value="interests">Interests</TabsItem>
 			<TabsItem bind:active={bio_tab} value="relationships">Relationships</TabsItem>
+			<TabsItem bind:active={bio_tab} value="edit">Edit</TabsItem>
 		</div>
 		<div class="font-sm grid gap-1 py-4 text-gray-700 dark:text-gray-400">
 			{#if bio_tab == 'bio'}
@@ -174,6 +175,62 @@
 						{/if}
 					</div>
 				</div>
+			{:else if bio_tab == 'edit'}
+				<form method="POST" action="?/update" class="grid gap-3">
+					<div class="grid gap-1">
+						<label for="name" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+							Name
+						</label>
+						<input
+							type="text"
+							id="name"
+							name="name"
+							value={user.name}
+							class="rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-500 dark:bg-gray-900"
+						/>
+					</div>
+					<div class="grid gap-1">
+						<label for="pronouns" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+							Pronouns
+						</label>
+						<input
+							type="text"
+							id="pronouns"
+							name="pronouns"
+							value={user.pronouns}
+							class="rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-500 dark:bg-gray-900"
+						/>
+					</div>
+					<div class="grid gap-1">
+						<label for="bio" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+							Bio
+						</label>
+						<textarea
+							id="bio"
+							name="bio"
+							rows="4"
+							class="rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-500 dark:bg-gray-900"
+						>{user.bio}</textarea>
+					</div>
+					<div class="grid gap-1">
+						<label for="occupation" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+							Occupation
+						</label>
+						<input
+							type="text"
+							id="occupation"
+							name="occupation"
+							value={user.occupation}
+							class="rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-500 dark:bg-gray-900"
+						/>
+					</div>
+					<button
+						type="submit"
+						class="rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+					>
+						Save Changes
+					</button>
+				</form>
 			{/if}
 		</div>
 	</section>

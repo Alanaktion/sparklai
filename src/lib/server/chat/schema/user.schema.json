@@ -42,11 +42,11 @@
 		"personality_traits": {
 			"type": "object",
 			"properties": {
-				"openness": { "type": "number", "minimum": 0, "maximum": 1 },
-				"conscientiousness": { "type": "number", "minimum": 0, "maximum": 1 },
-				"extraversion": { "type": "number", "minimum": 0, "maximum": 1 },
-				"agreeableness": { "type": "number", "minimum": 0, "maximum": 1 },
-				"neuroticism": { "type": "number", "minimum": 0, "maximum": 1 }
+				"openness": { "type": "number", "minimum": 0, "maximum": 10 },
+				"conscientiousness": { "type": "number", "minimum": 0, "maximum": 10 },
+				"extraversion": { "type": "number", "minimum": 0, "maximum": 10 },
+				"agreeableness": { "type": "number", "minimum": 0, "maximum": 10 },
+				"neuroticism": { "type": "number", "minimum": 0, "maximum": 10 }
 			},
 			"required": ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]
 		},

@@ -50,7 +50,15 @@ export async function POST({ params }) {
 		width = 640;
 	}
 
-	const pic = await txt2img(response.keywords.join(','), negative_keywords, width, height);
+	const image_style = response.image_style || 'photo';
+	const pic = await txt2img(
+		response.keywords.join(','),
+		negative_keywords,
+		width,
+		height,
+		true,
+		image_style
+	);
 	const img_result = await db.insert(images).values({
 		user_id: user.id,
 		params: pic.params,

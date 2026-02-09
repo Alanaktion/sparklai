@@ -111,7 +111,15 @@ export async function generatePost(
 	let img_id = null;
 	if (response.image_generation) {
 		try {
-			const pic = await txt2img(response.image_generation.image_keywords);
+			const image_style = response.image_generation.image_style || 'photo';
+			const pic = await txt2img(
+				response.image_generation.image_keywords,
+				null,
+				512,
+				512,
+				true,
+				image_style
+			);
 			const img_result = await db.insert(images).values({
 				user_id: user.id,
 				params: pic.params,

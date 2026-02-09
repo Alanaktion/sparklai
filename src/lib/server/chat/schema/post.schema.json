@@ -25,9 +25,15 @@
 					},
 					"description": "Keywords for image generation. Include generic keywords like 'brown hair', 'tall woman', etc.",
 					"minItems": 4
+				},
+				"image_style": {
+					"type": "string",
+					"enum": ["photo", "drawing", "stylized"],
+					"description": "The style of the image to generate. Use 'photo' for realistic/photorealistic images, 'drawing' for anime/cartoon/illustrated styles, 'stylized' for artistic/3D rendered/stylized images.",
+					"default": "photo"
 				}
 			},
-			"required": ["image_keywords"],
+			"required": ["image_keywords", "image_style"],
 			"additionalProperties": false
 		}
 	},
