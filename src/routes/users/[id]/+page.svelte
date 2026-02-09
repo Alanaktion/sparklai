@@ -210,7 +210,8 @@
 							name="bio"
 							rows="4"
 							class="rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-500 dark:bg-gray-900"
-						>{user.bio}</textarea>
+							>{user.bio}</textarea
+						>
 					</div>
 					<div class="grid gap-1">
 						<label for="occupation" class="text-sm font-medium text-gray-700 dark:text-gray-300">
