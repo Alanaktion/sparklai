@@ -68,7 +68,7 @@
 </script>
 
 <div
-	class="mx-4 flex flex-col justify-center gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 sm:flex-row sm:items-center"
+	class="mx-2 @sm:mx-4 flex flex-col justify-center gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 @sm:flex-row @sm:items-center"
 >
 	{#if chat_models.length}
 		<ChatMultiple class="text-gray-400 dark:text-gray-500" />
@@ -78,7 +78,7 @@
 			{/each}
 		</Select>
 	{/if}
-	<div class="sm:mx-2"></div>
+	<div class="@sm:mx-2"></div>
 	{#if sd_models.length || !sd_supports_model_selection}
 		<Image class="text-gray-400 dark:text-gray-500" />
 		<Select bind:value={sd_style} {onchange} class="max-w-40 text-sm">
