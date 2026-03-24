@@ -5,7 +5,7 @@ import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
 export async function POST({ request }) {
-	const users_result = await db.select().from(users).where(eq(users.is_human, 0));
+	const users_result = await db.select().from(users).where(eq(users.is_human, false));
 
 	let prompt = 'Create a new user profile. Do not duplicate an existing user!';
 	if (users_result.length) {

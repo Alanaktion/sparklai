@@ -7,7 +7,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params }) => {
 	const { id } = params;
 	const post = await db.query.posts.findFirst({
-		where: eq(posts.id, id),
+		where: eq(posts.id, Number(id)),
 		with: {
 			image: { columns: { id: true, params: true, blur: true } },
 			media: { columns: { id: true, type: true } },

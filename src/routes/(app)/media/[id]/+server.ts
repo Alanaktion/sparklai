@@ -13,7 +13,7 @@ export async function GET({ params }) {
 		});
 	}
 
-	return new Response(file.data, {
+	return new Response(new Uint8Array(file.data), {
 		headers: {
 			'Content-Type': file.type,
 			'Cache-Control': 'public'
