@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AddStarburst from 'virtual:icons/fluent-color/add-starburst-16';
 	import Image from 'virtual:icons/fluent-color/image-24';
+	import Upload from 'virtual:icons/lucide/upload';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
 
@@ -20,6 +21,7 @@
 	let open = $state(false);
 
 	let creating = $state(false);
+	let uploading = $state(false);
 	let imageJobId = $state<number | null>(null);
 	let imageJobError = $state('');
 
@@ -94,6 +96,40 @@
 			);
 		}
 	}
+
+	async function uploadImage(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		uploading = true;
+		imageJobError = '';
+
+		const formData = new FormData();
+		formData.append('file', file);
+
+		try {
+			const response = await fetch(resolve(`/posts/${post.id}/image`), {
+				method: 'POST',
+				body: formData
+			});
+			if (!response.ok) {
+				throw new Error('Upload failed');
+			}
+			const body = await response.json();
+			const newImage = body.image;
+			if (!images.some((img: { id: number }) => img.id === newImage.id)) {
+				images.push(newImage);
+			}
+			post.image_id = newImage.id;
+			open = false;
+		} catch {
+			imageJobError = 'Unable to upload image';
+		} finally {
+			uploading = false;
+			input.value = '';
+		}
+	}
 </script>
 
 <button
@@ -149,13 +185,28 @@
 				</label>
 			</div>
 		</div>
-		<button
-			type="submit"
-			disabled={creating || imageJobId !== null}
-			class="rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
-		>
-			{imageJobId !== null ? 'Generating...' : 'Set image'}
-		</button>
+		<div class="flex flex-wrap items-center gap-2">
+			<button
+				type="submit"
+				disabled={creating || imageJobId !== null}
+				class="rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+			>
+				{imageJobId !== null ? 'Generating...' : 'Set image'}
+			</button>
+			<label
+				class="flex cursor-pointer items-center gap-1 rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+			>
+				<Upload class="size-3.5" />
+				{uploading ? 'Uploading...' : 'Upload image'}
+				<input
+					type="file"
+					accept="image/*"
+					class="sr-only"
+					disabled={uploading}
+					onchange={uploadImage}
+				/>
+			</label>
+		</div>
 		{#if imageJobError}
 			<p class="mt-2 text-sm text-red-500">{imageJobError}</p>
 		{/if}

@@ -1,11 +1,14 @@
 import { schema_completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
-import { posts, users } from '$lib/server/db/schema';
+import { images, posts, users } from '$lib/server/db/schema';
+import { toWebp } from '$lib/server/image-utils.js';
 import { enqueueImageJob } from '$lib/server/sd/jobs.js';
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
-export async function POST({ params }) {
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
+export async function POST({ params, request }) {
 	const posts_result = await db
 		.select()
 		.from(posts)
@@ -18,6 +21,30 @@ export async function POST({ params }) {
 	const post = posts_result[0];
 	const users_result = await db.select().from(users).where(eq(users.id, post.user_id));
 	const user = users_result[0];
+
+	if (request.headers.get('Content-Type')?.includes('multipart/form-data')) {
+		const data = await request.formData();
+		const file = data.get('file');
+		if (file instanceof File) {
+			if (file.size > MAX_UPLOAD_BYTES) {
+				return error(413, { message: 'File too large (max 10MB)' });
+			}
+			const arrayBuffer = await file.arrayBuffer();
+			let webpData: Buffer;
+			try {
+				webpData = await toWebp(Buffer.from(arrayBuffer));
+			} catch {
+				return error(400, { message: 'Invalid image file' });
+			}
+			const inserted = await db
+				.insert(images)
+				.values({ user_id: user.id, data: webpData })
+				.returning();
+			const image = inserted[0];
+			await db.update(posts).set({ image_id: image.id }).where(eq(posts.id, post.id));
+			return json({ image }, { status: 201 });
+		}
+	}
 
 	let prompt = `Post body:\n${post.body}`;
 
