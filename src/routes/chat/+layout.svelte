@@ -11,7 +11,7 @@
 <div class="flex">
 	<aside
 		class={twMerge([
-			'sticky top-14 h-[calc(100dvh-3.5rem)] overflow-y-auto',
+			'sticky h-svh overflow-y-auto',
 			'shrink-0 border-r border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800',
 			page.params.id
 				? 'hidden w-64 sm:flex sm:flex-col'

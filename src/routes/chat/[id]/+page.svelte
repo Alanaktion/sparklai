@@ -102,9 +102,9 @@
 	<title>Chat with {user.name}</title>
 </svelte:head>
 
-<div class="flex flex-col">
+<div class="flex flex-col min-h-svh overflow-y-scroll">
 	<header
-		class="sticky top-14 z-10 flex items-center gap-2 border-b border-gray-200 bg-gray-100/80 p-2 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
+		class="sticky z-10 flex items-center gap-2 border-b border-gray-200 bg-gray-100/80 p-2 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
 	>
 		<a
 			href={resolve('/chat')}
@@ -180,7 +180,7 @@
 	</div>
 
 	<form
-		class="sticky bottom-0 flex items-center gap-2 border-t border-gray-200 bg-gray-100/80 px-2 py-2 backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
+		class="sticky bottom-0 mt-auto flex items-center gap-2 border-t border-gray-200 bg-gray-100/80 px-2 py-2 backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
 		onsubmit={submit}
 	>
 		{#if responding}
