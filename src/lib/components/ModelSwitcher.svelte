@@ -22,8 +22,7 @@
 		.then((data) => {
 			chat_models = data.chat_models;
 			const availableChatModels = chat_models.map((model) => model.id);
-			const initialChatModel =
-				typeof data.chat_model === 'string' ? data.chat_model.trim() : '';
+			const initialChatModel = typeof data.chat_model === 'string' ? data.chat_model.trim() : '';
 			chat_model =
 				availableChatModels.find((modelId) => modelId === initialChatModel) ||
 				availableChatModels[0] ||
@@ -68,7 +67,7 @@
 </script>
 
 <div
-	class="mx-2 @sm:mx-4 flex flex-col justify-center gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 @sm:flex-row @sm:items-center"
+	class="mx-2 flex flex-col justify-center gap-2 py-4 opacity-25 transition-opacity focus-within:opacity-100 hover:opacity-100 @sm:mx-4 @sm:flex-row @sm:items-center"
 >
 	{#if chat_models.length}
 		<ChatMultiple class="text-gray-400 dark:text-gray-500" />

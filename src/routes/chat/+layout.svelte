@@ -21,8 +21,8 @@
 				: 'flex w-full flex-col sm:w-64 sm:flex-col'
 		])}
 	>
-		<nav class="flex flex-col min-h-full">
-			<a href={resolve('/')} class="text-blue-600 self-start p-2 mb-2 lg:mb-4 dark:text-blue-400">
+		<nav class="flex min-h-full flex-col">
+			<a href={resolve('/')} class="mb-2 self-start p-2 text-blue-600 lg:mb-4 dark:text-blue-400">
 				<span class="sr-only">SparklAI</span>
 				<Sparkles
 					class="size-6 text-amber-500 *:first:fill-amber-400 *:first:stroke-none dark:*:first:fill-amber-300"

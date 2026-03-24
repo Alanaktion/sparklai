@@ -1,9 +1,9 @@
 import { db } from '$lib/server/db';
-import { posts, users } from '$lib/server/db/schema';
+import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function DELETE({ params }) {
-	await db.delete(posts).where(eq(users.id, Number(params.id)));
+	await db.delete(users).where(eq(users.id, Number(params.id)));
 	return new Response(null, { status: 204 });
 }
 

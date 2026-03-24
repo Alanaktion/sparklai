@@ -102,7 +102,7 @@
 	<title>Chat with {user.name}</title>
 </svelte:head>
 
-<div class="flex flex-col min-h-svh overflow-y-scroll">
+<div class="flex min-h-svh flex-col overflow-y-scroll">
 	<header
 		class="sticky z-10 flex items-center gap-2 border-b border-gray-200 bg-gray-100/80 p-2 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
 	>

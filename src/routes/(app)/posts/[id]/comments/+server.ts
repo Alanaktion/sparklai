@@ -20,7 +20,7 @@ export async function POST({ params, request }) {
 			with: {
 				user: { columns: { id: true, name: true, image_id: true } }
 			},
-			where: eq(comments.id, result.lastInsertRowid)
+			where: eq(comments.id, Number(result.lastInsertRowid))
 		})
 	);
 }
