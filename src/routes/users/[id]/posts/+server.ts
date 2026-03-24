@@ -21,7 +21,7 @@ export async function POST({ params, request }) {
 			prompt = data.get('prompt')?.toString();
 		}
 	}
-	const post = await generatePost(user, prompt);
+	const result = await generatePost(user, prompt);
 
-	return json(post);
+	return json(result);
 }

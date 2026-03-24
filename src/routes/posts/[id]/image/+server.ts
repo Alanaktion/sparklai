@@ -1,7 +1,7 @@
 import { schema_completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
-import { images, posts, users } from '$lib/server/db/schema';
-import { txt2img } from '$lib/server/sd/index.js';
+import { posts, users } from '$lib/server/db/schema';
+import { enqueueImageJob } from '$lib/server/sd/jobs.js';
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
@@ -40,8 +40,8 @@ export async function POST({ params }) {
 	if (response.negative_keywords) {
 		negative_keywords = response.negative_keywords.join(',');
 	}
-	let width,
-		height = 512;
+	let width = 512;
+	let height = 512;
 	if (response.aspect_ratio === 'portrait') {
 		height = 640;
 		width = 480;
@@ -51,22 +51,17 @@ export async function POST({ params }) {
 	}
 
 	const image_style = response.image_style || 'photo';
-	const pic = await txt2img(
-		response.keywords.join(','),
-		negative_keywords,
+	const job = await enqueueImageJob({
+		user_id: user.id,
+		post_id: post.id,
+		target: 'post_image',
+		prompt: response.keywords.join(','),
+		negative_prompt: negative_keywords,
 		width,
 		height,
-		true,
+		include_default_prompt: true,
 		image_style
-	);
-	const img_result = await db.insert(images).values({
-		user_id: user.id,
-		params: pic.params,
-		data: pic.data
 	});
-	const img_id = Number(img_result.lastInsertRowid);
 
-	await db.update(posts).set({ image_id: img_id }).where(eq(posts.id, post.id));
-
-	return json(img_id, { status: 201 });
+	return json(job, { status: 202 });
 }

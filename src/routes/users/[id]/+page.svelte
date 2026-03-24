@@ -18,6 +18,20 @@
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import { resolve } from '$app/paths';
 
+	type ImageJob = {
+		id: number;
+		status: 'queued' | 'processing' | 'completed' | 'failed';
+		image_id: number | null;
+		set_as_user_image: boolean;
+		post_id: number | null;
+		image?: Partial<ImageType> | null;
+	};
+
+	type NewPostResponse = {
+		post: PostType;
+		image_job: ImageJob | null;
+	};
+
 	let bio_tab = $state('bio');
 	let saving = $state(false);
 
@@ -85,6 +99,61 @@
 	let open = $state(false);
 	let prompt = $state('');
 	let aspect = $state('square');
+	let pendingImageJobIds = $state<number[]>([]);
+	let imageJobError = $state('');
+
+	function trackPendingJob(jobId: number) {
+		if (!pendingImageJobIds.includes(jobId)) {
+			pendingImageJobIds = [...pendingImageJobIds, jobId];
+		}
+	}
+
+	function finishPendingJob(jobId: number) {
+		pendingImageJobIds = pendingImageJobIds.filter((id) => id !== jobId);
+	}
+
+	async function pollImageJob(jobId: number, options?: { postId?: number | null }) {
+		trackPendingJob(jobId);
+		imageJobError = '';
+
+		while (browser) {
+			const response = await fetch(resolve(`/image-jobs/${jobId}`));
+			if (!response.ok) {
+				imageJobError = 'Unable to check image generation status';
+				finishPendingJob(jobId);
+				return;
+			}
+			const job = (await response.json()) as ImageJob;
+			if (typeof job?.status === 'undefined') {
+				imageJobError = 'Invalid image job response';
+				finishPendingJob(jobId);
+				return;
+			}
+			if (job.status === 'completed' && job.image_id) {
+				if (job.image && !images.some((image) => image.id === job.image!.id)) {
+					images = [...images, job.image];
+				}
+				if (job.set_as_user_image) {
+					user.image_id = job.image_id;
+				}
+				if (options?.postId) {
+					posts = posts.map((post) =>
+						post.id === options.postId ? { ...post, image_id: job.image_id } : post
+					);
+				}
+				finishPendingJob(jobId);
+				return;
+			}
+			if (job.status === 'failed') {
+				imageJobError = 'Image generation failed';
+				finishPendingJob(jobId);
+				return;
+			}
+
+			await new Promise((resolveDelay) => setTimeout(resolveDelay, 1500));
+		}
+	}
+
 	const newPost = (e: Event) => {
 		e.preventDefault();
 		creating = true;
@@ -95,15 +164,24 @@
 			},
 			body: `prompt=${encodeURIComponent(prompt)}`
 		})
-			.then((response) => response.json())
-			.then((body) => {
-				posts = [body, ...posts];
+			.then(async (response) => {
+				if (!response.ok) {
+					throw new Error('Post creation failed');
+				}
+				return (await response.json()) as NewPostResponse;
+			})
+			.then((body: NewPostResponse) => {
+				posts = [body.post, ...posts];
+				if (body.image_job && Number.isFinite(body.image_job.id)) {
+					void pollImageJob(body.image_job.id, { postId: body.post.id });
+				}
 				creating = false;
 				open = false;
 				prompt = '';
 			})
 			.catch(() => {
 				creating = false;
+				imageJobError = 'Unable to create post';
 			});
 	};
 	const newImage = (e: Event) => {
@@ -116,18 +194,24 @@
 			},
 			body: `prompt=${encodeURIComponent(prompt)}&aspect=${aspect}`
 		})
-			.then((response) => response.json())
-			.then((body) => {
-				if (!prompt && user) {
-					user.image_id = body.id;
+			.then(async (response) => {
+				if (!response.ok) {
+					throw new Error('Image request failed');
 				}
-				images.push(body);
+				return (await response.json()) as ImageJob;
+			})
+			.then((body: ImageJob) => {
+				if (!Number.isFinite(body.id)) {
+					throw new Error('Invalid image job id');
+				}
+				void pollImageJob(body.id);
 				creating = false;
 				open = false;
 				prompt = '';
 			})
 			.catch(() => {
 				creating = false;
+				imageJobError = 'Unable to start image generation';
 			});
 	};
 	const saveMetadata = async (e: Event) => {
@@ -747,6 +831,14 @@
 							>
 								Create {tab == 'posts' ? 'Post' : 'Image'}
 							</button>
+						{/if}
+						{#if pendingImageJobIds.length}
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Image generation in progress...
+							</p>
+						{/if}
+						{#if imageJobError}
+							<p class="text-sm text-red-500">{imageJobError}</p>
 						{/if}
 					</form>
 				</Dialog>

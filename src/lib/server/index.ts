@@ -3,7 +3,6 @@ import { completion, schema_completion, type LlamaMessage } from './chat';
 import { db } from './db';
 import {
 	comments,
-	images,
 	posts,
 	relationships,
 	users,
@@ -11,12 +10,17 @@ import {
 	type PostType,
 	type UserType
 } from './db/schema';
-import { txt2img } from './sd';
+import { enqueueImageJob } from './sd/jobs';
+
+export type GeneratedPostResult = {
+	post: PostType;
+	image_job: Awaited<ReturnType<typeof enqueueImageJob>> | null;
+};
 
 export async function generatePost(
 	user: UserType,
 	prompt: string | null = null
-): Promise<PostType> {
+): Promise<GeneratedPostResult> {
 	const datetime = new Date().toLocaleString(undefined, {
 		weekday: 'long',
 		year: 'numeric',
@@ -108,39 +112,39 @@ export async function generatePost(
 
 	const response = await schema_completion('post', null, history);
 
-	let img_id = null;
+	const insert_result = await db
+		.insert(posts)
+		.values({
+			user_id: user.id,
+			body: response.post_text
+		})
+		.returning();
+	const post = insert_result[0];
+
+	let image_job: Awaited<ReturnType<typeof enqueueImageJob>> | null = null;
 	if (response.image_generation) {
 		try {
 			const image_style = response.image_generation.image_style || 'photo';
-			const pic = await txt2img(
-				response.image_generation.image_keywords,
-				null,
-				512,
-				512,
-				true,
-				image_style
-			);
-			const img_result = await db.insert(images).values({
+			image_job = await enqueueImageJob({
 				user_id: user.id,
-				params: pic.params,
-				data: pic.data
+				post_id: post.id,
+				target: 'post_generation',
+				prompt: response.image_generation.image_keywords,
+				negative_prompt: null,
+				width: 512,
+				height: 512,
+				include_default_prompt: true,
+				image_style
 			});
-			img_id = Number(img_result.lastInsertRowid);
 		} catch (e) {
 			console.error(e);
 		}
 	}
 
-	const insert_result = await db
-		.insert(posts)
-		.values({
-			user_id: user.id,
-			body: response.post_text,
-			image_id: img_id
-		})
-		.returning();
-
-	return insert_result[0];
+	return {
+		post,
+		image_job
+	};
 }
 
 export async function generateComment(user: UserType, post: PostType): Promise<CommentType> {

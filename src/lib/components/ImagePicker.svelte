@@ -4,22 +4,81 @@
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
 
+	type ImageJob = {
+		id: number;
+		status: 'queued' | 'processing' | 'completed' | 'failed';
+		image_id: number | null;
+		image?: {
+			id: number;
+			blur: boolean;
+		} | null;
+	};
+
 	const { post, images } = $props();
 
 	let image_id = $derived(post.image_id);
 	let open = $state(false);
 
 	let creating = $state(false);
+	let imageJobId = $state<number | null>(null);
+	let imageJobError = $state('');
+
+	async function pollImageJob(jobId: number) {
+		imageJobId = jobId;
+		imageJobError = '';
+
+		while (true) {
+			const response = await fetch(resolve(`/image-jobs/${jobId}`));
+			if (!response.ok) {
+				imageJobError = 'Unable to check image generation status';
+				imageJobId = null;
+				return;
+			}
+			const job = (await response.json()) as ImageJob;
+			if (typeof job?.status === 'undefined') {
+				imageJobError = 'Invalid image job response';
+				imageJobId = null;
+				return;
+			}
+			if (job.status === 'completed' && job.image_id) {
+				post.image_id = job.image_id;
+				if (job.image && !images.some((image: { id: number }) => image.id === job.image!.id)) {
+					images.push(job.image);
+				}
+				imageJobId = null;
+				open = false;
+				return;
+			}
+			if (job.status === 'failed') {
+				imageJobError = 'Image generation failed';
+				imageJobId = null;
+				return;
+			}
+
+			await new Promise((resolveDelay) => setTimeout(resolveDelay, 1500));
+		}
+	}
+
 	function addImage() {
 		creating = true;
 		fetch(`/posts/${post.id}/image`, { method: 'POST' })
-			.then((response) => response.json())
-			.then((body) => {
-				creating = false;
-				post.image_id = body;
-				open = false;
+			.then(async (response) => {
+				if (!response.ok) {
+					throw new Error('Image generation request failed');
+				}
+				return (await response.json()) as ImageJob;
 			})
-			.catch(() => (creating = false));
+			.then((body: ImageJob) => {
+				if (!Number.isFinite(body.id)) {
+					throw new Error('Invalid image job id');
+				}
+				creating = false;
+				void pollImageJob(body.id);
+			})
+			.catch(() => {
+				creating = false;
+				imageJobError = 'Unable to start image generation';
+			});
 	}
 
 	function setImage(e: Event) {
@@ -92,10 +151,13 @@
 		</div>
 		<button
 			type="submit"
-			disabled={creating}
+			disabled={creating || imageJobId !== null}
 			class="rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 		>
-			Set image
+			{imageJobId !== null ? 'Generating...' : 'Set image'}
 		</button>
+		{#if imageJobError}
+			<p class="mt-2 text-sm text-red-500">{imageJobError}</p>
+		{/if}
 	</form>
 </Dialog>

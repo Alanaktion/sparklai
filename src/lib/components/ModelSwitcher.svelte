@@ -11,18 +11,28 @@
 	};
 
 	let chat_models = $state<ChatModel[]>([]);
-	let chat_model = $state<ChatModel | null>(null);
+	let chat_model = $state('');
 	let sd_models = $state<SDModel[]>([]);
+	let sd_backend = $state('automatic1111');
 	let sd_style = $state('photo');
-	let sd_model = $state<SDModel | null>(null);
+	let sd_model = $state('');
+	let sd_supports_model_selection = $state(true);
 	fetch('/models')
 		.then((response) => response.json())
 		.then((data) => {
 			chat_models = data.chat_models;
-			chat_model = data.chat_model;
+			const availableChatModels = chat_models.map((model) => model.id);
+			const initialChatModel =
+				typeof data.chat_model === 'string' ? data.chat_model.trim() : '';
+			chat_model =
+				availableChatModels.find((modelId) => modelId === initialChatModel) ||
+				availableChatModels[0] ||
+				'';
 			sd_models = data.sd_models;
+			sd_backend = data.sd_backend;
 			sd_style = data.sd_style;
-			sd_model = data.sd_model;
+			sd_model = typeof data.sd_model === 'string' ? data.sd_model : '';
+			sd_supports_model_selection = data.sd_supports_model_selection;
 		});
 
 	function onchange() {
@@ -36,6 +46,8 @@
 			.then((response) => response.json())
 			.then((data) => {
 				sd_model = data.sd_model;
+				sd_backend = data.sd_backend;
+				sd_supports_model_selection = data.sd_supports_model_selection;
 			});
 	}
 	function onchange_sd() {
@@ -49,6 +61,8 @@
 			.then((response) => response.json())
 			.then((data) => {
 				sd_model = data.sd_model;
+				sd_backend = data.sd_backend;
+				sd_supports_model_selection = data.sd_supports_model_selection;
 			});
 	}
 </script>
@@ -65,17 +79,21 @@
 		</Select>
 	{/if}
 	<div class="sm:mx-2"></div>
-	{#if sd_models.length}
+	{#if sd_models.length || !sd_supports_model_selection}
 		<Image class="text-gray-400 dark:text-gray-500" />
 		<Select bind:value={sd_style} {onchange} class="max-w-40 text-sm">
 			<option value="photo">Photo</option>
 			<option value="drawing">Drawing</option>
 			<option value="stylized">Stylized</option>
 		</Select>
-		<Select bind:value={sd_model} onchange={onchange_sd} class="max-w-60 text-sm">
-			{#each sd_models as model (model.model_name)}
-				<option value={model.model_name}>{model.model_name}</option>
-			{/each}
-		</Select>
+		{#if sd_supports_model_selection && sd_models.length}
+			<Select bind:value={sd_model} onchange={onchange_sd} class="max-w-60 text-sm">
+				{#each sd_models as model (model.model_name)}
+					<option value={model.model_name}>{model.model_name}</option>
+				{/each}
+			</Select>
+		{:else}
+			<span class="text-xs text-gray-400 dark:text-gray-500">{sd_backend}</span>
+		{/if}
 	{/if}
 </div>

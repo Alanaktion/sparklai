@@ -1,7 +1,7 @@
 import { completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
-import { images, users } from '$lib/server/db/schema';
-import { txt2img } from '$lib/server/sd/index.js';
+import { users } from '$lib/server/db/schema';
+import { enqueueImageJob } from '$lib/server/sd/jobs.js';
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
@@ -56,8 +56,8 @@ export async function POST({ params, request }) {
 		set_user_image = true;
 	}
 
-	let width,
-		height = 512;
+	let width = 512;
+	let height = 512;
 	if (aspect_ratio === 'portrait') {
 		height = 640;
 		width = 480;
@@ -66,21 +66,17 @@ export async function POST({ params, request }) {
 		width = 640;
 	}
 
-	// Profile images are typically realistic photos, so default to 'photo' style
-	const pic = await txt2img(image_prompt, null, width, height, true, 'photo');
-	const image_result = await db
-		.insert(images)
-		.values({
-			user_id: user.id,
-			params: pic.params,
-			data: pic.data
-		})
-		.returning();
-	const img = image_result[0];
+	const job = await enqueueImageJob({
+		user_id: user.id,
+		target: 'user_image',
+		prompt: image_prompt,
+		negative_prompt: null,
+		width,
+		height,
+		include_default_prompt: true,
+		image_style: 'photo',
+		set_as_user_image: set_user_image
+	});
 
-	if (set_user_image) {
-		await db.update(users).set({ image_id: img.id }).where(eq(users.id, user.id));
-	}
-
-	return json(img, { status: 201 });
+	return json(job, { status: 202 });
 }

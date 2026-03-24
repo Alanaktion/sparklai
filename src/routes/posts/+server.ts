@@ -13,6 +13,6 @@ export async function POST() {
 	if (!author) {
 		return error(404, 'No Users Found');
 	}
-	const post = await generatePost(author);
-	return json(post, { status: 201 });
+	const result = await generatePost(author);
+	return json(result, { status: 201 });
 }

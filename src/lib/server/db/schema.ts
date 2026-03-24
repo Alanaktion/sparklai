@@ -1,7 +1,13 @@
 import { relations, sql } from 'drizzle-orm';
 import { blob, integer, sqliteTable, text, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { LlamaMessage } from '../chat';
-import type { StableDiffusionParams } from '../sd';
+import type {
+	ImageGenerationJobStatus,
+	ImageGenerationJobTarget,
+	SDBackend,
+	SDStyle,
+	StableDiffusionParams
+} from '../sd/types';
 
 // Field Types
 type Location = {
@@ -115,6 +121,32 @@ export const chats = sqliteTable('chats', {
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
 
+export const imageGenerationJobs = sqliteTable('image_generation_jobs', {
+	id: integer().primaryKey(),
+	user_id: integer()
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	post_id: integer().references(() => posts.id, { onDelete: 'cascade' }),
+	image_id: integer().references(() => images.id, { onDelete: 'set null' }),
+	provider: text().notNull().$type<SDBackend>(),
+	status: text().notNull().$type<ImageGenerationJobStatus>().default('queued'),
+	target: text().notNull().$type<ImageGenerationJobTarget>(),
+	image_style: text().notNull().$type<SDStyle>(),
+	prompt: text().notNull(),
+	negative_prompt: text(),
+	width: integer().notNull(),
+	height: integer().notNull(),
+	include_default_prompt: integer({ mode: 'boolean' }).notNull().default(true),
+	set_as_user_image: integer({ mode: 'boolean' }).notNull().default(false),
+	provider_job_id: text(),
+	provider_metadata: text({ mode: 'json' }).$type<Record<string, unknown>>(),
+	error: text(),
+	created_at: text().default(sql`CURRENT_TIMESTAMP`),
+	updated_at: text().default(sql`CURRENT_TIMESTAMP`),
+	started_at: text(),
+	completed_at: text()
+});
+
 export const relationships = sqliteTable('relationships', {
 	id: integer().primaryKey(),
 	user_id: integer()
@@ -139,6 +171,7 @@ export const userRelations = relations(users, ({ one, many }) => ({
 	media: many(media),
 	comments: many(comments),
 	chats: many(chats),
+	imageGenerationJobs: many(imageGenerationJobs),
 	relationships: many(relationships, { relationName: 'user' })
 }));
 
@@ -147,7 +180,8 @@ export const imageRelations = relations(images, ({ one, many }) => ({
 		fields: [images.user_id],
 		references: [users.id]
 	}),
-	posts: many(posts)
+	posts: many(posts),
+	imageGenerationJobs: many(imageGenerationJobs)
 }));
 
 export const mediaRelations = relations(media, ({ one, many }) => ({
@@ -171,7 +205,8 @@ export const postRelations = relations(posts, ({ one, many }) => ({
 		fields: [posts.media_id],
 		references: [media.id]
 	}),
-	comments: many(comments)
+	comments: many(comments),
+	imageGenerationJobs: many(imageGenerationJobs)
 }));
 
 export const commentRelations = relations(comments, ({ one }) => ({
@@ -196,6 +231,21 @@ export const chatRelations = relations(chats, ({ one }) => ({
 	})
 }));
 
+export const imageGenerationJobRelations = relations(imageGenerationJobs, ({ one }) => ({
+	user: one(users, {
+		fields: [imageGenerationJobs.user_id],
+		references: [users.id]
+	}),
+	post: one(posts, {
+		fields: [imageGenerationJobs.post_id],
+		references: [posts.id]
+	}),
+	image: one(images, {
+		fields: [imageGenerationJobs.image_id],
+		references: [images.id]
+	})
+}));
+
 export const relationshipRelations = relations(relationships, ({ one }) => ({
 	user: one(users, {
 		fields: [relationships.user_id],
@@ -211,6 +261,7 @@ export const relationshipRelations = relations(relationships, ({ one }) => ({
 // Model Types
 export type UserType = typeof users.$inferSelect;
 export type ImageType = typeof images.$inferSelect;
+export type ImageGenerationJobType = typeof imageGenerationJobs.$inferSelect;
 export type PostType = typeof posts.$inferSelect;
 export type CommentType = typeof comments.$inferSelect;
 export type ChatType = typeof chats.$inferSelect;

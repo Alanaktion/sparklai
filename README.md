@@ -57,7 +57,7 @@ The default `docker-compose.yml` includes everything you need to run SparklAI wi
    docker compose exec app sh -c "pnpm run db:push"
    ```
 
-5. Access the application at http://localhost:3000
+5. Access the application at <http://localhost:3000>
 
 **Note:** The Stable Diffusion service requires an NVIDIA GPU by default. If you don't have a GPU, edit `docker-compose.yml` and remove the `deploy.resources.reservations` section for the `stable-diffusion` service.
 
@@ -75,23 +75,41 @@ If you want to use external or host-based services instead of the included ones:
    - `CHAT_URL`: Your LLM API endpoint
      - For services on host: `http://host.docker.internal:1234/v1/`
      - For OpenAI: `https://api.openai.com/v1/` (set `OPENAI_API_KEY` as well)
+   - `SD_BACKEND`: `automatic1111` or `comfyui`
    - `SD_URL`: Your Stable Diffusion API endpoint
-     - For services on host: `http://host.docker.internal:7860/sdapi/v1/`
+     - For Automatic1111 on host: `http://host.docker.internal:7860/sdapi/v1/`
+     - For ComfyUI on host: `http://host.docker.internal:8188/`
      - For external API: Use the full URL of your SD service
 
-3. Start only the app service:
+### ComfyUI Workflows
+
+When `SD_BACKEND=comfyui`, SparklAI submits style-specific workflows from `src/lib/server/sd/workflows/` to ComfyUI's prompt queue and polls history until an output image is ready. The bundled templates expect these placeholder values to exist in the workflow:
+
+- `__MODEL__`
+- `__POSITIVE_PROMPT__`
+- `__NEGATIVE_PROMPT__`
+- `__WIDTH__`
+- `__HEIGHT__`
+- `__SEED__`
+- `__STEPS__`
+- `__CFG_SCALE__`
+- `__FILENAME_PREFIX__`
+
+The current templates use a standard checkpoint loader -> text encode -> latent -> sampler -> decode -> save image graph. If you replace them with custom workflows, preserve the `output_node_id` and placeholder structure or update the server implementation to match.
+
+1. Start only the app service:
 
    ```bash
    docker compose up -d app
    ```
 
-4. Initialize the database (first time only):
+2. Initialize the database (first time only):
 
    ```bash
    docker compose exec app sh -c "pnpm run db:push"
    ```
 
-5. Access the application at http://localhost:3000
+3. Access the application at <http://localhost:3000>
 
 ### Using Docker Only
 
@@ -116,6 +134,7 @@ If you want to use external or host-based services instead of the included ones:
    ```
 
 3. Initialize the database (first time only):
+
    ```bash
    docker exec sparklai sh -c "pnpm run db:push"
    ```

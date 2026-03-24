@@ -23,6 +23,9 @@
 	let chats = $state<ChatMessageType[]>([]);
 	let infoOpen = $state(false);
 
+	let responding = $state(false);
+	let timeoutId: ReturnType<typeof setTimeout>;
+
 	// Populate chats on initial load and after navigation between conversations
 	afterNavigate(() => {
 		chats = [];
@@ -47,9 +50,6 @@
 			tick().then(() => window.scrollTo(0, document.body.scrollHeight));
 		}
 	});
-
-	let responding = $state(false);
-	let timeoutId: ReturnType<typeof setTimeout>;
 
 	function debounce(callback: () => void, delay = 5e3) {
 		return function () {
