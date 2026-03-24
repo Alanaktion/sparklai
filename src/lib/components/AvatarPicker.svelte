@@ -2,15 +2,19 @@
 	import Aperture from 'virtual:icons/lucide/aperture';
 	import Avatar from './Avatar.svelte';
 	import Dialog from './base/dialog.svelte';
+	import { resolve } from '$app/paths';
 
 	const { user, images } = $props();
 
-	let image_id = $state(user.image_id);
+	let image_id = $derived(user.image_id);
 	let open = $state(false);
 
 	function setImage(e: Event) {
 		e.preventDefault();
-		fetch(`/users/${user.id}`, { method: 'PATCH', body: JSON.stringify({ image_id }) }).then(() => {
+		fetch(resolve(`/users/${user.id}`), {
+			method: 'PATCH',
+			body: JSON.stringify({ image_id })
+		}).then(() => {
 			user.image_id = image_id;
 			open = false;
 		});
@@ -29,7 +33,7 @@
 <Dialog title="Set user image" bind:open>
 	<form onsubmit={setImage}>
 		<div class="mb-3 grid grid-cols-2 gap-2 md:mb-4 md:grid-cols-3">
-			{#each images as image}
+			{#each images as image (image.id)}
 				<div class="max-w-40">
 					<input
 						type="radio"
@@ -43,7 +47,7 @@
 						class="relative block overflow-hidden rounded-full opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
 					>
 						<img
-							src="/images/{image.id}"
+							src={resolve(`/images/${image.id}`)}
 							class={[
 								'aspect-square object-cover',
 								image.blur && 'blur-lg transition hover:blur-none'

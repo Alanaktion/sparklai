@@ -2,10 +2,11 @@
 	import AddStarburst from 'virtual:icons/fluent-color/add-starburst-16';
 	import Image from 'virtual:icons/fluent-color/image-24';
 	import Dialog from './base/dialog.svelte';
+	import { resolve } from '$app/paths';
 
 	const { post, images } = $props();
 
-	let image_id = $state(post.image_id);
+	let image_id = $derived(post.image_id);
 	let open = $state(false);
 
 	let creating = $state(false);
@@ -48,7 +49,7 @@
 <Dialog title="Set post image" bind:open>
 	<form onsubmit={setImage}>
 		<div class="mb-3 grid grid-cols-2 gap-2 md:mb-4 md:grid-cols-3">
-			{#each images as image}
+			{#each images as image (image.id)}
 				<div class="max-w-40">
 					<input
 						type="radio"
@@ -62,7 +63,7 @@
 						class="block overflow-hidden rounded opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
 					>
 						<img
-							src="/images/{image.id}"
+							src={resolve(`/images/${image.id}`)}
 							class={[
 								'aspect-square object-cover',
 								image.blur && 'blur-lg transition hover:blur-none'

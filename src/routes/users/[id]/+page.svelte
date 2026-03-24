@@ -12,19 +12,19 @@
 
 	import Avatar from '$lib/components/Avatar.svelte';
 	import TabsItem from '$lib/components/base/tabs-item.svelte';
-
 	import AvatarPicker from '$lib/components/AvatarPicker.svelte';
 	import Image from '$lib/components/Image.svelte';
 	import Post from '$lib/components/Post.svelte';
 	import Dialog from '$lib/components/base/dialog.svelte';
+	import { resolve } from '$app/paths';
 
 	let bio_tab = $state('bio');
 	let saving = $state(false);
 
 	let tab = $state('posts');
-	let user = $state<UserType>(data.user);
-	let posts = $state<PostType[]>(data.posts);
-	let images = $state<Partial<ImageType>[]>(data.images);
+	let user = $derived<UserType>(data.user);
+	let posts = $derived<PostType[]>(data.posts);
+	let images = $derived<Partial<ImageType>[]>(data.images);
 
 	// Initialize nested objects if they don't exist
 	$effect(() => {
@@ -70,7 +70,7 @@
 		}
 	});
 
-	let relationships = $state<
+	let relationships = $derived<
 		Array<{
 			id: number;
 			name: string;
@@ -88,7 +88,7 @@
 	const newPost = (e: Event) => {
 		e.preventDefault();
 		creating = true;
-		fetch(`/users/${data.id}/posts`, {
+		fetch(resolve(`/users/${data.id}/posts`), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
@@ -109,7 +109,7 @@
 	const newImage = (e: Event) => {
 		e.preventDefault();
 		creating = true;
-		fetch(`/users/${data.id}/image`, {
+		fetch(resolve(`/users/${data.id}/image`), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
@@ -134,7 +134,7 @@
 		e.preventDefault();
 		saving = true;
 		try {
-			const response = await fetch(`/users/${data.id}`, {
+			const response = await fetch(resolve(`/users/${data.id}`), {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json'
@@ -168,7 +168,7 @@
 				</p>
 			</div>
 			<a
-				href="/users/{user.id}/chat"
+				href={resolve(`/chat/${user.id}`)}
 				class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 			>
 				<span class="sr-only">Messages</span>
@@ -191,14 +191,14 @@
 			{:else if bio_tab == 'detail'}
 				<p>{user.location?.city}, {user.location?.state_province}, {user.location?.country}</p>
 				<p>
-					{#each user.writing_style?.languages || [] as language}
+					{#each user.writing_style?.languages || [] as language (language)}
 						{language}&ensp;
 					{/each}
 				</p>
 				<p class="whitespace-pre-wrap">{user.backstory_snippet}</p>
 			{:else if bio_tab == 'interests'}
 				<ul class="list-inside list-disc">
-					{#each user.interests || [] as interest}
+					{#each user.interests || [] as interest (interest)}
 						<li>{interest}</li>
 					{/each}
 				</ul>
@@ -210,9 +210,9 @@
 						</h3>
 						{#if relationships.length > 0}
 							<div class="grid gap-2">
-								{#each relationships as relationship}
+								{#each relationships as relationship (relationship.id)}
 									<a
-										href="/users/{relationship.id}"
+										href={resolve(`/users/${relationship.id}`)}
 										class="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
 									>
 										<Avatar user={relationship} class="size-8" />
@@ -754,12 +754,12 @@
 		</div>
 
 		{#if tab == 'posts'}
-			{#each posts as post}
+			{#each posts as post (post.id)}
 				<Post {post} {user} />
 			{/each}
 		{:else if tab == 'images'}
 			<div class="grid grid-cols-2 gap-2 md:grid-cols-3">
-				{#each images as image}
+				{#each images as image (image.id)}
 					<Image {image} />
 				{/each}
 				{#if creating}

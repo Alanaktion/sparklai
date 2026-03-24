@@ -7,7 +7,7 @@
 	import { twMerge } from 'tailwind-merge';
 
 	let { image } = $props();
-	let params = $state(image.params);
+	let params = $derived(image.params);
 	let lightbox = $state(false);
 
 	let deleted = $state(false);
@@ -18,7 +18,7 @@
 		});
 	}
 
-	let blur = $state(image.blur);
+	let blur = $derived(image.blur);
 	function toggleBlur() {
 		blur = !blur;
 		fetch(`/images/${image.id}`, {

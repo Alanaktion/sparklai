@@ -1,5 +1,7 @@
+import { SvelteSet } from 'svelte/reactivity';
+
 // Track components using escape key action
-const activeKeyListeners: Set<HTMLElement> = new Set();
+const activeKeyListeners: Set<HTMLElement> = new SvelteSet();
 
 export function escapeKey(node: HTMLElement, callback: (event: KeyboardEvent) => void) {
 	function handleKeydown(event: KeyboardEvent) {

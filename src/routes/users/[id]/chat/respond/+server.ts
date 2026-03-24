@@ -1,5 +1,6 @@
 import type { LlamaMessage } from '$lib/server/chat/index.js';
 import { completion } from '$lib/server/chat/index.js';
+import { formatDate, nowStr } from '$lib';
 import { db } from '$lib/server/db';
 import { chats, relationships, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
@@ -76,7 +77,9 @@ export async function POST({ params }) {
 		}
 	}
 
-	systemPrompt += '\nDo not include any roleplay metatext, just write the actual response.';
+	systemPrompt +=
+		'\nDo not include any roleplay metatext, just write the actual response.' +
+		` It is ${nowStr()}.`;
 
 	const history: LlamaMessage[] = [
 		{
@@ -95,6 +98,13 @@ export async function POST({ params }) {
 			content: chat.body
 		});
 	});
+
+	if (chat_result.length) {
+		const last = chat_result[chat_result.length - 1];
+		if (last.created_at) {
+			history[0].content += `\nThe last message was received ${formatDate(last.created_at)}.`;
+		}
+	}
 
 	const response = await completion(null, history);
 	const result = await db

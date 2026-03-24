@@ -1,3 +1,12 @@
+const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+export function nowStr() {
+	const date = new Date();
+	const hours = date.getHours() % 12 || 12;
+	const ampm = date.getHours() >= 12 ? 'pm' : 'am';
+	return `${hours} ${ampm} on ${days[date.getDay()]}`;
+}
+
 export function formatDate(isoDate: string) {
 	const now = new Date();
 	const date = new Date(`${isoDate}Z`);

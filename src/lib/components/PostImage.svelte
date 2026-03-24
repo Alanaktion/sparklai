@@ -4,7 +4,7 @@
 	import { twMerge } from 'tailwind-merge';
 
 	let { src, class: imgClass, image = null } = $props();
-	let params = $state(image?.params);
+	let params = $derived(image?.params);
 	let lightbox = $state(false);
 </script>
 

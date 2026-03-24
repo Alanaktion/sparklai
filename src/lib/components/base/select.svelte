@@ -9,7 +9,7 @@
 		class?: string;
 		disabled?: boolean;
 		open?: boolean;
-		value?: any;
+		value?: unknown;
 	} & HTMLSelectAttributes;
 
 	let {

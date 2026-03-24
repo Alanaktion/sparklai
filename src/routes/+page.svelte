@@ -10,18 +10,19 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import Post from '$lib/components/Post.svelte';
+	import { resolve } from '$app/paths';
 
 	let open = $state(false);
 
-	let users = $state<UserType[]>(data.users);
-	let posts = $state<PostType[]>(data.posts);
+	let users = $derived<UserType[]>(data.users);
+	let posts = $derived<PostType[]>(data.posts);
 
 	let creating = $state(false);
 	let user_prompt = $state('');
 	const newUser = (e: Event) => {
 		e.preventDefault();
 		creating = true;
-		fetch(`/users`, {
+		fetch(resolve(`/users`), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
@@ -57,7 +58,7 @@
 			<h2 class="mb-4 text-xl">Posts</h2>
 
 			{#if posts.length}
-				{#each posts as post}
+				{#each posts as post (post.id)}
 					<Post {post} user={user(post.user_id)} />
 				{/each}
 			{:else}
@@ -105,7 +106,7 @@
 				class="rounded bg-gray-50 shadow-lg shadow-gray-500/10 dark:bg-gray-800 dark:shadow-gray-900/20"
 			>
 				{#if users.length}
-					{#each users as user}
+					{#each users as user (user.id)}
 						<div
 							class="group relative flex items-center border-b border-gray-200 p-3 first:rounded-t last:rounded-b hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-blue-900"
 						>
@@ -113,7 +114,7 @@
 							<div>
 								<a
 									class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-									href="/users/{user.id}"
+									href={resolve(`/users/${user.id}`)}
 								>
 									<div class="absolute inset-0"></div>
 									{user.name}

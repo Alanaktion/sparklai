@@ -5,9 +5,10 @@
 	import { onMount, tick } from 'svelte';
 	import Avatar from './Avatar.svelte';
 	import PostImage from './PostImage.svelte';
+	import { resolve } from '$app/paths';
 
 	let { post, user, full = false } = $props();
-	let imgClass = full ? '' : 'object-cover aspect-16/9';
+	let imgClass = $derived(() => (full ? '' : 'object-cover aspect-16/9'));
 
 	let body = $state<HTMLElement>();
 	let height = $state(0);
@@ -22,20 +23,20 @@
 </script>
 
 <div class="mb-4 flex items-start gap-4 px-4 sm:px-0 lg:mb-6">
-	<a class="min-w-12" href="/users/{post.user_id}">
+	<a class="min-w-12" href={resolve(`/users/${post.user_id}`)}>
 		<Avatar {user} />
 	</a>
 	<div>
 		<a
 			class="font-medium text-blue-600 hover:underline dark:text-blue-400"
-			href="/users/{post.user_id}"
+			href={resolve(`/users/${post.user_id}`)}
 		>
 			{user?.name}
 		</a>
 		{#if post.image_id}
 			<div class="my-3">
 				<PostImage
-					src="/images/{post.image_id}"
+					src={resolve(`/images/${post.image_id}`)}
 					image={post.image}
 					class="w-full rounded {imgClass}"
 				/>
@@ -43,13 +44,12 @@
 		{/if}
 		{#if post.media_id && post.media.type.startsWith('audio/')}
 			<audio controls class="mb-4 block w-full">
-				<source src="/media/{post.media_id}" type={post.media.type} />
+				<source src={resolve(`/media/${post.media_id}`)} type={post.media.type} />
 			</audio>
 		{/if}
 		{#if post.media_id && post.media.type.startsWith('video/')}
-			<!-- svelte-ignore a11y_media_has_caption -->
 			<video controls class="mb-4 block w-full">
-				<source src="/media/{post.media_id}" type={post.media.type} />
+				<source src={resolve(`/media/${post.media_id}`)} type={post.media.type} />
 			</video>
 		{/if}
 		<div
@@ -60,7 +60,7 @@
 			<p class="whitespace-pre-wrap">{post.body}</p>
 			{#if showExpand && !expanded}
 				<div
-					class="from:transparent pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b to-white dark:to-gray-900"
+					class="from:transparent pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-linear-to-b to-white dark:to-gray-900"
 				></div>
 				<button
 					type="button"
@@ -74,7 +74,7 @@
 		</div>
 		<div class="flex items-center gap-2 border-t border-gray-200 py-2 dark:border-gray-700">
 			<a
-				href="/posts/{post.id}"
+				href={resolve(`/posts/${post.id}`)}
 				class="mr-auto pr-4 text-sm text-gray-400"
 				title={localDateTime(post.created_at)}
 			>
@@ -82,7 +82,7 @@
 			</a>
 			{#if !full}
 				<a
-					href="/posts/{post.id}"
+					href={resolve(`/posts/${post.id}`)}
 					class="flex items-center gap-1 rounded px-2 py-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900 dark:hover:text-blue-300"
 				>
 					<CommentMultiple class="size-4" />

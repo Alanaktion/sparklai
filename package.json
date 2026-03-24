@@ -16,34 +16,34 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
-		"@eslint/compat": "^2.0.2",
-		"@eslint/js": "^9.39.2",
+		"@eslint/compat": "^2.0.3",
+		"@eslint/js": "^10.0.1",
 		"@iconify-json/fluent-color": "^1.2.21",
-		"@iconify-json/lucide": "^1.2.89",
-		"@sveltejs/adapter-auto": "^7.0.0",
-		"@sveltejs/adapter-node": "^5.5.2",
+		"@iconify-json/lucide": "^1.2.98",
+		"@sveltejs/adapter-auto": "^7.0.1",
+		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.50.2",
-		"@sveltejs/vite-plugin-svelte": "^6.2.4",
-		"@tailwindcss/vite": "^4.1.18",
+		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
+		"@tailwindcss/vite": "^4.2.2",
 		"@types/better-sqlite3": "^7.6.13",
-		"@types/node": "^25.2.1",
-		"drizzle-kit": "^0.31.8",
-		"eslint": "^9.39.2",
+		"@types/node": "^25.5.0",
+		"drizzle-kit": "^0.31.10",
+		"eslint": "^10.1.0",
 		"eslint-config-prettier": "^10.1.8",
-		"eslint-plugin-svelte": "^3.14.0",
-		"globals": "^17.3.0",
+		"eslint-plugin-svelte": "^3.16.0",
+		"globals": "^17.4.0",
 		"prettier": "^3.8.1",
-		"prettier-plugin-svelte": "^3.4.1",
+		"prettier-plugin-svelte": "^3.5.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
-		"svelte": "^5.50.0",
-		"svelte-check": "^4.3.6",
-		"tailwind-merge": "^3.4.0",
-		"tailwindcss": "^4.1.18",
-		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.54.0",
+		"svelte": "^5.55.0",
+		"svelte-check": "^4.4.5",
+		"tailwind-merge": "^3.5.0",
+		"tailwindcss": "^4.2.2",
+		"typescript": "^6.0.2",
+		"typescript-eslint": "^8.57.2",
 		"unplugin-icons": "^23.0.1",
-		"vite": "^7.3.1"
+		"vite": "^8.0.2"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -54,9 +54,9 @@
 		]
 	},
 	"dependencies": {
-		"@libsql/client": "^0.17.0",
+		"@libsql/client": "^0.17.2",
 		"drizzle-orm": "^0.45.1",
-		"openai": "^6.18.0",
+		"openai": "^6.32.0",
 		"sharp": "^0.34.5"
 	}
 }

@@ -72,7 +72,7 @@
 
 {#if open}
 	<!-- Customize backdrop here -->
-	<div class="fixed top-0 right-0 bottom-0 left-0 z-[999999999] bg-gray-50/0 dark:bg-gray-800/0">
+	<div class="fixed top-0 right-0 bottom-0 left-0 z-999999999 bg-gray-50/0 dark:bg-gray-800/0">
 		<!-- Customize content here -->
 		<div
 			use:focusTrap

@@ -14,20 +14,21 @@
 
 	import type { PostType, UserType } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';
+	import { resolve } from '$app/paths';
 
 	let { data }: PageProps = $props();
 
-	let user = $state<UserType>(data.post.user);
-	let users = $state<UserType[]>(data.users);
-	let post = $state<PostType>(data.post);
-	let comments = $state(data.post.comments);
+	let user = $derived<UserType>(data.post.user);
+	let users = $derived<UserType[]>(data.users);
+	let post = $derived<PostType>(data.post);
+	let comments = $derived(data.post.comments);
 
 	let open = $state(false);
 	let responding = $state(false);
-	function respond(user_id: Number | null = null) {
+	function respond(user_id: number | null = null) {
 		responding = true;
 		open = false;
-		fetch(`/posts/${data.id}/comments/respond`, {
+		fetch(resolve(`/posts/${data.id}/comments/respond`), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -48,7 +49,7 @@
 	function submit(e: Event) {
 		e.preventDefault();
 		submitting = true;
-		fetch(`/posts/${data.id}/comments`, {
+		fetch(resolve(`/posts/${data.id}/comments`), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
@@ -65,17 +66,18 @@
 	}
 
 	function deletePost() {
-		fetch(`/posts/${data.id}`, { method: 'DELETE' }).then(() => goto('/'));
+		fetch(resolve(`/posts/${data.id}`), { method: 'DELETE' }).then(() => goto(resolve('/')));
 	}
 	function deleteComment(id: number, index: number) {
-		fetch(`/posts/${data.id}/comments/${id}`, { method: 'DELETE' }).then(() => {
+		fetch(resolve(`/posts/${data.id}/comments/${id}`), { method: 'DELETE' }).then(() => {
 			delete comments[index];
 		});
 	}
 	function detatchImage() {
-		fetch(`/posts/${data.id}`, { method: 'PATCH', body: JSON.stringify({ image_id: null }) }).then(
-			() => (post.image_id = null)
-		);
+		fetch(resolve(`/posts/${data.id}`), {
+			method: 'PATCH',
+			body: JSON.stringify({ image_id: null })
+		}).then(() => (post.image_id = null));
 	}
 </script>
 
@@ -116,9 +118,9 @@
 		<div class="mb-4 lg:mb-6">
 			<div class="text-gray-700 dark:text-gray-300">Comments</div>
 
-			{#each comments as comment, index}
+			{#each comments as comment, index (comment.id)}
 				<div class="group my-4 flex items-start gap-3">
-					<a class="min-w-10" href="/users/{comment.user_id}">
+					<a class="min-w-10" href={resolve(`/users/${comment.user_id}`)}>
 						<Avatar user={comment.user} class="size-10" />
 					</a>
 					<div class="flex-1">
@@ -126,7 +128,7 @@
 							{#if comment.user}
 								<a
 									class="text-blue-600 hover:underline dark:text-blue-400"
-									href="/users/{comment.user_id}">{comment.user.name}</a
+									href={resolve(`/users/${comment.user_id}`)}>{comment.user.name}</a
 								>
 							{:else}
 								<span class="text-gray-500">User</span>
@@ -161,7 +163,7 @@
 						<Dropdown bind:open placement="left">
 							<DropdownOption onclick={() => respond()}>Random User</DropdownOption>
 							<hr class="my-1 border-gray-400/50" />
-							{#each users as u}
+							{#each users as u (u.id)}
 								<DropdownOption onclick={() => respond(u.id)}>
 									<Avatar user={u} class="size-4" />
 									{u.name}

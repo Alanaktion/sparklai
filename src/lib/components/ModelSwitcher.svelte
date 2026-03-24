@@ -59,7 +59,7 @@
 	{#if chat_models.length}
 		<ChatMultiple class="text-gray-400 dark:text-gray-500" />
 		<Select bind:value={chat_model} {onchange} class="max-w-60 text-sm">
-			{#each chat_models as model}
+			{#each chat_models as model (model.id)}
 				<option value={model.id}>{model.id}</option>
 			{/each}
 		</Select>
@@ -73,7 +73,7 @@
 			<option value="stylized">Stylized</option>
 		</Select>
 		<Select bind:value={sd_model} onchange={onchange_sd} class="max-w-60 text-sm">
-			{#each sd_models as model}
+			{#each sd_models as model (model.model_name)}
 				<option value={model.model_name}>{model.model_name}</option>
 			{/each}
 		</Select>

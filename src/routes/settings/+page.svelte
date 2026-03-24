@@ -4,10 +4,11 @@
 	import CheckCircle from 'virtual:icons/lucide/check-circle';
 	import AlertCircle from 'virtual:icons/lucide/alert-circle';
 	import type { PageProps } from './$types';
+	import { resolve } from '$app/paths';
 
 	let { data }: PageProps = $props();
 
-	let profileData = $state({
+	let profileData = $derived({
 		fullName: data.user?.name ?? 'You',
 		ageValue: data.user?.age ?? 25,
 		pronounsText: data.user?.pronouns ?? 'they/them',
@@ -277,7 +278,7 @@
 
 			<div class="flex items-center justify-between pt-2">
 				<a
-					href="/"
+					href={resolve('/')}
 					class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
 				>
 					Back to Home

@@ -1,5 +1,15 @@
 @import 'tailwindcss';
 
+@keyframes typing-dot {
+	0%,
+	100% {
+		opacity: 0.25;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
 @theme {
 	--color-gray-50: oklch(0.984 0.003 247.858);
 	--color-gray-100: oklch(0.968 0.005 247.896);
