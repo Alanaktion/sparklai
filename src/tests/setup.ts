@@ -77,3 +77,10 @@ vi.mock('$lib/server/sd/jobs', () => ({
 	ensureImageJobRunning: vi.fn(),
 	getImageGenerationJob: vi.fn()
 }));
+
+// Mock image-utils so sharp is not needed in tests
+vi.mock('$lib/server/image-utils', () => ({
+	toWebp: vi
+		.fn()
+		.mockImplementation((input: Buffer | Uint8Array) => Promise.resolve(Buffer.from(input)))
+}));

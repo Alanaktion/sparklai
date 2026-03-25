@@ -15,6 +15,8 @@ import {
  * constraints (most dependent tables first).
  */
 export async function cleanDatabase() {
+	// Clear image references on users before deleting images (no onDelete cascade)
+	await db.update(users).set({ image_id: null });
 	await db.delete(chats);
 	await db.delete(comments);
 	await db.delete(imageGenerationJobs);

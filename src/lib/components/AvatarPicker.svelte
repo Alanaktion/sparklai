@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Aperture from 'virtual:icons/lucide/aperture';
+	import Upload from 'virtual:icons/lucide/upload';
 	import Avatar from './Avatar.svelte';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
@@ -8,6 +9,8 @@
 
 	let image_id = $derived(user.image_id);
 	let open = $state(false);
+	let uploading = $state(false);
+	let uploadError = $state('');
 
 	function setImage(e: Event) {
 		e.preventDefault();
@@ -18,6 +21,40 @@
 			user.image_id = image_id;
 			open = false;
 		});
+	}
+
+	async function uploadImage(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		uploading = true;
+		uploadError = '';
+
+		const formData = new FormData();
+		formData.append('file', file);
+
+		try {
+			const response = await fetch(resolve(`/users/${user.id}/image`), {
+				method: 'POST',
+				body: formData
+			});
+			if (!response.ok) {
+				throw new Error('Upload failed');
+			}
+			const body = await response.json();
+			const newImage = body.image;
+			if (!images.some((img: { id: number }) => img.id === newImage.id)) {
+				images.push(newImage);
+			}
+			user.image_id = newImage.id;
+			open = false;
+		} catch {
+			uploadError = 'Unable to upload image';
+		} finally {
+			uploading = false;
+			input.value = '';
+		}
 	}
 </script>
 
@@ -58,11 +95,29 @@
 				</div>
 			{/each}
 		</div>
-		<button
-			type="submit"
-			class="rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
-		>
-			Set image
-		</button>
+		<div class="flex flex-wrap items-center gap-2">
+			<button
+				type="submit"
+				class="rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+			>
+				Set image
+			</button>
+			<label
+				class="flex cursor-pointer items-center gap-1 rounded-2xl px-3 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+			>
+				<Upload class="size-3.5" />
+				{uploading ? 'Uploading...' : 'Upload image'}
+				<input
+					type="file"
+					accept="image/*"
+					class="sr-only"
+					disabled={uploading}
+					onchange={uploadImage}
+				/>
+			</label>
+		</div>
+		{#if uploadError}
+			<p class="mt-2 text-sm text-red-500">{uploadError}</p>
+		{/if}
 	</form>
 </Dialog>

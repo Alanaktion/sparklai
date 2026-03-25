@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { schema_completion, completion } from '$lib/server/chat';
 import { enqueueImageJob } from '$lib/server/sd/jobs';
+import { toWebp } from '$lib/server/image-utils';
 import { db } from '$lib/server/db';
-import { images } from '$lib/server/db/schema';
+import { images, posts, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import {
 	GET as getImage,
@@ -122,7 +123,8 @@ describe('Images API', () => {
 	describe('POST /posts/[id]/image - generate post image', () => {
 		it('returns 404 for non-existent post', async () => {
 			const event = {
-				params: { id: '99999' }
+				params: { id: '99999' },
+				request: new Request('http://localhost/', { method: 'POST' })
 			} as Parameters<typeof generatePostImage>[0];
 
 			await expect(generatePostImage(event)).rejects.toMatchObject({
@@ -136,7 +138,8 @@ describe('Images API', () => {
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostImageResponse);
 
 			const event = {
-				params: { id: String(post.id) }
+				params: { id: String(post.id) },
+				request: new Request('http://localhost/', { method: 'POST' })
 			} as Parameters<typeof generatePostImage>[0];
 
 			const response = await generatePostImage(event);
@@ -146,6 +149,75 @@ describe('Images API', () => {
 			const jobArgs = vi.mocked(enqueueImageJob).mock.calls[0][0];
 			expect(jobArgs.post_id).toBe(post.id);
 			expect(jobArgs.target).toBe('post_image');
+		});
+	});
+
+	describe('POST /users/[id]/image - upload user profile image', () => {
+		it('stores uploaded file as WebP and sets as user profile image', async () => {
+			const user = await createTestUser();
+			const fakeImageData = Buffer.from('fake-image-data');
+			const formData = new FormData();
+			formData.append('file', new File([fakeImageData], 'photo.jpg', { type: 'image/jpeg' }));
+
+			const event = {
+				params: { id: String(user.id) },
+				request: new Request('http://localhost/', {
+					method: 'POST',
+					body: formData
+				})
+			} as Parameters<typeof generateUserImage>[0];
+
+			const response = await generateUserImage(event);
+			expect(response.status).toBe(201);
+			expect(vi.mocked(toWebp)).toHaveBeenCalledOnce();
+
+			const body = await response.json();
+			expect(body.image).toBeDefined();
+			expect(body.image.id).toBeTypeOf('number');
+
+			const updatedUser = await db.query.users.findFirst({ where: eq(users.id, user.id) });
+			expect(updatedUser?.image_id).toBe(body.image.id);
+
+			const storedImage = await db.query.images.findFirst({
+				where: eq(images.id, body.image.id)
+			});
+			expect(storedImage).toBeDefined();
+			expect(storedImage?.user_id).toBe(user.id);
+		});
+	});
+
+	describe('POST /posts/[id]/image - upload post image', () => {
+		it('stores uploaded file as WebP and sets as post image', async () => {
+			const user = await createTestUser();
+			const post = await createTestPost(user.id, 'A test post');
+			const fakeImageData = Buffer.from('fake-image-data');
+			const formData = new FormData();
+			formData.append('file', new File([fakeImageData], 'photo.jpg', { type: 'image/jpeg' }));
+
+			const event = {
+				params: { id: String(post.id) },
+				request: new Request('http://localhost/', {
+					method: 'POST',
+					body: formData
+				})
+			} as Parameters<typeof generatePostImage>[0];
+
+			const response = await generatePostImage(event);
+			expect(response.status).toBe(201);
+			expect(vi.mocked(toWebp)).toHaveBeenCalledOnce();
+
+			const body = await response.json();
+			expect(body.image).toBeDefined();
+			expect(body.image.id).toBeTypeOf('number');
+
+			const updatedPost = await db.query.posts.findFirst({ where: eq(posts.id, post.id) });
+			expect(updatedPost?.image_id).toBe(body.image.id);
+
+			const storedImage = await db.query.images.findFirst({
+				where: eq(images.id, body.image.id)
+			});
+			expect(storedImage).toBeDefined();
+			expect(storedImage?.user_id).toBe(user.id);
 		});
 	});
 });

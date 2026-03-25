@@ -1,9 +1,12 @@
 import { completion } from '$lib/server/chat/index.js';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { images, users } from '$lib/server/db/schema';
+import { toWebp } from '$lib/server/image-utils.js';
 import { enqueueImageJob } from '$lib/server/sd/jobs.js';
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
 export async function POST({ params, request }) {
 	const user = await db.query.users.findFirst({
@@ -13,6 +16,30 @@ export async function POST({ params, request }) {
 		return error(404, {
 			message: 'User not found'
 		});
+	}
+
+	if (request.headers.get('Content-Type')?.includes('multipart/form-data')) {
+		const data = await request.formData();
+		const file = data.get('file');
+		if (file instanceof File) {
+			if (file.size > MAX_UPLOAD_BYTES) {
+				return error(413, { message: 'File too large (max 10MB)' });
+			}
+			const arrayBuffer = await file.arrayBuffer();
+			let webpData: Buffer;
+			try {
+				webpData = await toWebp(Buffer.from(arrayBuffer));
+			} catch {
+				return error(400, { message: 'Invalid image file' });
+			}
+			const inserted = await db
+				.insert(images)
+				.values({ user_id: user.id, data: webpData })
+				.returning();
+			const image = inserted[0];
+			await db.update(users).set({ image_id: image.id }).where(eq(users.id, user.id));
+			return json({ image }, { status: 201 });
+		}
 	}
 
 	let aspect_ratio: string | undefined = 'square';

@@ -1,6 +1,7 @@
 import { eq, or } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { imageGenerationJobs, images, posts, users } from '$lib/server/db/schema';
+import { toWebp } from '$lib/server/image-utils';
 import { backend, startGeneration } from './index';
 import type {
 	ImageGenerationRequest,
@@ -137,12 +138,13 @@ async function runImageJob(jobId: number) {
 			.where(eq(imageGenerationJobs.id, jobId));
 
 		const result = await task.waitForResult();
+		const webpData = await toWebp(Buffer.from(result.data));
 		const inserted = await db
 			.insert(images)
 			.values({
 				user_id: job.user_id,
 				params: result.params,
-				data: Buffer.from(result.data)
+				data: webpData
 			})
 			.returning();
 		const image = inserted[0];
