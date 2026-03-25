@@ -2,6 +2,8 @@
 	import { browser } from '$app/environment';
 	import type { PostType, UserType } from '$lib/server/db/schema';
 	import Loader from 'virtual:icons/lucide/loader';
+	import X from 'virtual:icons/lucide/x';
+	import { onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 
@@ -12,10 +14,25 @@
 	import Post from '$lib/components/Post.svelte';
 	import { resolve } from '$app/paths';
 
+	const POSTS_PAGE_SIZE = 15;
+
 	let open = $state(false);
 
-	let users = $derived<UserType[]>(data.users);
-	let posts = $derived<PostType[]>(data.posts);
+	type PostsResponse = {
+		posts: PostType[];
+		hasMore: boolean;
+	};
+
+	let additionalUsers = $state<UserType[]>([]);
+	let loadedPosts = $state<PostType[] | null>(null);
+	let hasMoreState = $state<boolean | null>(null);
+	let loadingPosts = $state(false);
+	let searchText = $state('');
+	let searchVersion = $state(0);
+	let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+	let users = $derived<UserType[]>([...data.users, ...additionalUsers]);
+	let posts = $derived<PostType[]>(loadedPosts ?? data.posts);
 
 	let creating = $state(false);
 	let user_prompt = $state('');
@@ -34,7 +51,7 @@
 				creating = false;
 				open = false;
 				user_prompt = '';
-				users.push(body);
+				additionalUsers.push(body);
 			})
 			.catch(() => {
 				creating = false;
@@ -46,6 +63,106 @@
 		const matches = users.filter((u) => u.id == id);
 		return matches ? matches[0] : {};
 	};
+
+	const loadPosts = async ({
+		reset = false,
+		version
+	}: { reset?: boolean; version?: number } = {}) => {
+		const currentPosts = loadedPosts ?? data.posts;
+		const currentHasMore = hasMoreState ?? data.hasMorePosts;
+
+		if (loadingPosts || (!reset && !currentHasMore)) {
+			return;
+		}
+
+		loadingPosts = true;
+		const queryParts = [`limit=${POSTS_PAGE_SIZE}`];
+		const query = searchText.trim();
+		if (query.length) {
+			queryParts.push(`q=${encodeURIComponent(query)}`);
+		}
+		if (!reset && currentPosts.length) {
+			const lastPost = currentPosts[currentPosts.length - 1];
+			queryParts.push(`cursor=${lastPost.id}`);
+		}
+
+		try {
+			const response = await fetch(resolve(`/posts?${queryParts.join('&')}`));
+			if (!response.ok) {
+				return;
+			}
+			const body: PostsResponse = await response.json();
+			if (version !== undefined && version !== searchVersion) {
+				return;
+			}
+			hasMoreState = body.hasMore;
+			loadedPosts = reset ? body.posts : [...currentPosts, ...body.posts];
+		} finally {
+			loadingPosts = false;
+		}
+	};
+
+	const searchPosts = () => {
+		if (searchDebounce) {
+			clearTimeout(searchDebounce);
+		}
+		searchVersion += 1;
+		const version = searchVersion;
+		searchDebounce = setTimeout(() => {
+			searchDebounce = null;
+			void loadPosts({ reset: true, version });
+		}, 500);
+	};
+
+	const clearSearch = () => {
+		if (searchDebounce) {
+			clearTimeout(searchDebounce);
+			searchDebounce = null;
+		}
+		searchVersion += 1;
+		searchText = '';
+		loadedPosts = null;
+		hasMoreState = null;
+	};
+
+	const submitSearchNow = (e: Event) => {
+		e.preventDefault();
+		if (!searchText.trim().length) {
+			clearSearch();
+			return;
+		}
+		if (searchDebounce) {
+			clearTimeout(searchDebounce);
+			searchDebounce = null;
+		}
+		searchVersion += 1;
+		const version = searchVersion;
+		void loadPosts({ reset: true, version });
+	};
+
+	const observeNearBottom = (node: HTMLElement) => {
+		if (!browser) {
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting) {
+					void loadPosts();
+				}
+			},
+			{ rootMargin: '500px 0px' }
+		);
+
+		observer.observe(node);
+		return () => observer.disconnect();
+	};
+
+	onDestroy(() => {
+		if (searchDebounce) {
+			clearTimeout(searchDebounce);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -55,14 +172,42 @@
 {#if users && posts}
 	<div class="my-4 max-w-4xl grid-cols-3 gap-6 px-4 sm:mx-auto sm:grid lg:gap-8">
 		<div class="col-span-2">
-			<h2 class="mb-4 text-xl">Posts</h2>
+			<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+				<h2 class="text-xl">Posts</h2>
+				<form class="flex items-center" onsubmit={submitSearchNow}>
+					<div class="relative">
+						<input
+							type="search"
+							bind:value={searchText}
+							oninput={searchPosts}
+							placeholder="Search posts"
+							class="w-52 appearance-none rounded-full border border-gray-300 bg-transparent px-2 py-1 pr-8 text-sm shadow-sm transition-colors placeholder:text-gray-300 focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none disabled:opacity-50 dark:border-gray-500 dark:placeholder:text-gray-600"
+						/>
+						<button
+							type="button"
+							onclick={clearSearch}
+							disabled={!searchText.trim().length}
+							class="absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-1 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:invisible dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+							aria-label="Clear search"
+						>
+							<X class="size-3.5" />
+						</button>
+					</div>
+				</form>
+			</div>
 
 			{#if posts.length}
 				{#each posts as post (post.id)}
 					<Post {post} user={user(post.user_id)} />
 				{/each}
-			{:else}
+				<div {@attach observeNearBottom} class="h-1 w-full"></div>
+				{#if loadingPosts}
+					<Loader class="mx-auto my-6 size-8 animate-spin text-gray-600 dark:text-gray-400" />
+				{/if}
+			{:else if loadingPosts}
 				<Loader class="mx-auto my-6 size-12 animate-spin text-gray-600 dark:text-gray-400" />
+			{:else}
+				<p class="text-sm text-gray-500 dark:text-gray-400">No posts found.</p>
 			{/if}
 		</div>
 
