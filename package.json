@@ -21,7 +21,7 @@
 		"@eslint/compat": "^2.0.3",
 		"@eslint/js": "^10.0.1",
 		"@iconify-json/fluent-color": "^1.2.21",
-		"@iconify-json/lucide": "^1.2.98",
+		"@iconify-json/lucide": "^1.2.99",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/adapter-static": "^3.0.10",
@@ -45,8 +45,8 @@
 		"typescript": "^6.0.2",
 		"typescript-eslint": "^8.57.2",
 		"unplugin-icons": "^23.0.1",
-		"vite": "^8.0.2",
-		"vitest": "^4.1.1"
+		"vite": "^8.0.3",
+		"vitest": "^4.1.2"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -59,7 +59,7 @@
 	"dependencies": {
 		"@libsql/client": "^0.17.2",
 		"drizzle-orm": "^0.45.1",
-		"openai": "^6.32.0",
+		"openai": "^6.33.0",
 		"sharp": "^0.34.5"
 	}
 }

@@ -2,6 +2,7 @@
 	import type { ChatType } from '$lib/server/db/schema';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import { twMerge } from 'tailwind-merge';
+	import Image from './Image.svelte';
 
 	type ChatMessageType = ChatType & {
 		image?: {
@@ -123,10 +124,7 @@
 			chat.role == 'assistant' && 'self-start'
 		])}
 	>
-		<img src="/images/{chat.image_id}" alt="" class="w-full" loading="lazy" />
-		{#if chat.image?.blur}
-			<div class="absolute inset-0 backdrop-blur-xl"></div>
-		{/if}
+		<Image image={chat.image} />
 	</div>
 {/if}
 
