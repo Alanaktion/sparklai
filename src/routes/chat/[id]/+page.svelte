@@ -22,6 +22,7 @@
 	let user = $derived<UserType>(data.user);
 	let chats = $state<ChatMessageType[]>([]);
 	let infoOpen = $state(false);
+	let container: HTMLDivElement;
 
 	let responding = $state(false);
 	let timeoutId: ReturnType<typeof setTimeout>;
@@ -32,7 +33,7 @@
 		message = '';
 		data.chats.then((result) => {
 			chats = result as ChatMessageType[];
-			tick().then(() => window.scrollTo(0, document.body.scrollHeight));
+			tick().then(() => container && container.scrollTo(0, container.scrollHeight));
 		});
 	});
 
@@ -44,10 +45,10 @@
 	$effect.pre(() => {
 		void chats.length;
 		void responding;
-		if (typeof window === 'undefined') return;
-		const nearBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 50;
+		if (!container) return;
+		const nearBottom = container.clientHeight + container.scrollTop >= container.scrollHeight - 50;
 		if (nearBottom) {
-			tick().then(() => window.scrollTo(0, document.body.scrollHeight));
+			tick().then(() => container.scrollTo(0, container.scrollHeight));
 		}
 	});
 
@@ -102,9 +103,9 @@
 	<title>Chat with {user.name}</title>
 </svelte:head>
 
-<div class="flex min-h-svh flex-col overflow-y-scroll">
+<div class="flex h-svh flex-col overflow-y-scroll" bind:this={container}>
 	<header
-		class="sticky z-10 flex items-center gap-2 border-b border-gray-200 bg-gray-100/80 p-2 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
+		class="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-gray-100/80 p-2 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
 	>
 		<a
 			href={resolve('/chat')}
