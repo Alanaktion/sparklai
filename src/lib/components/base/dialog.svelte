@@ -31,7 +31,7 @@
 			use:escapeKey={() => (open = false)}
 			class={twMerge(
 				'relative z-10 max-h-[80vh] overflow-y-auto', // layout and positioning
-				'w-screen sm:w-max sm:min-w-md max-w-screen sm:max-w-xl lg:max-w-3xl', // width
+				'w-screen max-w-screen sm:w-max sm:max-w-xl sm:min-w-md lg:max-w-3xl', // width
 				'bg-white text-left dark:bg-gray-800', // background and text
 				'shadow-md dark:shadow-none', // shadow
 				'border-y border-gray-300 p-4 sm:rounded sm:border dark:border-gray-700', // border

@@ -62,7 +62,11 @@
 			'bg-gray-300/80 backdrop-blur-xs dark:bg-gray-900/80' // background
 		)}
 	>
-		<img src="/images/{image.id}" alt={params?.prompt} class="max-h-screen max-w-screen object-contain p-3" />
+		<img
+			src="/images/{image.id}"
+			alt={params?.prompt}
+			class="max-h-screen max-w-screen object-contain p-3"
+		/>
 	</button>
 	<button
 		onclick={toggleBlur}

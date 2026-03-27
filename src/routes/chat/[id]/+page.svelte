@@ -139,7 +139,7 @@
 		{#await data.chats}
 			<p class="text-center text-sm text-gray-500">Loading messages...</p>
 		{:then}
-			<div class="flex flex-col gap-2">
+			<div class="flex flex-col gap-3">
 				{#each chats as chat, i (chat.id)}
 					<ChatMessage
 						{chat}
@@ -150,28 +150,18 @@
 				{/each}
 				{#if responding}
 					<div class="self-start rounded-2xl bg-gray-50 px-3 py-2 dark:bg-gray-800">
-						<svg viewBox="0 0 24 8" class="h-4 w-10 text-gray-500 dark:text-gray-400">
-							<circle
-								cx="2"
-								cy="4"
-								r="2"
-								fill="currentColor"
-								style="animation: typing-dot 1.2s ease-in-out infinite"
-							></circle>
-							<circle
-								cx="12"
-								cy="4"
-								r="2"
-								fill="currentColor"
-								style="animation: typing-dot 1.2s ease-in-out infinite 0.2s"
-							></circle>
-							<circle
-								cx="22"
-								cy="4"
-								r="2"
-								fill="currentColor"
-								style="animation: typing-dot 1.2s ease-in-out infinite 0.4s"
-							></circle>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="animate-typing size-6"
+						>
+							<circle cx="5" cy="12" r="1" />
+							<circle cx="12" cy="12" r="1" />
+							<circle cx="19" cy="12" r="1" />
 						</svg>
 					</div>
 				{/if}
@@ -227,3 +217,28 @@
 		<p class="mt-2">{user.bio}</p>
 	{/if}
 </Dialog>
+
+<style>
+	.animate-typing {
+		circle {
+			animation: bounce 1s infinite;
+			&:nth-child(2) {
+				animation-delay: 100ms;
+			}
+			&:nth-child(3) {
+				animation-delay: 200ms;
+			}
+		}
+	}
+	@keyframes bounce {
+		0%,
+		100% {
+			transform: translateY(-25%);
+			animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+		}
+		50% {
+			transform: none;
+			animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+		}
+	}
+</style>
