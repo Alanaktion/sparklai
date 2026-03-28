@@ -12,6 +12,9 @@ export default defineConfig({
 		})
 	],
 	server: {
-		allowedHosts: true
+		allowedHosts: true,
+		watch: {
+			ignored: ['**/*.db', '**/*.db-wal', '**/*.db-shm']
+		}
 	}
 });
