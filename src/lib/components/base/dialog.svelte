@@ -18,6 +18,7 @@
 
 {#if open}
 	<div
+		role="presentation"
 		in:fade={{ duration: 75 }}
 		out:fade={{ duration: 75 }}
 		class={twMerge(
@@ -25,6 +26,11 @@
 			'fixed top-0 right-0 bottom-0 left-0 z-1000', // position
 			'bg-gray-300/80 backdrop-blur-xs dark:bg-gray-900/80' // background
 		)}
+		onclick={(e) => {
+			if (e.target === e.currentTarget) {
+				open = false;
+			}
+		}}
 	>
 		<div
 			use:focusTrap

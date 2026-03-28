@@ -72,6 +72,63 @@
 		confirmation = false;
 		ondelete?.(chat);
 	};
+
+	type BodySegment = {
+		text: string;
+		italic: boolean;
+	};
+
+	const isSingleEmojiMessage = (text: string): boolean => {
+		const trimmed = text.trim();
+		if (!trimmed) {
+			return false;
+		}
+
+		const graphemes =
+			typeof Intl.Segmenter === 'function'
+				? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed), (s) => s.segment)
+				: Array.from(trimmed);
+
+		if (graphemes.length !== 1) {
+			return false;
+		}
+
+		const [grapheme] = graphemes;
+		return /\p{Extended_Pictographic}|\p{Regional_Indicator}|[#*0-9]\uFE0F?\u20E3/u.test(grapheme);
+	};
+
+	const parseInlineItalics = (text: string): BodySegment[] => {
+		const segments: BodySegment[] = [];
+		const italicPattern = /\*([^*\n]+)\*/g;
+		let cursor = 0;
+		let match = italicPattern.exec(text);
+
+		while (match) {
+			const start = match.index;
+			const end = start + match[0].length;
+
+			if (start > cursor) {
+				segments.push({ text: text.slice(cursor, start), italic: false });
+			}
+
+			segments.push({ text: match[1], italic: true });
+			cursor = end;
+			match = italicPattern.exec(text);
+		}
+
+		if (cursor < text.length) {
+			segments.push({ text: text.slice(cursor), italic: false });
+		}
+
+		if (segments.length === 0) {
+			segments.push({ text, italic: false });
+		}
+
+		return segments;
+	};
+
+	let bodySegments = $derived.by(() => parseInlineItalics(chat.body));
+	let isSingleEmoji = $derived.by(() => isSingleEmojiMessage(chat.body));
 </script>
 
 {#if prefix}
@@ -96,12 +153,21 @@
 	<div
 		class={twMerge([
 			'max-w-lg rounded-3xl px-4 py-2',
-			chat.role == 'user' && 'bg-blue-600 text-white dark:bg-blue-800',
-			chat.role == 'assistant' && 'bg-gray-50 dark:bg-gray-800',
-			...rounded
+			!isSingleEmoji && chat.role == 'user' && 'bg-blue-600 text-white dark:bg-blue-800',
+			!isSingleEmoji && chat.role == 'assistant' && 'bg-gray-50 dark:bg-gray-800',
+			isSingleEmoji && 'bg-transparent px-1 py-0 text-5xl leading-none md:text-6xl',
+			...(!isSingleEmoji ? rounded : [])
 		])}
 	>
-		<p class="text-pretty whitespace-pre-wrap">{chat.body}</p>
+		<p class={twMerge(['text-pretty whitespace-pre-wrap', isSingleEmoji && 'whitespace-normal leading-none'])}>
+			{#each bodySegments as segment, i (i)}
+				{#if segment.italic}
+					<em>{segment.text}</em>
+				{:else}
+					{segment.text}
+				{/if}
+			{/each}
+		</p>
 	</div>
 	{#if ondelete}
 		<button
