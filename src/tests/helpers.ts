@@ -47,7 +47,7 @@ export const sampleUserData = {
 	writing_style: {
 		emoji_frequency: 0.1,
 		formality: 'casual',
-		puncuation_style: 'standard',
+		punctuation_style: 'standard',
 		slang_usage: 'minimal'
 	},
 	backstory_snippet: 'A test backstory snippet',
@@ -78,7 +78,7 @@ export const sampleAIUserResponse = {
 	writing_style: {
 		emoji_frequency: 0.3,
 		formality: 'casual',
-		puncuation_style: 'standard',
+		punctuation_style: 'standard',
 		slang_usage: 'minimal'
 	},
 	backstory_snippet: 'Grew up in Seattle, moved to Portland for work',

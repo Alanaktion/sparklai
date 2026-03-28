@@ -4,8 +4,13 @@
 	import Avatar from './Avatar.svelte';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
+	import type { ImageType, UserType } from '$lib/server/db/schema';
 
-	const { user, images } = $props();
+	const { user, images, onAvatarChange } = $props<{
+		user: UserType;
+		images: Partial<ImageType>[];
+		onAvatarChange?: (imageId: number, image?: Partial<ImageType>) => void;
+	}>();
 
 	let image_id = $derived(user.image_id);
 	let open = $state(false);
@@ -18,7 +23,7 @@
 			method: 'PATCH',
 			body: JSON.stringify({ image_id })
 		}).then(() => {
-			user.image_id = image_id;
+			onAvatarChange?.(image_id);
 			open = false;
 		});
 	}
@@ -44,10 +49,7 @@
 			}
 			const body = await response.json();
 			const newImage = body.image;
-			if (!images.some((img: { id: number }) => img.id === newImage.id)) {
-				images.push(newImage);
-			}
-			user.image_id = newImage.id;
+			onAvatarChange?.(newImage.id, newImage);
 			open = false;
 		} catch {
 			uploadError = 'Unable to upload image';

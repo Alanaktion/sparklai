@@ -10,7 +10,7 @@
 </script>
 
 <div class="flex items-center px-4 py-4">
-	<a href={resolve('/')} class="text-blue-600 xl:mb-4 dark:text-blue-400 me-auto">
+	<a href={resolve('/')} class="me-auto text-blue-600 xl:mb-4 dark:text-blue-400">
 		<span class="sr-only">SparklAI</span>
 		<Sparkles
 			class="size-6 text-amber-500 *:first:fill-amber-400 *:first:stroke-none dark:*:first:fill-amber-300"

@@ -39,6 +39,7 @@
 	let user = $derived<UserType>(data.user);
 	let posts = $derived<PostType[]>(data.posts);
 	let images = $derived<Partial<ImageType>[]>(data.images);
+	let avatarRenderKey = $state(0);
 
 	// Initialize nested objects if they don't exist
 	$effect(() => {
@@ -59,7 +60,7 @@
 				languages: [],
 				emoji_frequency: 0,
 				formality: '',
-				puncuation_style: '',
+				punctuation_style: '',
 				slang_usage: ''
 			};
 		}
@@ -112,6 +113,14 @@
 		pendingImageJobIds = pendingImageJobIds.filter((id) => id !== jobId);
 	}
 
+	function handleAvatarChange(imageId: number, image?: Partial<ImageType>) {
+		user.image_id = imageId;
+		if (image && !images.some((existingImage) => existingImage.id === image.id)) {
+			images = [...images, image];
+		}
+		avatarRenderKey += 1;
+	}
+
 	async function pollImageJob(jobId: number, options?: { postId?: number | null }) {
 		trackPendingJob(jobId);
 		imageJobError = '';
@@ -134,7 +143,7 @@
 					images = [...images, job.image];
 				}
 				if (job.set_as_user_image) {
-					user.image_id = job.image_id;
+					handleAvatarChange(job.image_id, job.image ?? undefined);
 				}
 				if (options?.postId) {
 					posts = posts.map((post) =>
@@ -244,7 +253,7 @@
 		class="rounded border-b border-gray-200 bg-gray-50 p-4 shadow-lg shadow-gray-500/10 dark:border-gray-700 dark:bg-gray-800 dark:shadow-gray-900/20"
 	>
 		<div class="flex items-center gap-4">
-			<AvatarPicker {user} {images} />
+			<AvatarPicker {user} {images} onAvatarChange={handleAvatarChange} />
 			<div class="ms-auto text-end">
 				<h1 class="text-xl font-semibold text-gray-800 dark:text-gray-200">{user.name}</h1>
 				<p class="text-sm text-gray-400">
@@ -526,7 +535,7 @@
 											languages: [],
 											emoji_frequency: 0,
 											formality: '',
-											puncuation_style: '',
+											punctuation_style: '',
 											slang_usage: ''
 										};
 									}
@@ -572,7 +581,7 @@
 								<span class="text-xs text-gray-600 dark:text-gray-400">Punctuation Style</span>
 								<input
 									type="text"
-									bind:value={user.writing_style!.puncuation_style}
+									bind:value={user.writing_style!.punctuation_style}
 									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 								/>
 							</label>
@@ -846,9 +855,11 @@
 		</div>
 
 		{#if tab == 'posts'}
-			{#each posts as post (post.id)}
-				<Post {post} {user} />
-			{/each}
+			{#key avatarRenderKey}
+				{#each posts as post (post.id)}
+					<Post {post} {user} />
+				{/each}
+			{/key}
 		{:else if tab == 'images'}
 			<div class="grid grid-cols-2 gap-2 md:grid-cols-3">
 				{#each images as image (image.id)}

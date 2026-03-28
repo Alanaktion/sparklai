@@ -58,7 +58,7 @@
 	},
 	"dependencies": {
 		"@libsql/client": "^0.17.2",
-		"drizzle-orm": "^0.45.1",
+		"drizzle-orm": "^0.45.2",
 		"openai": "^6.33.0",
 		"sharp": "^0.34.5"
 	}

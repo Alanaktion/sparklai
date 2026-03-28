@@ -26,7 +26,7 @@ type WritingStyle = {
 	languages?: string[];
 	emoji_frequency: number;
 	formality: string;
-	puncuation_style: string;
+	punctuation_style: string;
 	slang_usage: string;
 };
 type Appearance = {
