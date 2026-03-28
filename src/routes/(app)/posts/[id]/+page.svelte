@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { looksNonEnglish } from '$lib/language';
 	import { goto } from '$app/navigation';
 	import { hotkey } from '$lib/actions/hotkey.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
@@ -43,7 +44,6 @@
 			.catch(() => (responding = false));
 	}
 
-	let form: HTMLFormElement | undefined = $state();
 	let message = $state('');
 	let submitting = $state(false);
 	function submit(e: Event) {
@@ -78,6 +78,31 @@
 			method: 'PATCH',
 			body: JSON.stringify({ image_id: null })
 		}).then(() => (post.image_id = null));
+	}
+
+	let translatingCommentIds = $state<number[]>([]);
+
+	async function translateComment(commentId: number) {
+		if (translatingCommentIds.includes(commentId)) {
+			return;
+		}
+
+		translatingCommentIds = [...translatingCommentIds, commentId];
+		try {
+			const response = await fetch(resolve(`/posts/${data.id}/comments/${commentId}/translate`), {
+				method: 'POST'
+			});
+			if (!response.ok) {
+				return;
+			}
+			const body = (await response.json()) as { body_en?: string | null };
+			const comment = comments.find((c) => c.id === commentId);
+			if (comment) {
+				comment.body_en = body.body_en ?? null;
+			}
+		} finally {
+			translatingCommentIds = translatingCommentIds.filter((id) => id !== commentId);
+		}
 	}
 </script>
 
@@ -143,12 +168,29 @@
 							</button>
 						</div>
 						<p class="whitespace-pre-wrap">{comment.body}</p>
+						{#if !comment.body_en && looksNonEnglish(comment.body)}
+							<button
+								type="button"
+								onclick={() => translateComment(comment.id)}
+								disabled={translatingCommentIds.includes(comment.id)}
+								class="mt-1 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+							>
+								{translatingCommentIds.includes(comment.id)
+									? 'Translating...'
+									: 'Translate to English'}
+							</button>
+						{/if}
+						{#if comment.body_en}
+							<p class="mt-1 text-xs whitespace-pre-wrap text-gray-600 dark:text-gray-400">
+								{comment.body_en}
+							</p>
+						{/if}
 					</div>
 				</div>
 			{/each}
 
 			{#if browser}
-				<form bind:this={form} onsubmit={submit} class="mt-5 flex items-center gap-2 py-2">
+				<form onsubmit={submit} class="mt-5 flex items-center gap-2 py-2">
 					{#if responding}
 						<Loader class="mx-1 size-4 animate-spin text-gray-600 dark:text-gray-400" />
 					{:else}

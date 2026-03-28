@@ -97,6 +97,7 @@ export const posts = sqliteTable('posts', {
 	image_id: integer().references(() => images.id, { onDelete: 'set null' }),
 	media_id: integer().references(() => media.id, { onDelete: 'set null' }),
 	body: text().notNull(),
+	body_en: text(),
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -107,6 +108,7 @@ export const comments = sqliteTable('comments', {
 		.references(() => posts.id, { onDelete: 'cascade' }),
 	user_id: integer().references(() => users.id, { onDelete: 'cascade' }),
 	body: text().notNull(),
+	body_en: text(),
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -118,6 +120,7 @@ export const chats = sqliteTable('chats', {
 	image_id: integer().references(() => images.id, { onDelete: 'set null' }),
 	role: text().notNull().$type<LlamaMessage['role']>(),
 	body: text().notNull(),
+	body_en: text(),
 	created_at: text().default(sql`CURRENT_TIMESTAMP`)
 });
 

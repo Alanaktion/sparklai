@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { ChatType } from '$lib/server/db/schema';
+	import { looksNonEnglish } from '$lib/language';
 	import Dialog from '$lib/components/base/dialog.svelte';
+	import { resolve } from '$app/paths';
 	import { twMerge } from 'tailwind-merge';
 	import Image from './Image.svelte';
 
@@ -86,7 +88,10 @@
 
 		const graphemes =
 			typeof Intl.Segmenter === 'function'
-				? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed), (s) => s.segment)
+				? Array.from(
+						new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed),
+						(s) => s.segment
+					)
 				: Array.from(trimmed);
 
 		if (graphemes.length !== 1) {
@@ -129,6 +134,31 @@
 
 	let bodySegments = $derived.by(() => parseInlineItalics(chat.body));
 	let isSingleEmoji = $derived.by(() => isSingleEmojiMessage(chat.body));
+	let translating = $state(false);
+	let translatedBody = $derived(chat.body_en ?? null);
+
+	let shouldOfferTranslation = $derived.by(() => !translatedBody && looksNonEnglish(chat.body));
+
+	async function translateChat() {
+		if (translating || translatedBody) {
+			return;
+		}
+
+		translating = true;
+		try {
+			const response = await fetch(
+				resolve(`/users/${chat.user_id}/chat/messages/${chat.id}/translate`),
+				{ method: 'POST' }
+			);
+			if (!response.ok) {
+				return;
+			}
+			const body = (await response.json()) as { body_en?: string | null };
+			translatedBody = body.body_en ?? null;
+		} finally {
+			translating = false;
+		}
+	}
 </script>
 
 {#if prefix}
@@ -159,7 +189,12 @@
 			...(!isSingleEmoji ? rounded : [])
 		])}
 	>
-		<p class={twMerge(['text-pretty whitespace-pre-wrap', isSingleEmoji && 'whitespace-normal leading-none'])}>
+		<p
+			class={twMerge([
+				'text-pretty whitespace-pre-wrap',
+				isSingleEmoji && 'leading-none whitespace-normal'
+			])}
+		>
 			{#each bodySegments as segment, i (i)}
 				{#if segment.italic}
 					<em>{segment.text}</em>
@@ -168,6 +203,33 @@
 				{/if}
 			{/each}
 		</p>
+		{#if !isSingleEmoji && shouldOfferTranslation}
+			<button
+				type="button"
+				onclick={translateChat}
+				disabled={translating}
+				class={twMerge([
+					'mt-2 rounded border px-2 py-0.5 text-xs',
+					chat.role == 'user' &&
+						'border-blue-300/60 text-blue-100 hover:bg-blue-500/25 disabled:opacity-60 dark:border-blue-300/40',
+					chat.role == 'assistant' &&
+						'border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+				])}
+			>
+				{translating ? 'Translating...' : 'Translate to English'}
+			</button>
+		{/if}
+		{#if !isSingleEmoji && translatedBody}
+			<p
+				class={twMerge([
+					'mt-2 text-xs whitespace-pre-wrap',
+					chat.role == 'user' && 'text-blue-100/90',
+					chat.role == 'assistant' && 'text-gray-600 dark:text-gray-400'
+				])}
+			>
+				{translatedBody}
+			</p>
+		{/if}
 	</div>
 	{#if ondelete}
 		<button
