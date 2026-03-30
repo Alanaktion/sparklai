@@ -1,6 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type {
@@ -48,6 +48,68 @@ const comfyPollIntervalMs = Number(env.SD_COMFY_POLL_INTERVAL_MS || 1500);
 const comfyTimeoutMs = Number(env.SD_COMFY_TIMEOUT_MS || 180000);
 const workflowCache = new Map<SDStyle, ComfyWorkflowTemplate>();
 const workflowDir = join(dirname(fileURLToPath(import.meta.url)), 'workflows');
+
+const debugLog = env.SD_DEBUG_LOG === 'true' || env.SD_DEBUG_LOG === '1';
+const debugLogFile = env.SD_DEBUG_LOG_FILE || 'logs/sd-debug.log';
+let debugLogDirReady = false;
+
+async function ensureDebugLogDir() {
+	if (debugLogDirReady) return;
+	try {
+		await mkdir(dirname(debugLogFile), { recursive: true });
+		debugLogDirReady = true;
+	} catch {
+		// best-effort
+	}
+}
+
+async function sdLog(entry: Record<string, unknown>) {
+	if (!debugLog) return;
+	try {
+		await ensureDebugLogDir();
+		const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n';
+		await appendFile(debugLogFile, line, 'utf8');
+	} catch {
+		// best-effort
+	}
+}
+
+async function sdFetch(url: string | URL, options?: RequestInit): Promise<Response> {
+	const method = (options?.method ?? 'GET').toUpperCase();
+	if (debugLog) {
+		const bodyStr = typeof options?.body === 'string' ? options.body : undefined;
+		let body: unknown = bodyStr;
+		if (bodyStr) {
+			try {
+				body = JSON.parse(bodyStr);
+			} catch {
+				// leave as string
+			}
+		}
+		void sdLog({ dir: 'request', method, url: url.toString(), body });
+	}
+
+	const response = await fetch(url, options);
+
+	if (debugLog) {
+		const cloned = response.clone();
+		const contentType = response.headers.get('content-type') ?? '';
+		let body: unknown;
+		try {
+			if (contentType.includes('application/json')) {
+				body = await cloned.json();
+			} else {
+				const buf = await cloned.arrayBuffer();
+				body = `<${contentType || 'binary'} ${buf.byteLength} bytes>`;
+			}
+		} catch {
+			body = '<unreadable>';
+		}
+		void sdLog({ dir: 'response', method, url: url.toString(), status: response.status, body });
+	}
+
+	return response;
+}
 
 export const backend: SDBackend = env.SD_BACKEND === 'comfyui' ? 'comfyui' : 'automatic1111';
 export let model = env.SD_PHOTO_MODEL || '';
@@ -184,7 +246,7 @@ async function startAutomatic1111Generation(
 		provider: backend,
 		providerJobId: null,
 		waitForResult: async () => {
-			const response = await fetch(sdUrl('txt2img'), {
+			const response = await sdFetch(sdUrl('txt2img'), {
 				method: 'POST',
 				body: JSON.stringify({
 					prompt: params.prompt,
@@ -234,7 +296,7 @@ async function startComfyGeneration(
 	};
 	const promptGraph = applyTemplateValues(template.prompt, replacements);
 	const clientId = randomUUID();
-	const response = await fetch(sdUrl('prompt'), {
+	const response = await sdFetch(sdUrl('prompt'), {
 		method: 'POST',
 		body: JSON.stringify({
 			prompt: promptGraph,
@@ -265,7 +327,7 @@ async function startComfyGeneration(
 			const deadline = Date.now() + comfyTimeoutMs;
 
 			while (Date.now() < deadline) {
-				const historyResponse = await fetch(sdUrl(`history/${promptId}`));
+				const historyResponse = await sdFetch(sdUrl(`history/${promptId}`));
 				if (!historyResponse.ok) {
 					throw new Error(`ComfyUI history lookup failed with ${historyResponse.status}`);
 				}
@@ -282,7 +344,7 @@ async function startComfyGeneration(
 					imageUrl.searchParams.set('filename', image.filename);
 					imageUrl.searchParams.set('subfolder', image.subfolder || '');
 					imageUrl.searchParams.set('type', image.type || 'output');
-					const imageResponse = await fetch(imageUrl);
+					const imageResponse = await sdFetch(imageUrl);
 					if (!imageResponse.ok) {
 						throw new Error(`ComfyUI image fetch failed with ${imageResponse.status}`);
 					}
@@ -314,7 +376,7 @@ export async function init(new_model: string | null = null) {
 		return;
 	}
 
-	await fetch(sdUrl('options'), {
+	await sdFetch(sdUrl('options'), {
 		method: 'POST',
 		body: JSON.stringify({
 			sd_model_checkpoint: model,
@@ -341,7 +403,7 @@ export async function fetch_models(): Promise<SDModel[]> {
 	}
 
 	try {
-		const response = await fetch(sdUrl('sd-models'));
+		const response = await sdFetch(sdUrl('sd-models'));
 		if (!response.ok) {
 			throw new Error(`Stable Diffusion model fetch failed with ${response.status}`);
 		}
@@ -390,19 +452,19 @@ export async function options() {
 		};
 	}
 
-	const response = await fetch(sdUrl('options'));
+	const response = await sdFetch(sdUrl('options'));
 	return await response.json();
 }
 
 export async function unload() {
 	if (backend === 'automatic1111') {
-		await fetch(sdUrl('unload'), { method: 'POST' });
+		await sdFetch(sdUrl('unload'), { method: 'POST' });
 	}
 }
 
 export async function reload() {
 	if (backend === 'automatic1111') {
-		await fetch(sdUrl('reload'), { method: 'POST' });
+		await sdFetch(sdUrl('reload'), { method: 'POST' });
 	}
 }
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { looksNonEnglish } from '$lib/language';
+	import { parseInlineItalics } from '$lib/text';
 	import { goto } from '$app/navigation';
 	import { hotkey } from '$lib/actions/hotkey.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
@@ -144,6 +145,7 @@
 			<div class="text-gray-700 dark:text-gray-300">Comments</div>
 
 			{#each comments as comment, index (comment.id)}
+				{@const bodySegments = parseInlineItalics(comment.body)}
 				<div class="group my-4 flex items-start gap-3">
 					<a class="min-w-10" href={resolve(`/users/${comment.user_id}`)}>
 						<Avatar user={comment.user} class="size-10" />
@@ -167,7 +169,15 @@
 								<DismissCircle class="size-4" />
 							</button>
 						</div>
-						<p class="whitespace-pre-wrap">{comment.body}</p>
+						<p class="whitespace-pre-wrap">
+							{#each bodySegments as segment, i (i)}
+								{#if segment.italic}
+									<em>{segment.text}</em>
+								{:else}
+									{segment.text}
+								{/if}
+							{/each}
+						</p>
 						{#if !comment.body_en && looksNonEnglish(comment.body)}
 							<button
 								type="button"

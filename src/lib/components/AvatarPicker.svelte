@@ -83,12 +83,12 @@
 					/>
 					<label
 						for={image.id}
-						class="relative block overflow-hidden rounded-full opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
+						class="relative block aspect-square overflow-hidden rounded-full object-cover object-center opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
 					>
 						<img
 							src={resolve(`/images/${image.id}`)}
 							class={[
-								'aspect-square object-cover',
+								'aspect-square object-cover object-center',
 								image.blur && 'blur-lg transition hover:blur-none'
 							]}
 							alt=""

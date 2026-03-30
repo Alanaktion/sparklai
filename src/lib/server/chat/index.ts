@@ -36,6 +36,28 @@ export type LlamaMessage = {
 	content: string;
 };
 
+function normalize_llm_output<T>(value: T): T {
+	if (typeof value === 'string') {
+		return value.replace(/\\n/g, '\n') as T;
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => normalize_llm_output(item)) as T;
+	}
+
+	if (value && typeof value === 'object') {
+		const normalized = Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+				key,
+				normalize_llm_output(item)
+			])
+		);
+		return normalized as T;
+	}
+
+	return value;
+}
+
 export function init(new_model: string | null = null) {
 	const normalized = normalize_model(new_model);
 	if (normalized) {
@@ -121,7 +143,8 @@ export async function schema_completion(
 			}
 		}
 	});
-	return JSON.parse(response.choices[0].message.content!);
+	const parsed = JSON.parse(response.choices[0].message.content!);
+	return normalize_llm_output(parsed);
 }
 
 export async function completion(
@@ -139,5 +162,5 @@ export async function completion(
 		messages: allMessages,
 		temperature
 	});
-	return response.choices[0].message.content!;
+	return normalize_llm_output(response.choices[0].message.content!);
 }

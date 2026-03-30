@@ -4,11 +4,13 @@
 	import Upload from 'virtual:icons/lucide/upload';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
+	import { trackImageJob } from '$lib/stores/image-jobs';
 
 	type ImageJob = {
 		id: number;
 		status: 'queued' | 'processing' | 'completed' | 'failed';
 		image_id: number | null;
+		error?: string | null;
 		image?: {
 			id: number;
 			blur: boolean;
@@ -25,39 +27,27 @@
 	let imageJobId = $state<number | null>(null);
 	let imageJobError = $state('');
 
-	async function pollImageJob(jobId: number) {
+	async function waitForJob(jobId: number) {
 		imageJobId = jobId;
 		imageJobError = '';
 
-		while (true) {
-			const response = await fetch(resolve(`/image-jobs/${jobId}`));
-			if (!response.ok) {
-				imageJobError = 'Unable to check image generation status';
-				imageJobId = null;
-				return;
-			}
-			const job = (await response.json()) as ImageJob;
-			if (typeof job?.status === 'undefined') {
-				imageJobError = 'Invalid image job response';
-				imageJobId = null;
-				return;
-			}
+		try {
+			const job = (await trackImageJob(jobId, { label: 'Post image' })) as ImageJob;
 			if (job.status === 'completed' && job.image_id) {
 				post.image_id = job.image_id;
 				if (job.image && !images.some((image: { id: number }) => image.id === job.image!.id)) {
 					images.push(job.image);
 				}
-				imageJobId = null;
 				open = false;
 				return;
 			}
 			if (job.status === 'failed') {
-				imageJobError = 'Image generation failed';
-				imageJobId = null;
-				return;
+				imageJobError = job.error || 'Image generation failed';
 			}
-
-			await new Promise((resolveDelay) => setTimeout(resolveDelay, 1500));
+		} catch {
+			imageJobError = 'Unable to check image generation status';
+		} finally {
+			imageJobId = null;
 		}
 	}
 
@@ -75,7 +65,7 @@
 					throw new Error('Invalid image job id');
 				}
 				creating = false;
-				void pollImageJob(body.id);
+				void waitForJob(body.id);
 			})
 			.catch(() => {
 				creating = false;

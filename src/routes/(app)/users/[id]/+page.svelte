@@ -16,16 +16,10 @@
 	import Image from '$lib/components/Image.svelte';
 	import Post from '$lib/components/Post.svelte';
 	import Dialog from '$lib/components/base/dialog.svelte';
+	import { trackImageJob, type ImageGenerationJobResponse } from '$lib/stores/image-jobs';
 	import { resolve } from '$app/paths';
 
-	type ImageJob = {
-		id: number;
-		status: 'queued' | 'processing' | 'completed' | 'failed';
-		image_id: number | null;
-		set_as_user_image: boolean;
-		post_id: number | null;
-		image?: Partial<ImageType> | null;
-	};
+	type ImageJob = ImageGenerationJobResponse;
 
 	type NewPostResponse = {
 		post: PostType;
@@ -121,46 +115,39 @@
 		avatarRenderKey += 1;
 	}
 
-	async function pollImageJob(jobId: number, options?: { postId?: number | null }) {
+	function trackPendingImageJob(
+		jobId: number,
+		options?: { postId?: number | null; label?: string }
+	) {
 		trackPendingJob(jobId);
 		imageJobError = '';
 
-		while (browser) {
-			const response = await fetch(resolve(`/image-jobs/${jobId}`));
-			if (!response.ok) {
+		void trackImageJob(jobId, { label: options?.label })
+			.then((job) => {
+				if (job.status === 'completed' && job.image_id) {
+					if (job.image && !images.some((image) => image.id === job.image!.id)) {
+						images = [...images, job.image];
+					}
+					if (job.set_as_user_image) {
+						handleAvatarChange(job.image_id, job.image ?? undefined);
+					}
+					if (options?.postId) {
+						posts = posts.map((post) =>
+							post.id === options.postId ? { ...post, image_id: job.image_id } : post
+						);
+					}
+					return;
+				}
+				if (job.status === 'failed') {
+					imageJobError = job.error || 'Image generation failed';
+				}
+			})
+			.catch(() => {
 				imageJobError = 'Unable to check image generation status';
+			})
+			.finally(() => {
 				finishPendingJob(jobId);
-				return;
-			}
-			const job = (await response.json()) as ImageJob;
-			if (typeof job?.status === 'undefined') {
-				imageJobError = 'Invalid image job response';
-				finishPendingJob(jobId);
-				return;
-			}
-			if (job.status === 'completed' && job.image_id) {
-				if (job.image && !images.some((image) => image.id === job.image!.id)) {
-					images = [...images, job.image];
-				}
-				if (job.set_as_user_image) {
-					handleAvatarChange(job.image_id, job.image ?? undefined);
-				}
-				if (options?.postId) {
-					posts = posts.map((post) =>
-						post.id === options.postId ? { ...post, image_id: job.image_id } : post
-					);
-				}
-				finishPendingJob(jobId);
-				return;
-			}
-			if (job.status === 'failed') {
-				imageJobError = 'Image generation failed';
-				finishPendingJob(jobId);
-				return;
-			}
-
-			await new Promise((resolveDelay) => setTimeout(resolveDelay, 1500));
-		}
+			});
 	}
 
 	const newPost = (e: Event) => {
@@ -182,7 +169,10 @@
 			.then((body: NewPostResponse) => {
 				posts = [body.post, ...posts];
 				if (body.image_job && Number.isFinite(body.image_job.id)) {
-					void pollImageJob(body.image_job.id, { postId: body.post.id });
+					trackPendingImageJob(body.image_job.id, {
+						postId: body.post.id,
+						label: 'Post image'
+					});
 				}
 				creating = false;
 				open = false;
@@ -213,7 +203,7 @@
 				if (!Number.isFinite(body.id)) {
 					throw new Error('Invalid image job id');
 				}
-				void pollImageJob(body.id);
+				trackPendingImageJob(body.id, { label: 'Profile image' });
 				creating = false;
 				open = false;
 				prompt = '';

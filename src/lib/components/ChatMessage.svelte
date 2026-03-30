@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ChatType } from '$lib/server/db/schema';
 	import { looksNonEnglish } from '$lib/language';
+	import { parseInlineItalics } from '$lib/text';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import { resolve } from '$app/paths';
 	import { twMerge } from 'tailwind-merge';
@@ -75,11 +76,6 @@
 		ondelete?.(chat);
 	};
 
-	type BodySegment = {
-		text: string;
-		italic: boolean;
-	};
-
 	const isSingleEmojiMessage = (text: string): boolean => {
 		const trimmed = text.trim();
 		if (!trimmed) {
@@ -100,36 +96,6 @@
 
 		const [grapheme] = graphemes;
 		return /\p{Extended_Pictographic}|\p{Regional_Indicator}|[#*0-9]\uFE0F?\u20E3/u.test(grapheme);
-	};
-
-	const parseInlineItalics = (text: string): BodySegment[] => {
-		const segments: BodySegment[] = [];
-		const italicPattern = /\*([^*\n]+)\*/g;
-		let cursor = 0;
-		let match = italicPattern.exec(text);
-
-		while (match) {
-			const start = match.index;
-			const end = start + match[0].length;
-
-			if (start > cursor) {
-				segments.push({ text: text.slice(cursor, start), italic: false });
-			}
-
-			segments.push({ text: match[1], italic: true });
-			cursor = end;
-			match = italicPattern.exec(text);
-		}
-
-		if (cursor < text.length) {
-			segments.push({ text: text.slice(cursor), italic: false });
-		}
-
-		if (segments.length === 0) {
-			segments.push({ text, italic: false });
-		}
-
-		return segments;
 	};
 
 	let bodySegments = $derived.by(() => parseInlineItalics(chat.body));

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatDate, localDateTime } from '$lib';
 	import { looksNonEnglish } from '$lib/language';
+	import { parseInlineItalics } from '$lib/text';
 	import CommentMultiple from 'virtual:icons/fluent-color/comment-multiple-24';
 	import ChevronDown from 'virtual:icons/lucide/chevron-down';
 	import { onMount, tick } from 'svelte';
@@ -23,6 +24,7 @@
 
 	let translating = $state(false);
 	let translatedBody = $derived(post.body_en ?? null);
+	let bodySegments = $derived.by(() => parseInlineItalics(post.body));
 
 	let shouldOfferTranslation = $derived.by(() => !translatedBody && looksNonEnglish(post.body));
 
@@ -80,7 +82,15 @@
 			class={['relative mb-2', showExpand && !expanded && 'max-h-96 overflow-hidden']}
 			bind:offsetHeight={height}
 		>
-			<p class="whitespace-pre-wrap">{post.body}</p>
+			<p class="whitespace-pre-wrap">
+				{#each bodySegments as segment, i (i)}
+					{#if segment.italic}
+						<em>{segment.text}</em>
+					{:else}
+						{segment.text}
+					{/if}
+				{/each}
+			</p>
 			{#if shouldOfferTranslation}
 				<button
 					type="button"
