@@ -1,60 +1,81 @@
 {
-	"output_node_id": "9",
+	"output_node_id": "51",
 	"prompt": {
-		"3": {
+		"39": {
 			"inputs": {
-				"seed": "__SEED__",
-				"steps": "__STEPS__",
-				"cfg": "__CFG_SCALE__",
-				"sampler_name": "euler",
-				"scheduler": "normal",
-				"denoise": 1,
-				"model": ["4", 0],
-				"positive": ["6", 0],
-				"negative": ["7", 0],
-				"latent_image": ["5", 0]
+				"clip_name": "qwen_3_4b.safetensors",
+				"type": "lumina2",
+				"device": "default"
 			},
-			"class_type": "KSampler"
+			"class_type": "CLIPLoader"
 		},
-		"4": {
+		"40": {
 			"inputs": {
-				"ckpt_name": "__MODEL__"
+				"vae_name": "ae.safetensors"
 			},
-			"class_type": "CheckpointLoaderSimple"
+			"class_type": "VAELoader"
 		},
-		"5": {
+		"41": {
 			"inputs": {
 				"width": "__WIDTH__",
 				"height": "__HEIGHT__",
 				"batch_size": 1
 			},
-			"class_type": "EmptyLatentImage"
+			"class_type": "EmptySD3LatentImage"
 		},
-		"6": {
+		"42": {
 			"inputs": {
-				"text": "__POSITIVE_PROMPT__",
-				"clip": ["4", 1]
+				"conditioning": ["45", 0]
 			},
-			"class_type": "CLIPTextEncode"
+			"class_type": "ConditioningZeroOut"
 		},
-		"7": {
+		"43": {
 			"inputs": {
-				"text": "__NEGATIVE_PROMPT__",
-				"clip": ["4", 1]
-			},
-			"class_type": "CLIPTextEncode"
-		},
-		"8": {
-			"inputs": {
-				"samples": ["3", 0],
-				"vae": ["4", 2]
+				"samples": ["44", 0],
+				"vae": ["40", 0]
 			},
 			"class_type": "VAEDecode"
 		},
-		"9": {
+		"44": {
+			"inputs": {
+				"seed": "__SEED__",
+				"steps": 9,
+				"cfg": 1,
+				"sampler_name": "res_multistep",
+				"scheduler": "simple",
+				"denoise": 1,
+				"model": ["47", 0],
+				"positive": ["45", 0],
+				"negative": ["42", 0],
+				"latent_image": ["41", 0]
+			},
+			"class_type": "KSampler"
+		},
+		"45": {
+			"inputs": {
+				"text": "__POSITIVE_PROMPT__",
+				"clip": ["39", 0]
+			},
+			"class_type": "CLIPTextEncode"
+		},
+		"46": {
+			"inputs": {
+				"unet_name": "__MODEL__",
+				"weight_dtype": "default"
+			},
+			"class_type": "UNETLoader"
+		},
+		"47": {
+			"inputs": {
+				"shift": 3,
+				"model": ["46", 0]
+			},
+			"class_type": "ModelSamplingAuraFlow"
+		},
+		"51": {
 			"inputs": {
 				"filename_prefix": "__FILENAME_PREFIX__",
-				"images": ["8", 0]
+				"images": ["43", 0]
 			},
 			"class_type": "SaveImage"
 		}
