@@ -5,20 +5,21 @@ import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
 export async function POST({ request }) {
-	const users_result = await db.select().from(users).where(eq(users.is_human, false));
-
-	let prompt = 'Create a new user profile. Do not duplicate an existing user!';
-	if (users_result.length) {
-		const profiles: string[] = users_result.map(
-			(user) => `- ${user.name} (${user.pronouns}): ${user.bio}`
-		);
-		prompt += `\nCurrent users are:\n${profiles.join('\n')}`;
-	}
+	let prompt = 'Create a new user profile.';
 
 	if (request.headers.get('Content-Type')?.includes('form')) {
 		const data = await request.formData();
 		if (data.has('prompt')) {
 			prompt += '\n\n' + data.get('prompt');
+		}
+	} else {
+		prompt += ' Do not duplicate an existing user!';
+		const users_result = await db.select().from(users).where(eq(users.is_human, false));
+		if (users_result.length) {
+			const profiles: string[] = users_result.map(
+				(user) => `- ${user.name} (${user.pronouns}): ${user.bio}`
+			);
+			prompt += `\nCurrent users are:\n${profiles.join('\n')}`;
 		}
 	}
 

@@ -17,6 +17,48 @@ export type GeneratedPostResult = {
 	image_job: Awaited<ReturnType<typeof enqueueImageJob>> | null;
 };
 
+function buildPostPrompt(user: UserType, datetime: string) {
+	const profileBits = [
+		`You are generating a post for ${user.name} (${user.pronouns}), age ${user.age}.`,
+		`Current local date/time for the character: ${datetime}. Use this only as situational context, not as literal text to print.`,
+		'Write exactly like this person would post on social media.',
+		"Match the user's personality, age, bio, backstory, interests, relationships, and writing style as closely as possible.",
+		'Do not start with a date, time, weekday, or journal-like timestamp.',
+		'Avoid generic openings, bland summaries of the day, and assistant-sounding phrasing.',
+		'Vary sentence structure, pacing, and openings across posts.',
+		"Keep the post grounded in concrete specifics that fit this user's life and voice."
+	];
+
+	if (user.bio) {
+		profileBits.push(`Bio: ${user.bio}`);
+	}
+	if (user.location) {
+		profileBits.push(
+			`Location: ${user.location.city}, ${user.location.state_province}, ${user.location.country}`
+		);
+	}
+	if (user.occupation) {
+		profileBits.push(`Occupation: ${user.occupation}`);
+	}
+	if (user.interests?.length) {
+		profileBits.push(`Interests: ${user.interests.join(', ')}`);
+	}
+	if (user.relationship_status) {
+		profileBits.push(`Relationship status: ${user.relationship_status}`);
+	}
+	if (user.personality_traits) {
+		profileBits.push(`Personality traits: ${JSON.stringify(user.personality_traits)}`);
+	}
+	if (user.writing_style) {
+		profileBits.push(`Writing style: ${JSON.stringify(user.writing_style)}`);
+	}
+	if (user.backstory_snippet) {
+		profileBits.push(`Backstory: ${user.backstory_snippet}`);
+	}
+
+	return profileBits.join('\n');
+}
+
 export async function generatePost(
 	user: UserType,
 	prompt: string | null = null
@@ -30,28 +72,7 @@ export async function generatePost(
 		minute: '2-digit'
 	});
 
-	let content = `Write a new post for ${user.name} (${user.pronouns}). The current date/time is ${datetime}`;
-	if (user.location) {
-		content += `\nLocation: ${user.location.city}, ${user.location.state_province}, ${user.location.country}`;
-	}
-	if (user.occupation) {
-		content += `\nOccupation: ${user.occupation}`;
-	}
-	if (user.interests) {
-		content += `\nInterests: ${user.interests}`;
-	}
-	if (user.writing_style) {
-		content += `\nWriting style: ${JSON.stringify(user.writing_style)}`;
-	}
-	if (user.personality_traits) {
-		content += `\nPersonality traits: ${JSON.stringify(user.personality_traits)}`;
-	}
-	if (user.relationship_status) {
-		content += `\nRelationship status: ${user.relationship_status}`;
-	}
-	if (user.backstory_snippet) {
-		content += `\nBackstory: ${user.backstory_snippet}`;
-	}
+	let content = buildPostPrompt(user, datetime);
 
 	// Add relationship information
 	const relationshipsData = await db
@@ -104,7 +125,8 @@ export async function generatePost(
 		});
 	});
 
-	let prompt_content = 'Write the next post for the user.';
+	let prompt_content =
+		'Write the next post for the user. Make it feel distinct from prior posts, specific to this person, and naturally written for a social feed.';
 	if (prompt) {
 		prompt_content += '\n\n' + prompt;
 	}

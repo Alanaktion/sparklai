@@ -103,7 +103,8 @@ export async function get_model(): Promise<string> {
 export async function schema_completion(
 	schema_name: 'post' | 'post_image' | 'profile_image' | 'user',
 	user_prompt: string | null = null,
-	messages: LlamaMessage[] = []
+	messages: LlamaMessage[] = [],
+	system_prompt_override: string | null = null
 ) {
 	let schema;
 	let system_text: string = '';
@@ -119,6 +120,10 @@ export async function schema_completion(
 	} else if (schema_name == 'user') {
 		schema = user_schema;
 		system_text = user_system;
+	}
+
+	if (system_prompt_override !== null) {
+		system_text = system_prompt_override;
 	}
 
 	const allMessages: OpenAI.ChatCompletionMessageParam[] = [
