@@ -34,21 +34,24 @@ describe('Users API', () => {
 			expect(body.id).toBeDefined();
 		});
 
-		it('includes existing user names in the prompt to avoid duplicates', async () => {
+		it('includes existing user names when no custom prompt is provided', async () => {
 			// Create an existing user first
 			await createTestUser({ name: 'Existing User' });
 
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIUserResponse);
 
-			const event = createFormEvent();
+			const event = createEvent({}, { method: 'POST' });
 			await createUser(event);
 
 			// Verify schema_completion was called with a prompt mentioning existing users
 			const callArgs = vi.mocked(schema_completion).mock.calls[0];
 			expect(callArgs[1]).toContain('Existing User');
+			expect(callArgs[1]).toContain('Current users are:');
 		});
 
-		it('appends custom prompt when form data contains prompt field', async () => {
+		it('uses custom prompt directly without existing user exclusion info', async () => {
+			await createTestUser({ name: 'Existing User' });
+
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIUserResponse);
 
 			const event = createFormEvent({}, { prompt: 'Make the user a teacher' });
@@ -56,6 +59,8 @@ describe('Users API', () => {
 
 			const callArgs = vi.mocked(schema_completion).mock.calls[0];
 			expect(callArgs[1]).toContain('Make the user a teacher');
+			expect(callArgs[1]).not.toContain('Existing User');
+			expect(callArgs[1]).not.toContain('Current users are:');
 		});
 	});
 
