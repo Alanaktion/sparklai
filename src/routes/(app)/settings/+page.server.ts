@@ -1,26 +1,22 @@
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
+import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
-async function fetchHumanProfile() {
-	return await db.query.users.findFirst({
-		where: eq(users.is_human, true)
-	});
-}
-
-export const load: PageServerLoad = async () => {
-	const profile = await fetchHumanProfile();
-	// Return null user if no human profile exists - the page will show empty form
-	return {
-		user: profile ?? null
-	};
+export const load: PageServerLoad = async ({ locals }) => {
+	return { user: locals.humanUser ?? null };
 };
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals }) => {
+		if (!locals.humanUser) {
+			fail(401, { error: 'No active human user' });
+			return;
+		}
+
 		const formData = await request.formData();
-		const currentProfile = await fetchHumanProfile();
+		const currentProfile = locals.humanUser;
 
 		const extractField = (fieldName: string) => formData.get(fieldName)?.toString() || null;
 		const parseAge = (ageStr: string | null, defaultAge: number = 25) => {
@@ -52,9 +48,9 @@ export const actions = {
 					}
 				: null;
 
-		const name = extractField('name') || (currentProfile?.name ?? 'You');
-		const age = parseAge(extractField('age'), currentProfile?.age ?? 25);
-		const pronouns = extractField('pronouns') || (currentProfile?.pronouns ?? 'they/them');
+		const name = extractField('name') || currentProfile.name;
+		const age = parseAge(extractField('age'), currentProfile.age);
+		const pronouns = extractField('pronouns') || currentProfile.pronouns;
 
 		const fieldsToSave = {
 			name,
@@ -65,16 +61,10 @@ export const actions = {
 			occupation: extractField('occupation'),
 			interests: parsedInterests,
 			relationship_status: extractField('relationship_status'),
-			is_human: true
+			is_human: true as const
 		};
 
-		if (currentProfile) {
-			// Update existing human user
-			await db.update(users).set(fieldsToSave).where(eq(users.id, currentProfile.id));
-		} else {
-			// Create new human user if none exists
-			await db.insert(users).values(fieldsToSave);
-		}
+		await db.update(users).set(fieldsToSave).where(eq(users.id, currentProfile.id));
 
 		return { success: true };
 	}

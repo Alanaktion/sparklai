@@ -1,62 +1,133 @@
 {
-	"output_node_id": "9",
+	"output_node_id": "32",
 	"prompt": {
 		"3": {
 			"inputs": {
 				"seed": "__SEED__",
-				"steps": "__STEPS__",
-				"cfg": "__CFG_SCALE__",
-				"sampler_name": "euler",
-				"scheduler": "normal",
+				"steps": 15,
+				"cfg": 4,
+				"sampler_name": "res_multistep",
+				"scheduler": "simple",
 				"denoise": 1,
-				"model": ["4", 0],
-				"positive": ["6", 0],
-				"negative": ["7", 0],
-				"latent_image": ["5", 0]
+				"model": ["11", 0],
+				"positive": ["26:31", 0],
+				"negative": ["25:7", 0],
+				"latent_image": ["13", 0]
 			},
-			"class_type": "KSampler"
+			"class_type": "KSampler",
+			"_meta": {
+				"title": "KSampler"
+			}
 		},
 		"4": {
 			"inputs": {
 				"ckpt_name": "__MODEL__"
 			},
-			"class_type": "CheckpointLoaderSimple"
-		},
-		"5": {
-			"inputs": {
-				"width": "__WIDTH__",
-				"height": "__HEIGHT__",
-				"batch_size": 1
-			},
-			"class_type": "EmptyLatentImage"
-		},
-		"6": {
-			"inputs": {
-				"text": "__POSITIVE_PROMPT__",
-				"clip": ["4", 1]
-			},
-			"class_type": "CLIPTextEncode"
-		},
-		"7": {
-			"inputs": {
-				"text": "__NEGATIVE_PROMPT__",
-				"clip": ["4", 1]
-			},
-			"class_type": "CLIPTextEncode"
+			"class_type": "CheckpointLoaderSimple",
+			"_meta": {
+				"title": "Load Checkpoint"
+			}
 		},
 		"8": {
 			"inputs": {
 				"samples": ["3", 0],
 				"vae": ["4", 2]
 			},
-			"class_type": "VAEDecode"
+			"class_type": "VAEDecode",
+			"_meta": {
+				"title": "VAE Decode"
+			}
 		},
-		"9": {
+		"11": {
+			"inputs": {
+				"shift": 4,
+				"model": ["4", 0]
+			},
+			"class_type": "ModelSamplingAuraFlow",
+			"_meta": {
+				"title": "ModelSamplingAuraFlow"
+			}
+		},
+		"13": {
+			"inputs": {
+				"width": "__WIDTH__",
+				"height": "__HEIGHT__",
+				"batch_size": 1
+			},
+			"class_type": "EmptySD3LatentImage",
+			"_meta": {
+				"title": "EmptySD3LatentImage"
+			}
+		},
+		"32": {
 			"inputs": {
 				"filename_prefix": "__FILENAME_PREFIX__",
 				"images": ["8", 0]
 			},
-			"class_type": "SaveImage"
+			"class_type": "SaveImage",
+			"_meta": {
+				"title": "Save Image"
+			}
+		},
+		"25:22": {
+			"inputs": {
+				"string_a": ["25:23", 0],
+				"string_b": ["25:24", 0],
+				"delimiter": ""
+			},
+			"class_type": "StringConcatenate",
+			"_meta": {
+				"title": "Concatenate"
+			}
+		},
+		"25:23": {
+			"inputs": {
+				"value": "You are an assistant designed to generate low-quality images based on textual prompts <Prompt Start> "
+			},
+			"class_type": "PrimitiveStringMultiline",
+			"_meta": {
+				"title": "System prompt"
+			}
+		},
+		"25:24": {
+			"inputs": {
+				"value": "__NEGATIVE_PROMPT__"
+			},
+			"class_type": "PrimitiveStringMultiline"
+		},
+		"25:7": {
+			"inputs": {
+				"text": ["25:22", 0],
+				"clip": ["4", 1]
+			},
+			"class_type": "CLIPTextEncode"
+		},
+		"26:28": {
+			"inputs": {
+				"value": "You are an assistant designed to generate high quality anime images based on textual prompts. <Prompt Start> "
+			},
+			"class_type": "PrimitiveStringMultiline"
+		},
+		"26:29": {
+			"inputs": {
+				"value": "__POSITIVE_PROMPT__"
+			},
+			"class_type": "PrimitiveStringMultiline"
+		},
+		"26:30": {
+			"inputs": {
+				"string_a": ["26:28", 0],
+				"string_b": ["26:29", 0],
+				"delimiter": ""
+			},
+			"class_type": "StringConcatenate"
+		},
+		"26:31": {
+			"inputs": {
+				"text": ["26:30", 0],
+				"clip": ["4", 1]
+			},
+			"class_type": "CLIPTextEncode"
 		}
 	}
 }

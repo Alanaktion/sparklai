@@ -1,10 +1,10 @@
 import { db } from '$lib/server/db';
 import { images, posts, relationships, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = Number(params.id);
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, id)
@@ -27,9 +27,22 @@ export const load: PageServerLoad = async ({ params }) => {
 		.innerJoin(users, eq(relationships.related_user_id, users.id))
 		.where(eq(relationships.user_id, id));
 
+	let isFollowed = false;
+	if (locals.humanUser && !user.is_human) {
+		const follow = await db.query.relationships.findFirst({
+			where: and(
+				eq(relationships.user_id, locals.humanUser.id),
+				eq(relationships.related_user_id, id),
+				eq(relationships.relationship_type, 'follow')
+			)
+		});
+		isFollowed = !!follow;
+	}
+
 	return {
 		id: params.id,
 		user,
+		isFollowed,
 		posts: await db.query.posts.findMany({
 			with: {
 				image: { columns: { id: true, params: true, blur: true } },

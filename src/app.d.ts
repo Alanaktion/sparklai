@@ -4,7 +4,9 @@ import 'unplugin-icons/types/svelte';
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			humanUser: import('$lib/server/db/schema').UserType | null;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}

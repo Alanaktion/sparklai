@@ -1,13 +1,17 @@
 import { generatePost } from '$lib/server';
 import { db } from '$lib/server/db';
-import { posts, users } from '$lib/server/db/schema';
+import { posts, relationships, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
 import { and, desc, eq, inArray, like, lt, sql } from 'drizzle-orm';
 
 const DEFAULT_LIMIT = 15;
 const MAX_LIMIT = 50;
 
-export async function GET({ url }) {
+export async function GET({ url, locals }) {
+	if (!locals.humanUser) {
+		return json({ posts: [], hasMore: false });
+	}
+
 	const limitParam = Number(url.searchParams.get('limit') ?? DEFAULT_LIMIT);
 	const limit = Number.isFinite(limitParam)
 		? Math.min(Math.max(Math.floor(limitParam), 1), MAX_LIMIT)
@@ -18,12 +22,28 @@ export async function GET({ url }) {
 
 	const q = url.searchParams.get('q')?.trim() ?? '';
 
-	const active_user_ids = db
+	const followed_user_ids = db
+		.select({ id: relationships.related_user_id })
+		.from(relationships)
+		.where(
+			and(
+				eq(relationships.user_id, locals.humanUser.id),
+				eq(relationships.relationship_type, 'follow')
+			)
+		);
+
+	const active_followed_ids = db
 		.select({ id: users.id })
 		.from(users)
-		.where(and(eq(users.is_active, true), eq(users.is_human, false)));
+		.where(
+			and(
+				eq(users.is_active, true),
+				eq(users.is_human, false),
+				inArray(users.id, followed_user_ids)
+			)
+		);
 
-	const filters = [inArray(posts.user_id, active_user_ids)];
+	const filters = [inArray(posts.user_id, active_followed_ids)];
 	if (cursor) {
 		filters.push(lt(posts.id, cursor));
 	}

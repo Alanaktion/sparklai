@@ -65,7 +65,8 @@ export const users = sqliteTable('users', {
 	appearance: text({ mode: 'json' }).$type<Appearance>(),
 	image_id: integer().references((): AnySQLiteColumn => images.id),
 	is_human: integer({ mode: 'boolean' }).notNull().default(false),
-	is_active: integer({ mode: 'boolean' }).notNull().default(true)
+	is_active: integer({ mode: 'boolean' }).notNull().default(true),
+	password_hash: text()
 });
 
 export const images = sqliteTable('images', {

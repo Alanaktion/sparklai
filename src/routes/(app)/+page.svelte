@@ -3,6 +3,7 @@
 	import type { PostType, UserType } from '$lib/server/db/schema';
 	import Loader from 'virtual:icons/lucide/loader';
 	import X from 'virtual:icons/lucide/x';
+	import UserMinus from 'virtual:icons/lucide/user-minus';
 	import { onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
@@ -57,6 +58,24 @@
 				creating = false;
 				open = false;
 			});
+	};
+
+	const activeHumanUser = $derived(data.activeHumanUser ?? null);
+
+	let unfollowingIds = $state<Set<number>>(new Set());
+
+	const unfollow = async (userId: number) => {
+		unfollowingIds = new Set([...unfollowingIds, userId]);
+		try {
+			await fetch(resolve(`/users/${userId}/follow`), { method: 'DELETE' });
+			// Remove from the displayed list immediately
+			additionalUsers = additionalUsers.filter((u) => u.id !== userId);
+			// Also filter out from server-provided users by reloading
+			loadedPosts = null;
+			hasMoreState = null;
+		} finally {
+			unfollowingIds = new Set([...unfollowingIds].filter((id) => id !== userId));
+		}
 	};
 
 	const user = (id: number) => {
@@ -169,7 +188,15 @@
 	<title>Home ✨</title>
 </svelte:head>
 
-{#if users && posts}
+{#if !activeHumanUser}
+	<div class="my-16 flex flex-col items-center gap-4 px-4 text-center">
+		<p class="text-2xl">👤</p>
+		<h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300">No user selected</h2>
+		<p class="max-w-sm text-sm text-gray-500 dark:text-gray-400">
+			Select or create a human user profile to see your personalised feed of followed AI users.
+		</p>
+	</div>
+{:else}
 	<div class="my-4 max-w-4xl grid-cols-3 gap-6 px-4 sm:mx-auto sm:grid lg:gap-8">
 		<div class="col-span-2">
 			<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -207,13 +234,15 @@
 			{:else if loadingPosts}
 				<Loader class="mx-auto my-6 size-12 animate-spin text-gray-600 dark:text-gray-400" />
 			{:else}
-				<p class="text-sm text-gray-500 dark:text-gray-400">No posts found.</p>
+				<p class="text-sm text-gray-500 dark:text-gray-400">
+					No posts yet. Follow some AI users to see their posts here.
+				</p>
 			{/if}
 		</div>
 
 		<div>
 			<div class="mb-4 flex items-center justify-between">
-				<h2 class="text-xl">Users</h2>
+				<h2 class="text-xl">Following</h2>
 				{#if browser}
 					<button
 						onclick={() => (open = true)}
@@ -251,27 +280,41 @@
 				class="rounded bg-gray-50 shadow-lg shadow-gray-500/10 dark:bg-gray-800 dark:shadow-gray-900/20"
 			>
 				{#if users.length}
-					{#each users as user (user.id)}
+					{#each users as u (u.id)}
 						<div
 							class="group relative flex items-center border-b border-gray-200 p-3 first:rounded-t last:rounded-b hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-blue-900"
 						>
-							<Avatar {user} class="mr-3 size-10" />
-							<div>
+							<Avatar user={u} class="mr-3 size-10" />
+							<div class="min-w-0 flex-1">
 								<a
 									class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-									href={resolve(`/users/${user.id}`)}
+									href={resolve(`/users/${u.id}`)}
 								>
 									<div class="absolute inset-0"></div>
-									{user.name}
+									{u.name}
 								</a>
 								<p class="text-sm text-gray-400 group-hover:text-blue-400 dark:text-gray-500">
-									{user.pronouns}
+									{u.pronouns}
 								</p>
 							</div>
+							<button
+								type="button"
+								onclick={(e) => {
+									e.stopPropagation();
+									void unfollow(u.id);
+								}}
+								disabled={unfollowingIds.has(u.id)}
+								class="relative z-10 ml-2 shrink-0 rounded p-1 text-gray-400 opacity-0 transition group-hover:opacity-100 hover:bg-red-100 hover:text-red-500 disabled:opacity-40 dark:hover:bg-red-900 dark:hover:text-red-400"
+								title="Unfollow"
+							>
+								<UserMinus class="size-4" />
+							</button>
 						</div>
 					{/each}
 				{:else}
-					<Loader class="mx-auto size-12 animate-spin py-2 text-gray-600 dark:text-gray-400" />
+					<p class="px-3 py-4 text-sm text-gray-400 dark:text-gray-500">
+						No followed users. Add an AI user to get started.
+					</p>
 				{/if}
 			</div>
 		</div>

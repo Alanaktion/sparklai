@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import ModelSwitcher from '$lib/components/ModelSwitcher.svelte';
+	import HumanUserSwitcher from '$lib/components/HumanUserSwitcher.svelte';
 	import Sparkles from 'virtual:icons/lucide/sparkles';
 	import Message from 'virtual:icons/lucide/message-circle';
 	import Settings from 'virtual:icons/lucide/settings';
 	import { resolve } from '$app/paths';
+	import type { LayoutProps } from './$types';
 
-	let { children } = $props();
+	let { children, data }: LayoutProps = $props();
 </script>
 
 <div class="flex items-center px-4 py-4">
@@ -16,6 +18,9 @@
 			class="size-6 text-amber-500 *:first:fill-amber-400 *:first:stroke-none dark:*:first:fill-amber-300"
 		/>
 	</a>
+	{#if browser}
+		<HumanUserSwitcher humanUsers={data.humanUsers} activeHumanUser={data.activeHumanUser} />
+	{/if}
 	<a
 		href={resolve('/chat')}
 		class="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"

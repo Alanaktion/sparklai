@@ -1,0 +1,778 @@
+openapi: 3.1.0
+info:
+  title: ComfyUI PromptServer API
+  version: 1.0.0
+  description: |
+    OpenAPI definition for routes declared directly in PromptServer (server.py).
+
+    Notes:
+    - PromptServer routes are registered both at their original paths and at /api-prefixed aliases.
+      Example: /prompt is also available at /api/prompt.
+    - For routes already defined with /api (such as /api/jobs), PromptServer also exposes /api/api/jobs.
+    - This file intentionally excludes manager, internal sub-app, and asset-service routes.
+servers:
+  - url: http://localhost:8188
+    description: Default local ComfyUI server
+
+tags:
+  - name: Realtime
+  - name: Frontend
+  - name: Models
+  - name: Uploads
+  - name: Nodes
+  - name: Queue
+  - name: Jobs
+
+paths:
+  /ws:
+    get:
+      tags: [Realtime]
+      summary: Open websocket connection
+      description: |
+        Opens a websocket used for realtime status and execution events.
+        Optional query parameter clientId allows session reuse.
+      parameters:
+        - in: query
+          name: clientId
+          required: false
+          schema:
+            type: string
+      responses:
+        '101':
+          description: Switching Protocols (websocket upgrade)
+        '400':
+          description: Bad request
+
+  /:
+    get:
+      tags: [Frontend]
+      summary: Serve frontend index
+      responses:
+        '200':
+          description: index.html
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /embeddings:
+    get:
+      tags: [Models]
+      summary: List embeddings
+      responses:
+        '200':
+          description: Embedding names (without extension)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /models:
+    get:
+      tags: [Models]
+      summary: List model folder types
+      responses:
+        '200':
+          description: Model type names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /models/{folder}:
+    get:
+      tags: [Models]
+      summary: List models in a folder type
+      parameters:
+        - in: path
+          name: folder
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '404':
+          description: Unknown folder type
+
+  /extensions:
+    get:
+      tags: [Frontend]
+      summary: List extension scripts
+      responses:
+        '200':
+          description: Extension javascript URLs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /upload/image:
+    post:
+      tags: [Uploads]
+      summary: Upload image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                type:
+                  type: string
+                  enum: [input, output, temp]
+                subfolder:
+                  type: string
+                overwrite:
+                  type: string
+                  description: 'truthy values: true or 1'
+              required: [image]
+      responses:
+        '200':
+          description: Upload result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+        '400':
+          description: Invalid upload request
+
+  /upload/mask:
+    post:
+      tags: [Uploads]
+      summary: Upload alpha mask and apply to source image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                original_ref:
+                  type: string
+                  description: JSON string containing filename and optional type/subfolder
+                type:
+                  type: string
+                  enum: [input, output, temp]
+                subfolder:
+                  type: string
+                overwrite:
+                  type: string
+              required: [image, original_ref]
+      responses:
+        '200':
+          description: Upload result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+        '400':
+          description: Invalid upload request
+        '403':
+          description: Forbidden path
+
+  /view:
+    get:
+      tags: [Frontend]
+      summary: View image or preview transform
+      parameters:
+        - in: query
+          name: filename
+          required: true
+          schema:
+            type: string
+          description: 'Filename or asset hash (blake3:...)'
+        - in: query
+          name: type
+          required: false
+          schema:
+            type: string
+            default: output
+            enum: [input, output, temp]
+        - in: query
+          name: subfolder
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: preview
+          required: false
+          schema:
+            type: string
+          description: 'format[;quality], e.g. webp;90'
+        - in: query
+          name: channel
+          required: false
+          schema:
+            type: string
+            enum: [rgba, rgb, a]
+      responses:
+        '200':
+          description: Binary image/file response
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request
+        '403':
+          description: Forbidden path
+        '404':
+          description: Not found
+
+  /view_metadata/{folder_name}:
+    get:
+      tags: [Models]
+      summary: Read safetensors metadata
+      parameters:
+        - in: path
+          name: folder_name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: filename
+          required: true
+          schema:
+            type: string
+            pattern: ".*\\.safetensors$"
+      responses:
+        '200':
+          description: Safetensors __metadata__ object
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Not found / unsupported
+
+  /system_stats:
+    get:
+      tags: [Frontend]
+      summary: Get system and device stats
+      responses:
+        '200':
+          description: Runtime stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStats'
+
+  /features:
+    get:
+      tags: [Frontend]
+      summary: Get server feature flags
+      responses:
+        '200':
+          description: Feature flags
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /prompt:
+    get:
+      tags: [Queue]
+      summary: Get queue summary
+      responses:
+        '200':
+          description: Queue summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueInfo'
+
+    post:
+      tags: [Queue]
+      summary: Validate and enqueue prompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostPromptRequest'
+      responses:
+        '200':
+          description: Prompt accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPromptSuccess'
+        '400':
+          description: Invalid request or prompt
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PostPromptError'
+                  - $ref: '#/components/schemas/PostPromptMissingError'
+
+  /object_info:
+    get:
+      tags: [Nodes]
+      summary: Get node schemas for all node classes
+      responses:
+        '200':
+          description: Node info map by class name
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties: true
+
+  /object_info/{node_class}:
+    get:
+      tags: [Nodes]
+      summary: Get node schema for one node class
+      parameters:
+        - in: path
+          name: node_class
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node info map (single key if found, empty object if not)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties: true
+
+  /api/jobs:
+    get:
+      tags: [Jobs]
+      summary: List jobs
+      description: Also available as /api/api/jobs due to PromptServer aliasing.
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+          description: Comma-separated status values
+        - in: query
+          name: workflow_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: sort_by
+          required: false
+          schema:
+            type: string
+            enum: [created_at, execution_duration]
+            default: created_at
+        - in: query
+          name: sort_order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Jobs page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobsPage'
+        '400':
+          description: Invalid query values
+
+  /api/jobs/{job_id}:
+    get:
+      tags: [Jobs]
+      summary: Get one job by id
+      description: Also available as /api/api/jobs/{job_id} due to PromptServer aliasing.
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job object
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Missing job id
+        '404':
+          description: Job not found
+
+  /history:
+    get:
+      tags: [Queue]
+      summary: Get history
+      parameters:
+        - in: query
+          name: max_items
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            default: -1
+      responses:
+        '200':
+          description: History object
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+    post:
+      tags: [Queue]
+      summary: Mutate history (clear/delete)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoryMutation'
+      responses:
+        '200':
+          description: OK
+
+  /history/{prompt_id}:
+    get:
+      tags: [Queue]
+      summary: Get history for prompt id
+      parameters:
+        - in: path
+          name: prompt_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: History entry/set
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /queue:
+    get:
+      tags: [Queue]
+      summary: Get running and pending queue
+      responses:
+        '200':
+          description: Queue snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queue_running:
+                    type: array
+                    items:
+                      type: array
+                      items: {}
+                  queue_pending:
+                    type: array
+                    items:
+                      type: array
+                      items: {}
+                required: [queue_running, queue_pending]
+
+    post:
+      tags: [Queue]
+      summary: Mutate queue (clear/delete)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueMutation'
+      responses:
+        '200':
+          description: OK
+
+  /interrupt:
+    post:
+      tags: [Queue]
+      summary: Interrupt running workflow(s)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt_id:
+                  type: string
+      responses:
+        '200':
+          description: OK
+
+  /free:
+    post:
+      tags: [Queue]
+      summary: Set unload/free flags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                unload_models:
+                  type: boolean
+                free_memory:
+                  type: boolean
+      responses:
+        '200':
+          description: OK
+
+components:
+  schemas:
+    QueueInfo:
+      type: object
+      properties:
+        exec_info:
+          type: object
+          properties:
+            queue_remaining:
+              type: integer
+          required: [queue_remaining]
+      required: [exec_info]
+
+    ImageUploadAsset:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        asset_hash:
+          type: string
+        size:
+          type: integer
+        mime_type:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+
+    ImageUploadResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        subfolder:
+          type: string
+        type:
+          type: string
+        asset:
+          $ref: '#/components/schemas/ImageUploadAsset'
+      required: [name, subfolder, type]
+      additionalProperties: false
+
+    SystemDevice:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        index:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        vram_total:
+          type: integer
+        vram_free:
+          type: integer
+        torch_vram_total:
+          type: integer
+        torch_vram_free:
+          type: integer
+      additionalProperties: true
+
+    SystemStats:
+      type: object
+      properties:
+        system:
+          type: object
+          additionalProperties: true
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/SystemDevice'
+      required: [system, devices]
+
+    PostPromptRequest:
+      type: object
+      properties:
+        prompt:
+          type: object
+          additionalProperties: true
+        prompt_id:
+          type: string
+        number:
+          type: number
+        front:
+          type: boolean
+        partial_execution_targets:
+          type: array
+          items: {}
+        extra_data:
+          type: object
+          additionalProperties: true
+        client_id:
+          type: string
+      additionalProperties: true
+
+    PostPromptSuccess:
+      type: object
+      properties:
+        prompt_id:
+          type: string
+        number:
+          type: number
+        node_errors:
+          type: object
+          additionalProperties: true
+      required: [prompt_id, number, node_errors]
+
+    PostPromptError:
+      type: object
+      properties:
+        error:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+        node_errors:
+          type: object
+          additionalProperties: true
+      required: [error, node_errors]
+
+    PostPromptMissingError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+            message:
+              type: string
+            details:
+              type: string
+            extra_info:
+              type: object
+              additionalProperties: true
+          required: [type, message, details, extra_info]
+        node_errors:
+          type: object
+          additionalProperties: true
+      required: [error, node_errors]
+
+    QueueMutation:
+      type: object
+      properties:
+        clear:
+          type: boolean
+        delete:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+
+    HistoryMutation:
+      type: object
+      properties:
+        clear:
+          type: boolean
+        delete:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+
+    JobsPage:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        pagination:
+          type: object
+          properties:
+            offset:
+              type: integer
+            limit:
+              anyOf:
+                - type: integer
+                - type: 'null'
+            total:
+              type: integer
+            has_more:
+              type: boolean
+          required: [offset, limit, total, has_more]
+      required: [jobs, pagination]

@@ -18,6 +18,8 @@
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import { trackImageJob, type ImageGenerationJobResponse } from '$lib/stores/image-jobs';
 	import { resolve } from '$app/paths';
+	import UserPlus from 'virtual:icons/lucide/user-plus';
+	import UserMinus from 'virtual:icons/lucide/user-minus';
 
 	type ImageJob = ImageGenerationJobResponse;
 
@@ -34,6 +36,25 @@
 	let posts = $derived<PostType[]>(data.posts);
 	let images = $derived<Partial<ImageType>[]>(data.images);
 	let avatarRenderKey = $state(0);
+
+	let _isFollowedOverride = $state<boolean | null>(null);
+	let isFollowed = $derived(_isFollowedOverride ?? data.isFollowed ?? false);
+	let followLoading = $state(false);
+	const activeHumanUser = $derived(data.activeHumanUser ?? null);
+
+	const toggleFollow = async () => {
+		if (!activeHumanUser || user.is_human) return;
+		followLoading = true;
+		const newVal = !isFollowed;
+		_isFollowedOverride = newVal;
+		try {
+			const method = newVal ? 'POST' : 'DELETE';
+			const res = await fetch(resolve(`/users/${user.id}/follow`), { method });
+			if (!res.ok) _isFollowedOverride = !newVal;
+		} finally {
+			followLoading = false;
+		}
+	};
 
 	// Initialize nested objects if they don't exist
 	$effect(() => {
@@ -250,6 +271,24 @@
 					{user.pronouns} &middot; {user.occupation}
 				</p>
 			</div>
+			{#if activeHumanUser && !user.is_human}
+				<button
+					type="button"
+					onclick={toggleFollow}
+					disabled={followLoading}
+					class="rounded p-1 text-sm transition disabled:opacity-50 {isFollowed
+						? 'text-red-500 hover:bg-red-100 dark:hover:bg-red-900'
+						: 'text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900'}"
+					title={isFollowed ? 'Unfollow' : 'Follow'}
+				>
+					<span class="sr-only">{isFollowed ? 'Unfollow' : 'Follow'}</span>
+					{#if isFollowed}
+						<UserMinus class="size-6" />
+					{:else}
+						<UserPlus class="size-6" />
+					{/if}
+				</button>
+			{/if}
 			<a
 				href={resolve(`/chat/${user.id}`)}
 				class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
