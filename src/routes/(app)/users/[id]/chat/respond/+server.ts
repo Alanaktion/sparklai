@@ -48,7 +48,7 @@ export async function POST({ params, locals }) {
 
 	let systemPrompt =
 		`You are ${user.name} (${user.pronouns}), having an IM conversation.\n` +
-		`Your bio: ${user.bio}\n` +
+		`Your backstory: ${user.backstory}\n` +
 		`Writing style: ${JSON.stringify(user.writing_style)}\n` +
 		relationshipContext;
 

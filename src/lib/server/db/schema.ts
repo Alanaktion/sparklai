@@ -76,7 +76,7 @@ export const users = sqliteTable('users', {
 	personality_traits: text({ mode: 'json' }).$type<Personality>(),
 	relationship_status: text(),
 	writing_style: text({ mode: 'json' }).$type<WritingStyle>(),
-	backstory_snippet: text(),
+	backstory: text(),
 	appearance: text({ mode: 'json' }).$type<Appearance>(),
 	image_id: integer().references((): AnySQLiteColumn => images.id),
 	creator_id: integer()

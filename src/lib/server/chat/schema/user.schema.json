@@ -20,7 +20,7 @@
 		},
 		"bio": {
 			"type": "string",
-			"description": "A brief bio/description written by the user for their profile. Written in first person, with the user's writing style."
+			"description": "A brief public bio shown on the user's profile. Written in first person but meant to be read by others — friendly, self-descriptive, and suitable for public display."
 		},
 		"location": {
 			"type": "object",
@@ -155,9 +155,9 @@
 				}
 			}
 		},
-		"backstory_snippet": {
+		"backstory": {
 			"type": "string",
-			"description": "A short, evocative backstory (2-3 sentences)"
+			"description": "A short private backstory (2-3 sentences) capturing key life experiences, motivations, and personal history. This is internal context used only when the character is writing as themselves — not shown publicly."
 		}
 	},
 	"required": [
@@ -171,7 +171,7 @@
 		"personality_traits",
 		"relationship_status",
 		"writing_style",
-		"backstory_snippet",
+		"backstory",
 		"appearance"
 	]
 }

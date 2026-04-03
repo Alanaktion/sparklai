@@ -69,8 +69,8 @@ export async function POST({ params, request }) {
 		if (user.personality_traits) {
 			prompt += `\nPersonality traits: ${JSON.stringify(user.personality_traits)}`;
 		}
-		if (user.backstory_snippet) {
-			prompt += `\nBackstory: ${user.backstory_snippet}`;
+		if (user.backstory) {
+			prompt += `\nBackstory: ${user.backstory}`;
 		}
 		if (user.appearance) {
 			prompt += `\nAppearance: ${JSON.stringify(user.appearance)}`;

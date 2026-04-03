@@ -52,7 +52,7 @@ export const sampleUserData = {
 		punctuation_style: 'standard',
 		slang_usage: 'minimal'
 	},
-	backstory_snippet: 'A test backstory snippet',
+	backstory: 'A test backstory snippet',
 	appearance: {
 		gender_expression: 'androgynous',
 		body_type: 'average',
@@ -83,7 +83,7 @@ export const sampleAIUserResponse = {
 		punctuation_style: 'standard',
 		slang_usage: 'minimal'
 	},
-	backstory_snippet: 'Grew up in Seattle, moved to Portland for work',
+	backstory: 'Grew up in Seattle, moved to Portland for work',
 	appearance: {
 		gender_expression: 'feminine',
 		body_type: 'slim',

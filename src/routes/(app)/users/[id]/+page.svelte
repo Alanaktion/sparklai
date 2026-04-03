@@ -287,7 +287,6 @@
 						{language}&ensp;
 					{/each}
 				</p>
-				<p class="whitespace-pre-wrap">{user.backstory_snippet}</p>
 			{:else if bio_tab == 'interests'}
 				<ul class="list-inside list-disc">
 					{#each user.interests || [] as interest (interest)}
@@ -393,9 +392,9 @@
 							></textarea>
 						</label>
 						<label class="flex flex-col gap-1">
-							<span class="text-xs text-gray-600 dark:text-gray-400">Backstory Snippet</span>
+							<span class="text-xs text-gray-600 dark:text-gray-400">Backstory (private)</span>
 							<textarea
-								bind:value={user.backstory_snippet}
+								bind:value={user.backstory}
 								rows="3"
 								class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 							></textarea>

@@ -45,7 +45,7 @@ export async function POST({ request, locals }) {
 			relationship_status: response.relationship_status,
 			writing_style: response.writing_style,
 			appearance: response.appearance,
-			backstory_snippet: response.backstory_snippet,
+			backstory: response.backstory,
 			creator_id: locals.creator.id
 		})
 		.returning();
