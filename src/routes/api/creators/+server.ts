@@ -1,6 +1,6 @@
 import { hashPin } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { creators } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
 
 export async function POST({ request }) {
@@ -9,19 +9,20 @@ export async function POST({ request }) {
 		error(400, 'name is required');
 	}
 
+	const pin = typeof data.pin === 'string' ? data.pin.trim() : '';
+	if (!pin) {
+		error(400, 'pin is required');
+	}
+
 	const name = data.name.trim();
 	const pronouns = typeof data.pronouns === 'string' ? data.pronouns.trim() : 'they/them';
-	const pin = typeof data.pin === 'string' ? data.pin : '';
-
-	const password_hash = pin.length > 0 ? await hashPin(pin) : null;
+	const password_hash = await hashPin(pin);
 
 	const result = await db
-		.insert(users)
+		.insert(creators)
 		.values({
 			name,
-			age: 25,
 			pronouns,
-			is_human: true,
 			password_hash
 		})
 		.returning();

@@ -7,6 +7,7 @@ import { POST as createUser } from '../routes/(app)/users/+server';
 import { DELETE as deleteUser, PATCH as patchUser } from '../routes/(app)/users/[id]/+server';
 import {
 	cleanDatabase,
+	createTestCreator,
 	createTestUser,
 	sampleAIUserResponse,
 	createFormEvent,
@@ -14,15 +15,21 @@ import {
 } from './helpers';
 
 describe('Users API', () => {
+	let creatorId: number;
+
 	beforeEach(async () => {
 		await cleanDatabase();
+		const creator = await createTestCreator();
+		creatorId = creator.id;
 	});
 
 	describe('POST /users - create AI user', () => {
 		it('creates a new user with AI-generated profile', async () => {
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIUserResponse);
 
-			const event = createFormEvent();
+			const event = { ...createFormEvent(), locals: { creator: { id: creatorId } } } as Parameters<
+				typeof createUser
+			>[0];
 			const response = await createUser(event);
 
 			expect(response.status).toBe(201);
@@ -32,15 +39,19 @@ describe('Users API', () => {
 			expect(body.pronouns).toBe(sampleAIUserResponse.pronouns);
 			expect(body.bio).toBe(sampleAIUserResponse.bio);
 			expect(body.id).toBeDefined();
+			expect(body.creator_id).toBe(creatorId);
 		});
 
 		it('includes existing user names when no custom prompt is provided', async () => {
 			// Create an existing user first
-			await createTestUser({ name: 'Existing User' });
+			await createTestUser(creatorId, { name: 'Existing User' });
 
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIUserResponse);
 
-			const event = createEvent({}, { method: 'POST' });
+			const event = {
+				...createEvent({}, { method: 'POST' }),
+				locals: { creator: { id: creatorId } }
+			} as Parameters<typeof createUser>[0];
 			await createUser(event);
 
 			// Verify schema_completion was called with a prompt mentioning existing users
@@ -50,11 +61,14 @@ describe('Users API', () => {
 		});
 
 		it('uses custom prompt directly without existing user exclusion info', async () => {
-			await createTestUser({ name: 'Existing User' });
+			await createTestUser(creatorId, { name: 'Existing User' });
 
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIUserResponse);
 
-			const event = createFormEvent({}, { prompt: 'Make the user a teacher' });
+			const event = {
+				...createFormEvent({}, { prompt: 'Make the user a teacher' }),
+				locals: { creator: { id: creatorId } }
+			} as Parameters<typeof createUser>[0];
 			await createUser(event);
 
 			const callArgs = vi.mocked(schema_completion).mock.calls[0];
@@ -66,7 +80,7 @@ describe('Users API', () => {
 
 	describe('PATCH /users/[id] - update user', () => {
 		it('updates user fields', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			const event = {
 				params: { id: String(user.id) },
@@ -84,7 +98,7 @@ describe('Users API', () => {
 		});
 
 		it('returns the updated user', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			const event = {
 				params: { id: String(user.id) },
@@ -104,7 +118,7 @@ describe('Users API', () => {
 
 	describe('DELETE /users/[id] - delete user', () => {
 		it('deletes the user and returns 204', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			// Verify user exists
 			const before = await db.select().from(users).where(eq(users.id, user.id));
@@ -121,8 +135,8 @@ describe('Users API', () => {
 		});
 
 		it('deletes the correct user (not other users)', async () => {
-			const user1 = await createTestUser({ name: 'User One' });
-			const user2 = await createTestUser({ name: 'User Two' });
+			const user1 = await createTestUser(creatorId, { name: 'User One' });
+			const user2 = await createTestUser(creatorId, { name: 'User Two' });
 
 			const event = createEvent({ id: String(user1.id) });
 			await deleteUser(event);

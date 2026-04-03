@@ -1,7 +1,7 @@
 import { db } from '$lib/server/db';
 import { images, posts, relationships, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		error(404, 'Not Found');
 	}
 
-	// Get relationships (users this user has relationships with)
+	// Get relationships (AI-to-AI relationships this user has)
 	const relationshipsData = await db
 		.select({
 			id: users.id,
@@ -27,22 +27,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.innerJoin(users, eq(relationships.related_user_id, users.id))
 		.where(eq(relationships.user_id, id));
 
-	let isFollowed = false;
-	if (locals.humanUser && !user.is_human) {
-		const follow = await db.query.relationships.findFirst({
-			where: and(
-				eq(relationships.user_id, locals.humanUser.id),
-				eq(relationships.related_user_id, id),
-				eq(relationships.relationship_type, 'follow')
-			)
-		});
-		isFollowed = !!follow;
-	}
+	const isOwner = locals.creator ? user.creator_id === locals.creator.id : false;
 
 	return {
 		id: params.id,
 		user,
-		isFollowed,
+		isOwner,
 		posts: await db.query.posts.findMany({
 			with: {
 				image: { columns: { id: true, params: true, blur: true } },

@@ -1,21 +1,21 @@
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { creators } from '$lib/server/db/schema';
 import type { Handle } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
-const COOKIE_NAME = 'human_user_id';
+const COOKIE_NAME = 'creator_session';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const userIdRaw = event.cookies.get(COOKIE_NAME);
-	const userId = userIdRaw ? Number(userIdRaw) : null;
+	const creatorIdRaw = event.cookies.get(COOKIE_NAME);
+	const creatorId = creatorIdRaw ? Number(creatorIdRaw) : null;
 
-	if (userId && Number.isFinite(userId)) {
-		const user = await db.query.users.findFirst({
-			where: eq(users.id, userId)
+	if (creatorId && Number.isFinite(creatorId)) {
+		const creator = await db.query.creators.findFirst({
+			where: eq(creators.id, creatorId)
 		});
-		event.locals.humanUser = (user?.is_human ? user : null) ?? null;
+		event.locals.creator = creator ?? null;
 	} else {
-		event.locals.humanUser = null;
+		event.locals.creator = null;
 	}
 
 	return resolve(event);

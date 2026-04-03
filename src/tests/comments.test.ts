@@ -6,16 +6,20 @@ import { eq } from 'drizzle-orm';
 import { POST as addUserComment } from '../routes/(app)/posts/[id]/comments/+server';
 import { POST as generateAIComment } from '../routes/(app)/posts/[id]/comments/respond/+server';
 import { DELETE as deleteComment } from '../routes/(app)/posts/[id]/comments/[comment_id]/+server';
-import { cleanDatabase, createTestUser, createTestPost } from './helpers';
+import { cleanDatabase, createTestCreator, createTestUser, createTestPost } from './helpers';
 
 describe('Comments API', () => {
+	let creatorId: number;
+
 	beforeEach(async () => {
 		await cleanDatabase();
+		const creator = await createTestCreator();
+		creatorId = creator.id;
 	});
 
 	describe('POST /posts/[id]/comments - add human comment', () => {
 		it('returns 400 when message is missing', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id);
 
 			const fd = new FormData(); // no 'message' field
@@ -29,7 +33,7 @@ describe('Comments API', () => {
 		});
 
 		it('creates a comment with the given message', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id);
 
 			const fd = new FormData();
@@ -48,7 +52,7 @@ describe('Comments API', () => {
 		});
 
 		it('returns the comment with user relation', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id);
 
 			const fd = new FormData();
@@ -82,7 +86,7 @@ describe('Comments API', () => {
 		});
 
 		it('generates an AI comment on the post', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id);
 			vi.mocked(completion).mockResolvedValueOnce('Great post! I love it!');
 
@@ -104,8 +108,8 @@ describe('Comments API', () => {
 		});
 
 		it('allows specifying a specific user for the comment', async () => {
-			const author = await createTestUser({ name: 'Post Author' });
-			const commenter = await createTestUser({ name: 'Commenter' });
+			const author = await createTestUser(creatorId, { name: 'Post Author' });
+			const commenter = await createTestUser(creatorId, { name: 'Commenter' });
 			const post = await createTestPost(author.id);
 			vi.mocked(completion).mockResolvedValueOnce('Nice one!');
 
@@ -126,7 +130,7 @@ describe('Comments API', () => {
 
 	describe('DELETE /posts/[id]/comments/[comment_id] - delete comment', () => {
 		it('deletes a comment and returns 204', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id);
 
 			// Insert a comment directly

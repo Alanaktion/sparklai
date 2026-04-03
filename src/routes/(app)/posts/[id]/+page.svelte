@@ -40,7 +40,7 @@
 			.then((response) => response.json())
 			.then((body) => {
 				responding = false;
-				comments.push(body);
+				comments = [...comments, body];
 			})
 			.catch(() => (responding = false));
 	}
@@ -59,7 +59,7 @@
 		})
 			.then((response) => response.json())
 			.then((body) => {
-				comments.push(body);
+				comments = [...comments, body];
 				message = '';
 				submitting = false;
 			})
@@ -69,9 +69,9 @@
 	function deletePost() {
 		fetch(resolve(`/posts/${data.id}`), { method: 'DELETE' }).then(() => goto(resolve('/')));
 	}
-	function deleteComment(id: number, index: number) {
+	function deleteComment(id: number) {
 		fetch(resolve(`/posts/${data.id}/comments/${id}`), { method: 'DELETE' }).then(() => {
-			delete comments[index];
+			comments = comments.filter((comment) => comment.id !== id);
 		});
 	}
 	function detatchImage() {
@@ -144,7 +144,7 @@
 		<div class="mb-4 lg:mb-6">
 			<div class="text-gray-700 dark:text-gray-300">Comments</div>
 
-			{#each comments as comment, index (comment.id)}
+			{#each comments as comment (comment.id)}
 				{@const bodySegments = parseInlineItalics(comment.body)}
 				<div class="group my-4 flex items-start gap-3">
 					<a class="min-w-10" href={resolve(`/users/${comment.user_id}`)}>
@@ -161,7 +161,7 @@
 								<span class="text-gray-500">User</span>
 							{/if}
 							<button
-								onclick={() => deleteComment(comment.id, index)}
+								onclick={() => deleteComment(comment.id)}
 								type="button"
 								class="rounded p-1 text-sm text-red-600 opacity-25 group-hover:opacity-100 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-800"
 							>

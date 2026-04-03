@@ -1,4 +1,0 @@
-todo:
-- support multiple real users, with different followed/friend accounts
-- support public bio vs internal bio - probably backstory vs bio and send backstory when in 1st person, bio when in 3rd person
-- support messaging-specific prompt text for DMs for each AI/human pairing to override the AI's knowledge about the user (default to the human user's name/bio)

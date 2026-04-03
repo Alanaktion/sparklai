@@ -9,16 +9,16 @@
 	let { data }: PageProps = $props();
 
 	let profileData = $derived({
-		fullName: data.user?.name ?? 'You',
-		ageValue: data.user?.age ?? 25,
-		pronounsText: data.user?.pronouns ?? 'they/them',
-		bioText: data.user?.bio || '',
-		cityName: data.user?.location?.city || '',
-		stateOrProvince: data.user?.location?.state_province || '',
-		countryName: data.user?.location?.country || '',
-		jobTitle: data.user?.occupation || '',
-		hobbiesList: (data.user?.interests || []).join(', '),
-		relationshipType: data.user?.relationship_status || ''
+		fullName: data.creator?.name ?? 'You',
+		ageValue: data.creator?.age ?? 25,
+		pronounsText: data.creator?.pronouns ?? 'they/them',
+		bioText: data.creator?.bio || '',
+		cityName: data.creator?.location?.city || '',
+		stateOrProvince: data.creator?.location?.state_province || '',
+		countryName: data.creator?.location?.country || '',
+		jobTitle: data.creator?.occupation || '',
+		hobbiesList: (data.creator?.interests || []).join(', '),
+		relationshipType: data.creator?.relationship_status || ''
 	});
 
 	let submittingForm = $state(false);
@@ -43,14 +43,14 @@
 		</p>
 	</header>
 
-	{#if !data.user}
+	{#if !data.creator}
 		<div
 			class="rounded-lg border border-gray-200 bg-white p-8 text-center shadow-md dark:border-gray-700 dark:bg-gray-800"
 		>
 			<p class="mb-3 text-2xl">👤</p>
-			<h2 class="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">No active user</h2>
+			<h2 class="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">No active creator</h2>
 			<p class="text-sm text-gray-500 dark:text-gray-400">
-				Select or create a human user profile using the user switcher in the top navigation to edit
+				Select or create a creator account using the user switcher in the top navigation to edit
 				your settings.
 			</p>
 		</div>
@@ -59,14 +59,14 @@
 			class="rounded-lg border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
 		>
 			<div class="mb-6 flex items-center gap-4">
-				{#if data.user}
-					<Avatar user={data.user} class="size-16" />
+				{#if data.creator}
+					<Avatar user={data.creator} class="size-16" />
 				{/if}
 				<div>
 					<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-						{data.user?.name ?? 'Your Profile'}
+						{data.creator?.name ?? 'Your Profile'}
 					</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">Human User</p>
+					<p class="text-sm text-gray-500 dark:text-gray-400">Creator</p>
 				</div>
 			</div>
 

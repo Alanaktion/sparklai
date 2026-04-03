@@ -49,6 +49,21 @@ type Appearance = {
 };
 
 // Models
+export const creators = sqliteTable('creators', {
+	id: integer().primaryKey(),
+	name: text().notNull(),
+	age: integer().notNull().default(25),
+	pronouns: text().notNull().default('they/them'),
+	bio: text(),
+	location: text({ mode: 'json' }).$type<Location>(),
+	occupation: text(),
+	interests: text({ mode: 'json' }).$type<string[]>(),
+	relationship_status: text(),
+	password_hash: text().notNull(),
+	is_active: integer({ mode: 'boolean' }).notNull().default(true),
+	created_at: text().default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const users = sqliteTable('users', {
 	id: integer().primaryKey(),
 	name: text().notNull(),
@@ -64,9 +79,10 @@ export const users = sqliteTable('users', {
 	backstory_snippet: text(),
 	appearance: text({ mode: 'json' }).$type<Appearance>(),
 	image_id: integer().references((): AnySQLiteColumn => images.id),
-	is_human: integer({ mode: 'boolean' }).notNull().default(false),
-	is_active: integer({ mode: 'boolean' }).notNull().default(true),
-	password_hash: text()
+	creator_id: integer()
+		.notNull()
+		.references(() => creators.id, { onDelete: 'cascade' }),
+	is_active: integer({ mode: 'boolean' }).notNull().default(true)
 });
 
 export const images = sqliteTable('images', {
@@ -165,7 +181,15 @@ export const relationships = sqliteTable('relationships', {
 });
 
 // Model relations
+export const creatorRelations = relations(creators, ({ many }) => ({
+	users: many(users)
+}));
+
 export const userRelations = relations(users, ({ one, many }) => ({
+	creator: one(creators, {
+		fields: [users.creator_id],
+		references: [creators.id]
+	}),
 	image: one(images, {
 		fields: [users.image_id],
 		references: [images.id]
@@ -263,6 +287,7 @@ export const relationshipRelations = relations(relationships, ({ one }) => ({
 }));
 
 // Model Types
+export type CreatorType = typeof creators.$inferSelect;
 export type UserType = typeof users.$inferSelect;
 export type ImageType = typeof images.$inferSelect;
 export type ImageGenerationJobType = typeof imageGenerationJobs.$inferSelect;

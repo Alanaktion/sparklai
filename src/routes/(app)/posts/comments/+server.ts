@@ -2,12 +2,12 @@ import { generateComment } from '$lib/server';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 // Generate a comment on a random recent post
 export async function POST() {
 	const author = await db.query.users.findFirst({
-		where: and(eq(users.is_active, true), eq(users.is_human, false)),
+		where: eq(users.is_active, true),
 		orderBy: sql`random()`
 	});
 	if (!author) {

@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import {
 	chats,
 	comments,
+	creators,
 	imageGenerationJobs,
 	images,
 	media,
@@ -25,6 +26,7 @@ export async function cleanDatabase() {
 	await db.delete(relationships);
 	await db.delete(images);
 	await db.delete(users);
+	await db.delete(creators);
 }
 
 /** Sample user data for inserting into the database */
@@ -113,12 +115,26 @@ export const sampleAIPostImageResponse = {
 	image_style: 'photo'
 };
 
+/** Creates a test creator in the database and returns it */
+export async function createTestCreator(overrides: Record<string, unknown> = {}) {
+	const result = await db
+		.insert(creators)
+		.values({
+			name: 'Test Creator',
+			pronouns: 'they/them',
+			password_hash: 'test:hash',
+			...overrides
+		})
+		.returning();
+	return result[0];
+}
+
 /** Creates a test user in the database and returns it */
-export async function createTestUser(overrides: Record<string, unknown> = {}) {
-	const data = { ...sampleUserData, ...overrides };
+export async function createTestUser(creatorId: number, overrides: Record<string, unknown> = {}) {
+	const data = { ...sampleUserData, creator_id: creatorId, ...overrides };
 	const result = await db
 		.insert(users)
-		.values(data as typeof sampleUserData)
+		.values(data as typeof sampleUserData & { creator_id: number })
 		.returning();
 	return result[0];
 }

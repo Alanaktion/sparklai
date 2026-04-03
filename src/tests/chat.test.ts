@@ -9,16 +9,20 @@ import {
 } from '../routes/(app)/users/[id]/chat/messages/+server';
 import { DELETE as deleteChatMessage } from '../routes/(app)/users/[id]/chat/messages/[message_id]/+server';
 import { POST as generateChatResponse } from '../routes/(app)/users/[id]/chat/respond/+server';
-import { cleanDatabase, createTestUser } from './helpers';
+import { cleanDatabase, createTestCreator, createTestUser } from './helpers';
 
 describe('Chat API', () => {
+	let creatorId: number;
+
 	beforeEach(async () => {
 		await cleanDatabase();
+		const creator = await createTestCreator();
+		creatorId = creator.id;
 	});
 
 	describe('GET /users/[id]/chat/messages - get chat history', () => {
 		it('returns empty array when no messages exist', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			const event = {
 				params: { id: String(user.id) }
@@ -31,7 +35,7 @@ describe('Chat API', () => {
 		});
 
 		it('returns chat messages for the user', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			// Insert messages
 			await db.insert(chats).values([
@@ -55,7 +59,7 @@ describe('Chat API', () => {
 
 	describe('POST /users/[id]/chat/messages - add user message', () => {
 		it('returns 400 when message is missing', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			const fd = new FormData(); // no 'message' field
 			const event = {
@@ -68,7 +72,7 @@ describe('Chat API', () => {
 		});
 
 		it('adds a user message to the chat', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			const fd = new FormData();
 			fd.append('message', 'Hello, how are you?');
@@ -86,7 +90,7 @@ describe('Chat API', () => {
 		});
 
 		it('accepts an empty string message', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			const fd = new FormData();
 			fd.append('message', '');
@@ -103,7 +107,8 @@ describe('Chat API', () => {
 	describe('POST /users/[id]/chat/respond - generate AI response', () => {
 		it('returns 404 when user does not exist', async () => {
 			const event = {
-				params: { id: '99999' }
+				params: { id: '99999' },
+				locals: { creator: null }
 			} as Parameters<typeof generateChatResponse>[0];
 
 			await expect(generateChatResponse(event)).rejects.toMatchObject({
@@ -112,7 +117,7 @@ describe('Chat API', () => {
 		});
 
 		it('generates an AI response and saves it', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			// Add a user message first
 			await db.insert(chats).values({
@@ -124,7 +129,8 @@ describe('Chat API', () => {
 			vi.mocked(completion).mockResolvedValueOnce('I love hiking and photography!');
 
 			const event = {
-				params: { id: String(user.id) }
+				params: { id: String(user.id) },
+				locals: { creator: null }
 			} as Parameters<typeof generateChatResponse>[0];
 
 			const response = await generateChatResponse(event);
@@ -136,7 +142,7 @@ describe('Chat API', () => {
 		});
 
 		it('includes conversation history in the completion call', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			await db.insert(chats).values([
 				{ user_id: user.id, role: 'user', body: 'First message' },
@@ -147,7 +153,8 @@ describe('Chat API', () => {
 			vi.mocked(completion).mockResolvedValueOnce('Second response');
 
 			const event = {
-				params: { id: String(user.id) }
+				params: { id: String(user.id) },
+				locals: { creator: null }
 			} as Parameters<typeof generateChatResponse>[0];
 
 			await generateChatResponse(event);
@@ -163,7 +170,7 @@ describe('Chat API', () => {
 
 	describe('DELETE /users/[id]/chat/messages/[message_id] - delete message', () => {
 		it('deletes a chat message and returns 204', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 
 			const insertResult = await db.insert(chats).values({
 				user_id: user.id,

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import ModelSwitcher from '$lib/components/ModelSwitcher.svelte';
-	import HumanUserSwitcher from '$lib/components/HumanUserSwitcher.svelte';
+	import CreatorSwitcher from '$lib/components/CreatorSwitcher.svelte';
 	import Sparkles from 'virtual:icons/lucide/sparkles';
 	import Message from 'virtual:icons/lucide/message-circle';
 	import Settings from 'virtual:icons/lucide/settings';
@@ -19,7 +19,7 @@
 		/>
 	</a>
 	{#if browser}
-		<HumanUserSwitcher humanUsers={data.humanUsers} activeHumanUser={data.activeHumanUser} />
+		<CreatorSwitcher creators={data.creators} activeCreator={data.activeCreator} />
 	{/if}
 	<a
 		href={resolve('/chat')}

@@ -60,7 +60,7 @@
 			});
 	};
 
-	const activeHumanUser = $derived(data.activeHumanUser ?? null);
+	const activeHumanUser = $derived(data.activeCreator ?? null);
 
 	let unfollowingIds = $state<Set<number>>(new Set());
 

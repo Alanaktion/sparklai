@@ -9,6 +9,7 @@ import { DELETE as deletePost, PATCH as patchPost } from '../routes/(app)/posts/
 import { POST as generateUserPost } from '../routes/(app)/users/[id]/posts/+server';
 import {
 	cleanDatabase,
+	createTestCreator,
 	createTestUser,
 	createTestPost,
 	sampleAIPostResponse,
@@ -17,8 +18,12 @@ import {
 } from './helpers';
 
 describe('Posts API', () => {
+	let creatorId: number;
+
 	beforeEach(async () => {
 		await cleanDatabase();
+		const creator = await createTestCreator();
+		creatorId = creator.id;
 	});
 
 	describe('POST /posts - generate post for random user', () => {
@@ -29,7 +34,7 @@ describe('Posts API', () => {
 		});
 
 		it('generates a post for a random AI user', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostResponse);
 
 			const response = await generateRandomPost();
@@ -43,7 +48,7 @@ describe('Posts API', () => {
 		});
 
 		it('generates a post with an image job when AI requests one', async () => {
-			await createTestUser();
+			await createTestUser(creatorId);
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostWithImageResponse);
 
 			const response = await generateRandomPost();
@@ -53,15 +58,6 @@ describe('Posts API', () => {
 			expect(body.post).toBeDefined();
 			expect(body.image_job).not.toBeNull();
 			expect(vi.mocked(enqueueImageJob)).toHaveBeenCalledOnce();
-		});
-
-		it('does not generate posts for human users', async () => {
-			// Only create a human user - no AI users available
-			await createTestUser({ is_human: true });
-
-			await expect(generateRandomPost()).rejects.toMatchObject({
-				status: 404
-			});
 		});
 	});
 
@@ -78,7 +74,7 @@ describe('Posts API', () => {
 		});
 
 		it('generates a post for a specific user', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostResponse);
 
 			const event = {
@@ -94,7 +90,7 @@ describe('Posts API', () => {
 		});
 
 		it('passes a custom prompt when provided as form data', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostResponse);
 
 			const fd = new FormData();
@@ -116,7 +112,7 @@ describe('Posts API', () => {
 
 	describe('DELETE /posts/[id] - delete post', () => {
 		it('deletes a post and returns 204', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id);
 
 			const event = createEvent({ id: String(post.id) });
@@ -131,7 +127,7 @@ describe('Posts API', () => {
 
 	describe('PATCH /posts/[id] - update post', () => {
 		it('updates a post body', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id, 'Original body');
 
 			const event = {

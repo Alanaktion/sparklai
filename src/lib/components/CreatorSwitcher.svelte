@@ -1,7 +1,6 @@
 <script lang="ts">
-	import type { UserType } from '$lib/server/db/schema';
+	import type { CreatorType } from '$lib/server/db/schema';
 	import Dialog from '$lib/components/base/dialog.svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
 	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import UserIcon from 'virtual:icons/lucide/user';
@@ -11,15 +10,15 @@
 	import Loader from 'virtual:icons/lucide/loader';
 
 	type Props = {
-		humanUsers: UserType[];
-		activeHumanUser: UserType | null;
+		creators: CreatorType[];
+		activeCreator: CreatorType | null;
 	};
-	let { humanUsers, activeHumanUser }: Props = $props();
+	let { creators, activeCreator }: Props = $props();
 
 	let switcherOpen = $state(false);
 	let loginDialogOpen = $state(false);
 	let createDialogOpen = $state(false);
-	let selectedUser = $state<UserType | null>(null);
+	let selectedCreator = $state<CreatorType | null>(null);
 
 	let pin = $state('');
 	let loginError = $state('');
@@ -31,8 +30,8 @@
 	let creating = $state(false);
 	let createError = $state('');
 
-	const openLoginDialog = (user: UserType) => {
-		selectedUser = user;
+	const openLoginDialog = (creator: CreatorType) => {
+		selectedCreator = creator;
 		pin = '';
 		loginError = '';
 		loginDialogOpen = true;
@@ -41,11 +40,11 @@
 
 	const login = async (e: Event) => {
 		e.preventDefault();
-		if (!selectedUser) return;
+		if (!selectedCreator) return;
 		loggingIn = true;
 		loginError = '';
 		try {
-			const res = await fetch(resolve(`/api/human-users/${selectedUser.id}`), {
+			const res = await fetch(resolve(`/api/creators/${selectedCreator.id}`), {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ pin })
@@ -64,36 +63,38 @@
 	};
 
 	const logout = async () => {
-		await fetch(resolve('/api/human-users/session'), { method: 'DELETE' });
+		await fetch(resolve('/api/creators/session'), { method: 'DELETE' });
 		await invalidateAll();
 	};
 
-	const createUser = async (e: Event) => {
+	const createCreator = async (e: Event) => {
 		e.preventDefault();
-		if (!newName.trim()) return;
+		if (!newName.trim() || !newPin.trim()) return;
 		creating = true;
 		createError = '';
 		try {
-			const res = await fetch(resolve('/api/human-users'), {
+			const res = await fetch(resolve('/api/creators'), {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ name: newName.trim(), pronouns: newPronouns.trim(), pin: newPin })
 			});
 			if (res.ok) {
-				const user: UserType = await res.json();
+				const creator: CreatorType = await res.json();
+				const savedPin = newPin;
 				createDialogOpen = false;
 				newName = '';
 				newPronouns = 'they/them';
 				newPin = '';
-				// auto-login the new user
-				await fetch(resolve(`/api/human-users/${user.id}`), {
+				// auto-login the new creator
+				await fetch(resolve(`/api/creators/${creator.id}`), {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ pin: newPin })
+					body: JSON.stringify({ pin: savedPin })
 				});
 				await invalidateAll();
 			} else {
-				createError = 'Failed to create user';
+				const body = await res.json().catch(() => ({}));
+				createError = body.message ?? 'Failed to create account';
 			}
 		} finally {
 			creating = false;
@@ -106,11 +107,10 @@
 		type="button"
 		onclick={() => (switcherOpen = !switcherOpen)}
 		class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-		title="Switch user"
+		title="Switch creator"
 	>
-		{#if activeHumanUser}
-			<Avatar user={activeHumanUser} class="size-5 rounded-full" />
-			<span class="max-w-24 truncate text-xs">{activeHumanUser.name}</span>
+		{#if activeCreator}
+			<span class="max-w-24 truncate text-xs">{activeCreator.name}</span>
 		{:else}
 			<UserIcon class="size-5" />
 		{/if}
@@ -126,25 +126,24 @@
 		<div
 			class="absolute right-0 z-50 mt-1 min-w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900"
 		>
-			{#if humanUsers.length}
+			{#if creators.length}
 				<div class="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-					<p class="text-xs font-medium text-gray-400 dark:text-gray-500">Switch user</p>
+					<p class="text-xs font-medium text-gray-400 dark:text-gray-500">Switch creator</p>
 				</div>
-				{#each humanUsers as user (user.id)}
+				{#each creators as creator (creator.id)}
 					<button
 						type="button"
-						onclick={() => openLoginDialog(user)}
-						class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 {activeHumanUser?.id ===
-						user.id
+						onclick={() => openLoginDialog(creator)}
+						class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 {activeCreator?.id ===
+						creator.id
 							? 'text-blue-600 dark:text-blue-400'
 							: 'text-gray-700 dark:text-gray-300'}"
 					>
-						<Avatar {user} class="size-7 rounded-full" />
 						<div class="min-w-0 flex-1">
-							<p class="truncate font-medium">{user.name}</p>
-							<p class="text-xs text-gray-400">{user.pronouns}</p>
+							<p class="truncate font-medium">{creator.name}</p>
+							<p class="text-xs text-gray-400">{creator.pronouns}</p>
 						</div>
-						{#if activeHumanUser?.id === user.id}
+						{#if activeCreator?.id === creator.id}
 							<span class="text-xs text-blue-500">active</span>
 						{/if}
 					</button>
@@ -161,9 +160,9 @@
 					class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
 				>
 					<Plus class="size-4" />
-					Add human user
+					Add creator
 				</button>
-				{#if activeHumanUser}
+				{#if activeCreator}
 					<button
 						type="button"
 						onclick={() => {
@@ -182,13 +181,8 @@
 </div>
 
 <!-- PIN login dialog -->
-<Dialog title="Sign in as {selectedUser?.name ?? ''}" bind:open={loginDialogOpen}>
+<Dialog title="Sign in as {selectedCreator?.name ?? ''}" bind:open={loginDialogOpen}>
 	<form class="grid gap-3" onsubmit={login}>
-		{#if selectedUser && !selectedUser.password_hash}
-			<p class="text-sm text-gray-500 dark:text-gray-400">
-				No PIN set. Press sign in to continue or enter a new PIN to set one.
-			</p>
-		{/if}
 		<div class="grid gap-1">
 			<label for="pin-input" class="text-sm font-medium text-gray-700 dark:text-gray-300">PIN</label
 			>
@@ -196,8 +190,9 @@
 				id="pin-input"
 				type="password"
 				bind:value={pin}
-				placeholder="Enter PIN (leave blank if none)"
+				placeholder="Enter your PIN"
 				autocomplete="off"
+				required
 				class="rounded border border-gray-300 bg-transparent px-2 py-1.5 text-sm shadow-sm transition-colors focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none dark:border-gray-500"
 			/>
 		</div>
@@ -217,9 +212,9 @@
 	</form>
 </Dialog>
 
-<!-- Create new human user dialog -->
-<Dialog title="Add human user" bind:open={createDialogOpen}>
-	<form class="grid gap-3" onsubmit={createUser}>
+<!-- Create new creator dialog -->
+<Dialog title="Add creator" bind:open={createDialogOpen}>
+	<form class="grid gap-3" onsubmit={createCreator}>
 		<div class="grid gap-1">
 			<label for="new-name" class="text-sm font-medium text-gray-700 dark:text-gray-300"
 				>Name <span class="text-red-500">*</span></label
@@ -247,14 +242,15 @@
 		</div>
 		<div class="grid gap-1">
 			<label for="new-pin" class="text-sm font-medium text-gray-700 dark:text-gray-300"
-				>PIN (optional)</label
+				>PIN <span class="text-red-500">*</span></label
 			>
 			<input
 				id="new-pin"
 				type="password"
 				bind:value={newPin}
-				placeholder="Leave blank for no PIN"
+				placeholder="Choose a PIN"
 				autocomplete="new-password"
+				required
 				class="rounded border border-gray-300 bg-transparent px-2 py-1.5 text-sm shadow-sm transition-colors focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none dark:border-gray-500"
 			/>
 		</div>
@@ -266,7 +262,7 @@
 		{:else}
 			<button
 				type="submit"
-				disabled={!newName.trim()}
+				disabled={!newName.trim() || !newPin.trim()}
 				class="rounded-2xl px-2 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 disabled:opacity-40 dark:text-blue-400 dark:hover:bg-blue-900"
 			>
 				Create

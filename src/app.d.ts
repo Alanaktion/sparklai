@@ -5,7 +5,7 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			humanUser: import('$lib/server/db/schema').UserType | null;
+			creator: import('$lib/server/db/schema').CreatorType | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

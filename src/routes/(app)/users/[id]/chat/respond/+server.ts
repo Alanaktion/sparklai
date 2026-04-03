@@ -7,7 +7,7 @@ import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
 // Generate a new response to the conversation
-export async function POST({ params }) {
+export async function POST({ params, locals }) {
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, Number(params.id))
 	});
@@ -46,30 +46,26 @@ export async function POST({ params }) {
 		relationshipContext = `\nYour relationships: ${relationshipsText}`;
 	}
 
-	// Fetch the human user's profile to provide context
-	const humanProfile = await db.query.users.findFirst({
-		where: eq(users.is_human, true)
-	});
-
 	let systemPrompt =
 		`You are ${user.name} (${user.pronouns}), having an IM conversation.\n` +
 		`Your bio: ${user.bio}\n` +
 		`Writing style: ${JSON.stringify(user.writing_style)}\n` +
 		relationshipContext;
 
-	// Include human user context if available
-	if (humanProfile) {
-		systemPrompt += `\nYou're chatting with ${humanProfile.name} (${humanProfile.pronouns})`;
-		if (humanProfile.bio) systemPrompt += `\nAbout them: ${humanProfile.bio}`;
-		if (humanProfile.occupation) systemPrompt += `\nTheir occupation: ${humanProfile.occupation}`;
-		if (humanProfile.interests && humanProfile.interests.length > 0) {
-			systemPrompt += `\nTheir interests: ${humanProfile.interests.join(', ')}`;
+	// Include creator context if available
+	const creator = locals.creator;
+	if (creator) {
+		systemPrompt += `\nYou're chatting with ${creator.name} (${creator.pronouns})`;
+		if (creator.bio) systemPrompt += `\nAbout them: ${creator.bio}`;
+		if (creator.occupation) systemPrompt += `\nTheir occupation: ${creator.occupation}`;
+		if (creator.interests && creator.interests.length > 0) {
+			systemPrompt += `\nTheir interests: ${creator.interests.join(', ')}`;
 		}
-		if (humanProfile.location) {
+		if (creator.location) {
 			const locationParts = [
-				humanProfile.location.city,
-				humanProfile.location.state_province,
-				humanProfile.location.country
+				creator.location.city,
+				creator.location.state_province,
+				creator.location.country
 			].filter(Boolean);
 			if (locationParts.length > 0) {
 				systemPrompt += `\nTheir location: ${locationParts.join(', ')}`;

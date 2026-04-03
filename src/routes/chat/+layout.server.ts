@@ -1,30 +1,16 @@
 import { db } from '$lib/server/db';
-import { chats, relationships, users } from '$lib/server/db/schema';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { chats, users } from '$lib/server/db/schema';
+import { and, desc, eq } from 'drizzle-orm';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-	if (!locals.humanUser) {
+	if (!locals.creator) {
 		return { users: [] };
 	}
 
-	const followed_user_ids = db
-		.select({ id: relationships.related_user_id })
-		.from(relationships)
-		.where(
-			and(
-				eq(relationships.user_id, locals.humanUser.id),
-				eq(relationships.relationship_type, 'follow')
-			)
-		);
-
 	const users_result = await db.query.users.findMany({
 		columns: { id: true, name: true, image_id: true },
-		where: and(
-			eq(users.is_human, false),
-			eq(users.is_active, true),
-			inArray(users.id, followed_user_ids)
-		),
+		where: and(eq(users.is_active, true), eq(users.creator_id, locals.creator.id)),
 		with: {
 			chats: {
 				columns: { id: true, body: true },

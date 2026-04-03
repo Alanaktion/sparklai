@@ -1,6 +1,6 @@
 import { generatePost } from '$lib/server';
 import { db } from '$lib/server/db';
-import { posts, relationships, users } from '$lib/server/db/schema';
+import { posts, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
 import { and, desc, eq, inArray, like, lt, sql } from 'drizzle-orm';
 
@@ -8,7 +8,7 @@ const DEFAULT_LIMIT = 15;
 const MAX_LIMIT = 50;
 
 export async function GET({ url, locals }) {
-	if (!locals.humanUser) {
+	if (!locals.creator) {
 		return json({ posts: [], hasMore: false });
 	}
 
@@ -22,28 +22,12 @@ export async function GET({ url, locals }) {
 
 	const q = url.searchParams.get('q')?.trim() ?? '';
 
-	const followed_user_ids = db
-		.select({ id: relationships.related_user_id })
-		.from(relationships)
-		.where(
-			and(
-				eq(relationships.user_id, locals.humanUser.id),
-				eq(relationships.relationship_type, 'follow')
-			)
-		);
-
-	const active_followed_ids = db
+	const creator_user_ids = db
 		.select({ id: users.id })
 		.from(users)
-		.where(
-			and(
-				eq(users.is_active, true),
-				eq(users.is_human, false),
-				inArray(users.id, followed_user_ids)
-			)
-		);
+		.where(and(eq(users.is_active, true), eq(users.creator_id, locals.creator.id)));
 
-	const filters = [inArray(posts.user_id, active_followed_ids)];
+	const filters = [inArray(posts.user_id, creator_user_ids)];
 	if (cursor) {
 		filters.push(lt(posts.id, cursor));
 	}
@@ -71,7 +55,7 @@ export async function GET({ url, locals }) {
 // Generate a post for a random user
 export async function POST() {
 	const author = await db.query.users.findFirst({
-		where: and(eq(users.is_active, true), eq(users.is_human, false)),
+		where: eq(users.is_active, true),
 		orderBy: sql`random()`
 	});
 	if (!author) {

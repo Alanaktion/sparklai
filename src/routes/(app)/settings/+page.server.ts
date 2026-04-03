@@ -1,22 +1,22 @@
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { creators } from '$lib/server/db/schema';
 import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	return { user: locals.humanUser ?? null };
+	return { creator: locals.creator ?? null };
 };
 
 export const actions = {
 	default: async ({ request, locals }) => {
-		if (!locals.humanUser) {
-			fail(401, { error: 'No active human user' });
+		if (!locals.creator) {
+			fail(401, { error: 'No active creator' });
 			return;
 		}
 
 		const formData = await request.formData();
-		const currentProfile = locals.humanUser;
+		const currentProfile = locals.creator;
 
 		const extractField = (fieldName: string) => formData.get(fieldName)?.toString() || null;
 		const parseAge = (ageStr: string | null, defaultAge: number = 25) => {
@@ -60,11 +60,10 @@ export const actions = {
 			location: locationObj,
 			occupation: extractField('occupation'),
 			interests: parsedInterests,
-			relationship_status: extractField('relationship_status'),
-			is_human: true as const
+			relationship_status: extractField('relationship_status')
 		};
 
-		await db.update(users).set(fieldsToSave).where(eq(users.id, currentProfile.id));
+		await db.update(creators).set(fieldsToSave).where(eq(creators.id, currentProfile.id));
 
 		return { success: true };
 	}

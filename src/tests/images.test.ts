@@ -15,6 +15,7 @@ import { POST as generatePostImage } from '../routes/(app)/posts/[id]/image/+ser
 import { GET as getModels, POST as setModels } from '../routes/(app)/models/+server';
 import {
 	cleanDatabase,
+	createTestCreator,
 	createTestUser,
 	createTestPost,
 	createTestImage,
@@ -22,8 +23,12 @@ import {
 } from './helpers';
 
 describe('Images API', () => {
+	let creatorId: number;
+
 	beforeEach(async () => {
 		await cleanDatabase();
+		const creator = await createTestCreator();
+		creatorId = creator.id;
 	});
 
 	describe('GET /images/[id] - retrieve image', () => {
@@ -38,7 +43,7 @@ describe('Images API', () => {
 		});
 
 		it('returns image data with correct content type', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const image = await createTestImage(user.id);
 
 			const event = {
@@ -56,7 +61,7 @@ describe('Images API', () => {
 
 	describe('PATCH /images/[id] - update image metadata', () => {
 		it('updates image blur field', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const image = await createTestImage(user.id);
 
 			const event = {
@@ -78,7 +83,7 @@ describe('Images API', () => {
 
 	describe('DELETE /images/[id] - delete image', () => {
 		it('deletes an image and returns 204', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const image = await createTestImage(user.id);
 
 			const event = {
@@ -106,7 +111,7 @@ describe('Images API', () => {
 		});
 
 		it('enqueues an image generation job when no prompt given', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			vi.mocked(completion).mockResolvedValueOnce('brown hair, tall woman');
 
 			const event = {
@@ -133,7 +138,7 @@ describe('Images API', () => {
 		});
 
 		it('enqueues an image generation job for the post', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id, 'A beautiful sunset photo');
 			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostImageResponse);
 
@@ -154,7 +159,7 @@ describe('Images API', () => {
 
 	describe('POST /users/[id]/image - upload user profile image', () => {
 		it('stores uploaded file as WebP and sets as user profile image', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const fakeImageData = Buffer.from('fake-image-data');
 			const formData = new FormData();
 			formData.append('file', new File([fakeImageData], 'photo.jpg', { type: 'image/jpeg' }));
@@ -188,7 +193,7 @@ describe('Images API', () => {
 
 	describe('POST /posts/[id]/image - upload post image', () => {
 		it('stores uploaded file as WebP and sets as post image', async () => {
-			const user = await createTestUser();
+			const user = await createTestUser(creatorId);
 			const post = await createTestPost(user.id, 'A test post');
 			const fakeImageData = Buffer.from('fake-image-data');
 			const formData = new FormData();
