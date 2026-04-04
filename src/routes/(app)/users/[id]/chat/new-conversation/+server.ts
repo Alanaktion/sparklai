@@ -43,6 +43,10 @@ export async function POST({ params, locals }) {
 	const creator = locals.creator;
 	if (creator) {
 		systemPrompt += `\nThe human chatting with them is ${creator.name}.`;
+
+		if (user.additional_prompt) {
+			systemPrompt += `\n${user.additional_prompt}`;
+		}
 	}
 
 	const summaryMessages: LlamaMessage[] = [

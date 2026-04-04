@@ -77,6 +77,7 @@ export const users = sqliteTable('users', {
 	relationship_status: text(),
 	writing_style: text({ mode: 'json' }).$type<WritingStyle>(),
 	backstory: text(),
+	additional_prompt: text().notNull().default(''),
 	appearance: text({ mode: 'json' }).$type<Appearance>(),
 	image_id: integer().references((): AnySQLiteColumn => images.id),
 	creator_id: integer()

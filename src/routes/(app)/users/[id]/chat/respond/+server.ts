@@ -72,6 +72,10 @@ export async function POST({ params, locals }) {
 				systemPrompt += `\nTheir location: ${locationParts.join(', ')}`;
 			}
 		}
+
+		if (user.additional_prompt) {
+			systemPrompt += `\n${user.additional_prompt}`;
+		}
 	}
 
 	systemPrompt +=

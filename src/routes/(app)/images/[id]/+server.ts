@@ -16,7 +16,8 @@ export async function GET({ params }) {
 	return new Response(new Uint8Array(image.data), {
 		headers: {
 			'Content-Type': image.type,
-			'Cache-Control': 'public'
+			'Cache-Control': 'public',
+			'Expires': new Date(Date.now() + 3600 * 24 * 7 * 1000).toUTCString() // Cache for 1 week
 		}
 	});
 }
