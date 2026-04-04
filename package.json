@@ -13,6 +13,7 @@
 		"lint": "prettier --check . && eslint .",
 		"test": "vitest run",
 		"test:watch": "vitest",
+		"pin:reset": "node scripts/reset-pin.mjs",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio"

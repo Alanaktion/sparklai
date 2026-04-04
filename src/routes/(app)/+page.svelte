@@ -62,22 +62,6 @@
 
 	const activeHumanUser = $derived(data.activeCreator ?? null);
 
-	let unfollowingIds = $state<Set<number>>(new Set());
-
-	const unfollow = async (userId: number) => {
-		unfollowingIds = new Set([...unfollowingIds, userId]);
-		try {
-			await fetch(resolve(`/users/${userId}/follow`), { method: 'DELETE' });
-			// Remove from the displayed list immediately
-			additionalUsers = additionalUsers.filter((u) => u.id !== userId);
-			// Also filter out from server-provided users by reloading
-			loadedPosts = null;
-			hasMoreState = null;
-		} finally {
-			unfollowingIds = new Set([...unfollowingIds].filter((id) => id !== userId));
-		}
-	};
-
 	const user = (id: number) => {
 		const matches = users.filter((u) => u.id == id);
 		return matches ? matches[0] : {};
@@ -191,9 +175,9 @@
 {#if !activeHumanUser}
 	<div class="my-16 flex flex-col items-center gap-4 px-4 text-center">
 		<p class="text-2xl">👤</p>
-		<h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300">No user selected</h2>
+		<h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300">No creator selected</h2>
 		<p class="max-w-sm text-sm text-gray-500 dark:text-gray-400">
-			Select or create a human user profile to see your personalised feed of followed AI users.
+			Select or create a creator profile to see your personalized feed of created AI users.
 		</p>
 	</div>
 {:else}
@@ -297,18 +281,6 @@
 									{u.pronouns}
 								</p>
 							</div>
-							<button
-								type="button"
-								onclick={(e) => {
-									e.stopPropagation();
-									void unfollow(u.id);
-								}}
-								disabled={unfollowingIds.has(u.id)}
-								class="relative z-10 ml-2 shrink-0 rounded p-1 text-gray-400 opacity-0 transition group-hover:opacity-100 hover:bg-red-100 hover:text-red-500 disabled:opacity-40 dark:hover:bg-red-900 dark:hover:text-red-400"
-								title="Unfollow"
-							>
-								<UserMinus class="size-4" />
-							</button>
 						</div>
 					{/each}
 				{:else}
