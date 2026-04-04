@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { hasActiveConversation } from '$lib/chat/conversations';
 	import type { ChatType, UserType } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';
 
@@ -25,7 +26,9 @@
 	let container: HTMLDivElement;
 
 	let responding = $state(false);
+	let startingNewConversation = $state(false);
 	let timeoutId: ReturnType<typeof setTimeout>;
+	let canStartNewConversation = $derived(hasActiveConversation(chats));
 
 	// Populate chats on initial load and after navigation between conversations
 	afterNavigate(() => {
@@ -75,6 +78,30 @@
 	}
 
 	const debouncedResponse = debounce(respond);
+
+	async function startNewConversation() {
+		if (startingNewConversation || responding || !canStartNewConversation) {
+			return;
+		}
+
+		clearTimeout(timeoutId);
+		startingNewConversation = true;
+		try {
+			const response = await fetch(resolve(`/users/${user.id}/chat/new-conversation`), {
+				method: 'POST'
+			});
+			if (!response.ok) {
+				return;
+			}
+
+			const body = (await response.json()) as ChatMessageType;
+			chats = [...chats, body];
+			await tick();
+			container?.scrollTo(0, container.scrollHeight);
+		} finally {
+			startingNewConversation = false;
+		}
+	}
 
 	function delete_message(chat: ChatMessageType) {
 		fetch(resolve(`/users/${user.id}/chat/messages/${chat.id}`), { method: 'DELETE' }).then(() => {
@@ -128,7 +155,15 @@
 		<a href={resolve(`/users/${user.id}`)} class="font-medium hover:underline">{user.name}</a>
 		<button
 			type="button"
-			class="ml-auto cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
+			class="ml-auto cursor-pointer rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+			onclick={startNewConversation}
+			disabled={!canStartNewConversation || responding || startingNewConversation}
+		>
+			{startingNewConversation ? 'Summarizing...' : 'New conversation'}
+		</button>
+		<button
+			type="button"
+			class="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
 			onclick={() => (infoOpen = true)}
 			aria-label="User info"
 		>

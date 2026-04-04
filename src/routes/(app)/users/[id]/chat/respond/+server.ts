@@ -1,10 +1,11 @@
+import { partitionChatHistory } from '$lib/chat/conversations';
 import type { LlamaMessage } from '$lib/server/chat/index.js';
 import { completion } from '$lib/server/chat/index.js';
 import { formatDate, nowStr } from '$lib';
 import { db } from '$lib/server/db';
 import { chats, relationships, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 // Generate a new response to the conversation
 export async function POST({ params, locals }) {
@@ -84,22 +85,39 @@ export async function POST({ params, locals }) {
 		}
 	];
 
-	const chat_result = await db
+	const chatHistory = await db
 		.select()
 		.from(chats)
-		.where(eq(chats.user_id, Number(params.id)));
-	chat_result.forEach((chat) => {
+		.where(eq(chats.user_id, Number(params.id)))
+		.orderBy(asc(chats.id));
+	const { previousSummaries, activeMessages } = partitionChatHistory(chatHistory);
+
+	if (previousSummaries.length) {
+		history.push({
+			role: 'system',
+			content:
+				'This is a new conversation. Earlier live messages are intentionally omitted. ' +
+				'You may reference the summaries below for continuity, but respond as part of a fresh exchange unless the human brings up prior context.\n\n' +
+				previousSummaries
+					.map((summary, index) => `Earlier conversation ${index + 1}: ${summary}`)
+					.join('\n\n')
+		});
+	}
+
+	activeMessages.forEach((chat) => {
 		history.push({
 			role: chat.role,
 			content: chat.body
 		});
 	});
 
-	if (chat_result.length) {
-		const last = chat_result[chat_result.length - 1];
+	if (activeMessages.length) {
+		const last = activeMessages[activeMessages.length - 1];
 		if (last.created_at) {
 			history[0].content += `\nThe last message was received ${formatDate(last.created_at)}.`;
 		}
+	} else if (previousSummaries.length) {
+		history[0].content += '\nNo live messages have been exchanged yet in this new conversation.';
 	}
 
 	const response = await completion(null, history);

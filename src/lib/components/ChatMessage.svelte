@@ -1,5 +1,9 @@
 <script lang="ts">
 	import type { ChatType } from '$lib/server/db/schema';
+	import {
+		extractConversationSummary,
+		isConversationSummaryMessage
+	} from '$lib/chat/conversations';
 	import { looksNonEnglish } from '$lib/language';
 	import { parseInlineItalics } from '$lib/text';
 	import Dialog from '$lib/components/base/dialog.svelte';
@@ -25,7 +29,16 @@
 		ondelete?: (chat: ChatMessageType) => void;
 	} = $props();
 
+	let isConversationMarker = $derived(isConversationSummaryMessage(chat));
+	let visibleBody = $derived(
+		isConversationMarker ? extractConversationSummary(chat.body) : chat.body
+	);
+
 	let prefix = $derived.by(() => {
+		if (isConversationMarker) {
+			return null;
+		}
+
 		const d2 = new Date(`${chat.created_at}Z`);
 		let diff;
 		if (!prevChat) {
@@ -55,6 +68,10 @@
 	});
 
 	let rounded = $derived.by(() => {
+		if (isConversationMarker) {
+			return [];
+		}
+
 		const classes: string[] = [];
 		if (prevChat && prevChat.role == chat.role) {
 			classes.push(chat.role == 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm');
@@ -98,12 +115,14 @@
 		return /\p{Extended_Pictographic}|\p{Regional_Indicator}|[#*0-9]\uFE0F?\u20E3/u.test(grapheme);
 	};
 
-	let bodySegments = $derived.by(() => parseInlineItalics(chat.body));
-	let isSingleEmoji = $derived.by(() => isSingleEmojiMessage(chat.body));
+	let bodySegments = $derived.by(() => parseInlineItalics(visibleBody));
+	let isSingleEmoji = $derived.by(() => !isConversationMarker && isSingleEmojiMessage(visibleBody));
 	let translating = $state(false);
-	let translatedBody = $derived(chat.body_en ?? null);
+	let translatedBody = $derived(isConversationMarker ? null : (chat.body_en ?? null));
 
-	let shouldOfferTranslation = $derived.by(() => !translatedBody && looksNonEnglish(chat.body));
+	let shouldOfferTranslation = $derived.by(
+		() => !isConversationMarker && !translatedBody && looksNonEnglish(chat.body)
+	);
 
 	async function translateChat() {
 		if (translating || translatedBody) {
@@ -139,87 +158,103 @@
 	</div>
 {/if}
 
-<div
-	class={twMerge([
-		'group flex gap-2',
-		chat.role == 'user' && 'flex-row-reverse self-end',
-		chat.role == 'assistant' && 'self-start'
-	])}
->
+{#if isConversationMarker}
 	<div
-		class={twMerge([
-			'max-w-lg rounded-3xl px-4 py-2',
-			!isSingleEmoji && chat.role == 'user' && 'bg-blue-600 text-white dark:bg-blue-800',
-			!isSingleEmoji && chat.role == 'assistant' && 'bg-gray-50 dark:bg-gray-800',
-			isSingleEmoji && 'bg-transparent px-1 py-0 text-5xl leading-none md:text-6xl',
-			...(!isSingleEmoji ? rounded : [])
-		])}
+		class="my-6 flex items-center gap-3 text-[11px] font-medium tracking-[0.24em] text-gray-500 uppercase dark:text-gray-400"
 	>
-		<p
-			class={twMerge([
-				'text-pretty whitespace-pre-wrap',
-				isSingleEmoji && 'leading-none whitespace-normal'
-			])}
-		>
-			{#each bodySegments as segment, i (i)}
-				{#if segment.italic}
-					<em>{segment.text}</em>
-				{:else}
-					{segment.text}
-				{/if}
-			{/each}
-		</p>
-		{#if !isSingleEmoji && shouldOfferTranslation}
-			<button
-				type="button"
-				onclick={translateChat}
-				disabled={translating}
-				class={twMerge([
-					'mt-2 rounded border px-2 py-0.5 text-xs',
-					chat.role == 'user' &&
-						'border-blue-300/60 text-blue-100 hover:bg-blue-500/25 disabled:opacity-60 dark:border-blue-300/40',
-					chat.role == 'assistant' &&
-						'border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
-				])}
-			>
-				{translating ? 'Translating...' : 'Translate to English'}
-			</button>
-		{/if}
-		{#if !isSingleEmoji && translatedBody}
-			<p
-				class={twMerge([
-					'mt-2 text-xs whitespace-pre-wrap',
-					chat.role == 'user' && 'text-blue-100/90',
-					chat.role == 'assistant' && 'text-gray-600 dark:text-gray-400'
-				])}
-			>
-				{translatedBody}
-			</p>
-		{/if}
+		<div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+		<span>New Conversation</span>
+		<div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
 	</div>
-	{#if ondelete}
-		<button
-			class="relative size-6 cursor-pointer rounded-full bg-gray-200 leading-none text-black opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700 dark:text-white"
-			type="button"
-			onclick={() => (confirmation = true)}
-			title="Delete message"
-		>
-			<span class="sr-only">Delete message</span>
-			<span aria-hidden="true">&times;</span>
-		</button>
-	{/if}
-</div>
-
-{#if chat.image_id}
+	<div
+		class="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+	>
+		<p class="font-medium">Past conversation summary</p>
+		<p class="mt-2 whitespace-pre-wrap">{visibleBody}</p>
+	</div>
+{:else}
 	<div
 		class={twMerge([
-			'relative max-w-sm overflow-hidden rounded',
-			chat.role == 'user' && 'self-end',
+			'group flex gap-2',
+			chat.role == 'user' && 'flex-row-reverse self-end',
 			chat.role == 'assistant' && 'self-start'
 		])}
 	>
-		<Image image={chat.image} />
+		<div
+			class={twMerge([
+				'max-w-lg rounded-3xl px-4 py-2',
+				!isSingleEmoji && chat.role == 'user' && 'bg-blue-600 text-white dark:bg-blue-800',
+				!isSingleEmoji && chat.role == 'assistant' && 'bg-gray-50 dark:bg-gray-800',
+				isSingleEmoji && 'bg-transparent px-1 py-0 text-5xl leading-none md:text-6xl',
+				...(!isSingleEmoji ? rounded : [])
+			])}
+		>
+			<p
+				class={twMerge([
+					'text-pretty whitespace-pre-wrap',
+					isSingleEmoji && 'leading-none whitespace-normal'
+				])}
+			>
+				{#each bodySegments as segment, i (i)}
+					{#if segment.italic}
+						<em>{segment.text}</em>
+					{:else}
+						{segment.text}
+					{/if}
+				{/each}
+			</p>
+			{#if !isSingleEmoji && shouldOfferTranslation}
+				<button
+					type="button"
+					onclick={translateChat}
+					disabled={translating}
+					class={twMerge([
+						'mt-2 rounded border px-2 py-0.5 text-xs',
+						chat.role == 'user' &&
+							'border-blue-300/60 text-blue-100 hover:bg-blue-500/25 disabled:opacity-60 dark:border-blue-300/40',
+						chat.role == 'assistant' &&
+							'border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+					])}
+				>
+					{translating ? 'Translating...' : 'Translate to English'}
+				</button>
+			{/if}
+			{#if !isSingleEmoji && translatedBody}
+				<p
+					class={twMerge([
+						'mt-2 text-xs whitespace-pre-wrap',
+						chat.role == 'user' && 'text-blue-100/90',
+						chat.role == 'assistant' && 'text-gray-600 dark:text-gray-400'
+					])}
+				>
+					{translatedBody}
+				</p>
+			{/if}
+		</div>
+		{#if ondelete}
+			<button
+				class="relative size-6 cursor-pointer rounded-full bg-gray-200 leading-none text-black opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700 dark:text-white"
+				type="button"
+				onclick={() => (confirmation = true)}
+				title="Delete message"
+			>
+				<span class="sr-only">Delete message</span>
+				<span aria-hidden="true">&times;</span>
+			</button>
+		{/if}
 	</div>
+
+	{#if chat.image_id}
+		<div
+			class={twMerge([
+				'relative max-w-sm overflow-hidden rounded',
+				chat.role == 'user' && 'self-end',
+				chat.role == 'assistant' && 'self-start'
+			])}
+		>
+			<Image image={chat.image} />
+		</div>
+	{/if}
 {/if}
 
 <Dialog bind:open={confirmation} title="Delete message">

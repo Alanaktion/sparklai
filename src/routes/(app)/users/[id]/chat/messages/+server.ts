@@ -1,7 +1,7 @@
 import { db } from '$lib/server/db';
 import { chats } from '$lib/server/db/schema';
 import { json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 // Get the current chat history
 export async function GET({ params }) {
@@ -10,6 +10,7 @@ export async function GET({ params }) {
 			.select()
 			.from(chats)
 			.where(eq(chats.user_id, Number(params.id)))
+			.orderBy(asc(chats.id))
 	);
 }
 

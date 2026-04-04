@@ -8,6 +8,7 @@ import {
 	POST as addChatMessage
 } from '../routes/(app)/users/[id]/chat/messages/+server';
 import { DELETE as deleteChatMessage } from '../routes/(app)/users/[id]/chat/messages/[message_id]/+server';
+import { POST as startNewConversation } from '../routes/(app)/users/[id]/chat/new-conversation/+server';
 import { POST as generateChatResponse } from '../routes/(app)/users/[id]/chat/respond/+server';
 import { cleanDatabase, createTestCreator, createTestUser } from './helpers';
 
@@ -165,6 +166,92 @@ describe('Chat API', () => {
 			const messages = callArgs[1];
 			// System prompt + 3 chat messages
 			expect(messages).toHaveLength(4);
+		});
+
+		it('uses only prior summaries plus the current conversation in the completion call', async () => {
+			const user = await createTestUser(creatorId);
+
+			await db.insert(chats).values([
+				{ user_id: user.id, role: 'user', body: 'First message' },
+				{ user_id: user.id, role: 'assistant', body: 'First response' },
+				{
+					user_id: user.id,
+					role: 'system',
+					body: 'Previous conversation summary:\nTalked about hiking plans.'
+				},
+				{ user_id: user.id, role: 'user', body: 'Fresh start question' }
+			]);
+
+			vi.mocked(completion).mockResolvedValueOnce('Fresh response');
+
+			const event = {
+				params: { id: String(user.id) },
+				locals: { creator: null }
+			} as Parameters<typeof generateChatResponse>[0];
+
+			await generateChatResponse(event);
+
+			expect(vi.mocked(completion)).toHaveBeenCalledOnce();
+			const messages = vi.mocked(completion).mock.calls[0]?.[1];
+			expect(messages).toBeDefined();
+			expect(messages).toHaveLength(3);
+			expect(messages?.[1]).toMatchObject({ role: 'system' });
+			expect(messages?.[1]?.content).toContain('new conversation');
+			expect(messages?.[1]?.content).toContain('Talked about hiking plans.');
+			expect(messages?.[1]?.content).not.toContain('First message');
+			expect(messages?.[2]).toMatchObject({ role: 'user', content: 'Fresh start question' });
+		});
+	});
+
+	describe('POST /users/[id]/chat/new-conversation - summarize and reset context', () => {
+		it('returns 400 when there is no active conversation to summarize', async () => {
+			const user = await createTestUser(creatorId);
+
+			const event = {
+				params: { id: String(user.id) },
+				locals: { creator: null }
+			} as Parameters<typeof startNewConversation>[0];
+
+			await expect(startNewConversation(event)).rejects.toMatchObject({
+				status: 400
+			});
+		});
+
+		it('summarizes only the current conversation segment and stores a marker', async () => {
+			const user = await createTestUser(creatorId);
+
+			await db.insert(chats).values([
+				{
+					user_id: user.id,
+					role: 'system',
+					body: 'Previous conversation summary:\nEarlier summary'
+				},
+				{ user_id: user.id, role: 'user', body: 'Latest user message' },
+				{ user_id: user.id, role: 'assistant', body: 'Latest assistant reply' }
+			]);
+
+			vi.mocked(completion).mockResolvedValueOnce('Latest summary');
+
+			const event = {
+				params: { id: String(user.id) },
+				locals: { creator: null }
+			} as Parameters<typeof startNewConversation>[0];
+
+			const response = await startNewConversation(event);
+			expect(response.status).toBe(200);
+
+			expect(vi.mocked(completion)).toHaveBeenCalledOnce();
+			expect(vi.mocked(completion).mock.calls[0][0]).toContain('Latest user message');
+			expect(vi.mocked(completion).mock.calls[0][0]).toContain('Latest assistant reply');
+			expect(vi.mocked(completion).mock.calls[0][0]).not.toContain('Earlier summary');
+
+			const body = await response.json();
+			expect(body.role).toBe('system');
+			expect(body.body).toBe('Previous conversation summary:\nLatest summary');
+
+			const persisted = await db.select().from(chats).where(eq(chats.user_id, user.id));
+			expect(persisted).toHaveLength(4);
+			expect(persisted[3]?.role).toBe('system');
 		});
 	});
 

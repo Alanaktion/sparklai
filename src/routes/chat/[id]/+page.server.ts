@@ -21,7 +21,8 @@ export const load: PageServerLoad = async ({ params }) => {
 					columns: { id: true, blur: true }
 				}
 			},
-			where: eq(chats.user_id, Number(params.id))
+			where: eq(chats.user_id, Number(params.id)),
+			orderBy: (chats, { asc }) => [asc(chats.id)]
 		})
 	};
 };
