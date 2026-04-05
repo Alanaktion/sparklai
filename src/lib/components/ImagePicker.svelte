@@ -17,7 +17,25 @@
 		} | null;
 	};
 
-	const { post, images } = $props();
+	type SelectableImage = {
+		id: number;
+		blur?: boolean;
+		params?: Record<string, unknown> | null;
+	};
+
+	type PickerPost = {
+		id: number;
+		image_id: number | null;
+	};
+
+	const { post, images, onPostImageChange } = $props<{
+		post: PickerPost;
+		images: SelectableImage[];
+		onPostImageChange?: (payload: {
+			imageId: number | null;
+			image?: SelectableImage | null;
+		}) => void;
+	}>();
 
 	let image_id = $derived(post.image_id);
 	let open = $state(false);
@@ -27,6 +45,10 @@
 	let imageJobId = $state<number | null>(null);
 	let imageJobError = $state('');
 
+	function applyImageChange(imageId: number | null, image?: SelectableImage | null) {
+		onPostImageChange?.({ imageId, image: image ?? null });
+	}
+
 	async function waitForJob(jobId: number) {
 		imageJobId = jobId;
 		imageJobError = '';
@@ -34,10 +56,8 @@
 		try {
 			const job = (await trackImageJob(jobId, { label: 'Post image' })) as ImageJob;
 			if (job.status === 'completed' && job.image_id) {
-				post.image_id = job.image_id;
-				if (job.image && !images.some((image: { id: number }) => image.id === job.image!.id)) {
-					images.push(job.image);
-				}
+				image_id = job.image_id;
+				applyImageChange(job.image_id, job.image ?? null);
 				open = false;
 				return;
 			}
@@ -80,7 +100,8 @@
 		} else {
 			fetch(`/posts/${post.id}`, { method: 'PATCH', body: JSON.stringify({ image_id }) }).then(
 				() => {
-					post.image_id = image_id;
+					const selected = images.find((image: SelectableImage) => image.id === image_id) || null;
+					applyImageChange(image_id, selected);
 					open = false;
 				}
 			);
@@ -108,10 +129,8 @@
 			}
 			const body = await response.json();
 			const newImage = body.image;
-			if (!images.some((img: { id: number }) => img.id === newImage.id)) {
-				images.push(newImage);
-			}
-			post.image_id = newImage.id;
+			image_id = newImage.id;
+			applyImageChange(newImage.id, newImage);
 			open = false;
 		} catch {
 			imageJobError = 'Unable to upload image';

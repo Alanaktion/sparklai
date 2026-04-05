@@ -8,6 +8,31 @@ import { eq } from 'drizzle-orm';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
+function normalizeGeneratedPrompt(raw: string) {
+	const normalized = raw
+		.replace(/[\n|;]+/g, ',')
+		.split(',')
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0);
+
+	const seen = new Set<string>();
+	const unique: string[] = [];
+	for (const part of normalized) {
+		const key = part.toLowerCase();
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		unique.push(part);
+	}
+
+	if (!unique.length) {
+		return raw.trim();
+	}
+
+	return unique.slice(0, 8).join(', ');
+}
+
 export async function POST({ params, request }) {
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, Number(params.id))
@@ -55,8 +80,12 @@ export async function POST({ params, request }) {
 		}
 	}
 	if (image_prompt === '' || typeof image_prompt === 'undefined') {
-		let prompt =
-			"Write a brief list of keywords used to generate a profile image for the given user. Include generic keywords like 'brown hair', 'tall woman', etc.";
+		let prompt = 'Generate a focused profile-image prompt as comma-separated keywords.';
+		prompt +=
+			' Choose exactly one subject, one setting, and one activity that best represent this user.';
+		prompt +=
+			' Do not include multiple alternatives. Keep it to 5-8 short keywords total, ordered:';
+		prompt += ' subject, setting, activity, 2-5 supporting visual details (appearance or style).';
 		if (user.location) {
 			prompt += `\nLocation: ${user.location.city}, ${user.location.state_province}, ${user.location.country}`;
 		}
@@ -76,10 +105,9 @@ export async function POST({ params, request }) {
 			prompt += `\nAppearance: ${JSON.stringify(user.appearance)}`;
 		}
 
-		prompt +=
-			'\n\nSeparate keywords with commas. Ensure most important identifying traits are included. *Do not write any other content apart from a list of keywords for image generation!*';
+		prompt += '\n\nReturn only the comma-separated keyword list. No prose.';
 
-		image_prompt = await completion(prompt);
+		image_prompt = normalizeGeneratedPrompt(await completion(prompt));
 		set_user_image = true;
 	}
 

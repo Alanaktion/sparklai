@@ -20,10 +20,17 @@
 
 	let { data }: PageProps = $props();
 
+	type PostPickerImage = {
+		id: number;
+		blur?: boolean;
+		params?: Record<string, unknown> | null;
+	};
+
 	let user = $derived<UserType>(data.post.user);
 	let users = $derived<UserType[]>(data.users);
-	let post = $derived<PostType>(data.post);
+	let post = $derived(data.post as PostType & { image?: PostPickerImage | null });
 	let comments = $derived(data.post.comments);
+	let postImages = $derived<PostPickerImage[]>(data.images);
 
 	let open = $state(false);
 	let responding = $state(false);
@@ -78,7 +85,23 @@
 		fetch(resolve(`/posts/${data.id}`), {
 			method: 'PATCH',
 			body: JSON.stringify({ image_id: null })
-		}).then(() => (post.image_id = null));
+		}).then(() => {
+			post = { ...post, image_id: null, image: null };
+		});
+	}
+
+	function handlePostImageChange(payload: {
+		imageId: number | null;
+		image?: PostPickerImage | null;
+	}) {
+		post = {
+			...post,
+			image_id: payload.imageId,
+			image: payload.image ?? null
+		};
+		if (payload.image && !postImages.some((existing) => existing.id === payload.image!.id)) {
+			postImages = [...postImages, payload.image];
+		}
 	}
 
 	let translatingCommentIds = $state<number[]>([]);
@@ -116,7 +139,7 @@
 		{#if browser}
 			<div class="flex items-center justify-end gap-1">
 				{#if !post.image_id}
-					<ImagePicker {post} images={data.images} />
+					<ImagePicker {post} images={postImages} onPostImageChange={handlePostImageChange} />
 				{:else}
 					<button
 						onclick={detatchImage}

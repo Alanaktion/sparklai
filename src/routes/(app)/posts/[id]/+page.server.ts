@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		id,
 		post,
 		images: await db
-			.select({ id: images.id, blur: images.blur })
+			.select({ id: images.id, blur: images.blur, params: images.params })
 			.from(images)
 			.where(eq(images.user_id, post.user_id)),
 		users: await db.select().from(users).where(inArray(users.id, creator_user_ids))

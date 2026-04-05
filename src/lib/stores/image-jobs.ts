@@ -13,6 +13,14 @@ export type ImageGenerationJobResponse = {
 	user_id: number;
 	image?: {
 		id: number;
+		params?: {
+			prompt: string;
+			negative_prompt: string;
+			width: number;
+			height: number;
+			cfg_scale: number;
+			seed: number;
+		} | null;
 		blur?: boolean;
 	} | null;
 };
@@ -211,6 +219,23 @@ function assertImageJobResponse(value: unknown): ImageGenerationJobResponse {
 		image: isObject(value.image)
 			? {
 					id: Number(value.image.id),
+					params:
+						isObject(value.image.params) &&
+						typeof value.image.params.prompt === 'string' &&
+						typeof value.image.params.negative_prompt === 'string' &&
+						Number.isFinite(value.image.params.width) &&
+						Number.isFinite(value.image.params.height) &&
+						Number.isFinite(value.image.params.cfg_scale) &&
+						Number.isFinite(value.image.params.seed)
+							? {
+									prompt: value.image.params.prompt,
+									negative_prompt: value.image.params.negative_prompt,
+									width: Number(value.image.params.width),
+									height: Number(value.image.params.height),
+									cfg_scale: Number(value.image.params.cfg_scale),
+									seed: Number(value.image.params.seed)
+								}
+							: null,
 					blur: typeof value.image.blur === 'boolean' ? value.image.blur : undefined
 				}
 			: null

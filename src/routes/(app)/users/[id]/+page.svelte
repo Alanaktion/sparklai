@@ -98,6 +98,7 @@
 	let prompt = $state('');
 	let aspect = $state('square');
 	let pendingImageJobIds = $state<number[]>([]);
+	let recentlyQueuedImageJobIds = $state<number[]>([]);
 	let imageJobError = $state('');
 
 	function trackPendingJob(jobId: number) {
@@ -108,6 +109,7 @@
 
 	function finishPendingJob(jobId: number) {
 		pendingImageJobIds = pendingImageJobIds.filter((id) => id !== jobId);
+		recentlyQueuedImageJobIds = recentlyQueuedImageJobIds.filter((id) => id !== jobId);
 	}
 
 	function handleAvatarChange(imageId: number, image?: Partial<ImageType>) {
@@ -189,6 +191,7 @@
 	const newImage = (e: Event) => {
 		e.preventDefault();
 		creating = true;
+		imageJobError = '';
 		fetch(resolve(`/users/${data.id}/image`), {
 			method: 'POST',
 			headers: {
@@ -206,10 +209,9 @@
 				if (!Number.isFinite(body.id)) {
 					throw new Error('Invalid image job id');
 				}
+				recentlyQueuedImageJobIds = [body.id, ...recentlyQueuedImageJobIds].slice(0, 5);
 				trackPendingImageJob(body.id, { label: 'Profile image' });
 				creating = false;
-				open = false;
-				prompt = '';
 			})
 			.catch(() => {
 				creating = false;
@@ -828,13 +830,16 @@
 								type="submit"
 								class="rounded-2xl px-2 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 							>
-								Create {tab == 'posts' ? 'Post' : 'Image'}
+								{tab == 'posts' ? 'Create Post' : 'Queue Image'}
 							</button>
 						{/if}
 						{#if pendingImageJobIds.length}
-							<p class="text-sm text-gray-500 dark:text-gray-400">
-								Image generation in progress...
-							</p>
+							<div class="grid gap-1 text-sm text-gray-500 dark:text-gray-400">
+								<p>{pendingImageJobIds.length} image job(s) in progress.</p>
+								{#if recentlyQueuedImageJobIds.length}
+									<p>Queued: {recentlyQueuedImageJobIds.map((id) => `#${id}`).join(', ')}</p>
+								{/if}
+							</div>
 						{/if}
 						{#if imageJobError}
 							<p class="text-sm text-red-500">{imageJobError}</p>
