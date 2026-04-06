@@ -47,7 +47,8 @@ async function main() {
 	const creatorIdRaw = getArgValue(args, '--creator-id');
 	const name = getArgValue(args, '--name');
 	const pin = getArgValue(args, '--pin');
-	const databaseUrl = getArgValue(args, '--database-url') ?? process.env.DATABASE_URL ?? 'file:local.db';
+	const databaseUrl =
+		getArgValue(args, '--database-url') ?? process.env.DATABASE_URL ?? 'file:local.db';
 
 	if (!pin) {
 		console.error('Missing required argument: --pin');

@@ -17,7 +17,7 @@ export async function GET({ params }) {
 		headers: {
 			'Content-Type': image.type,
 			'Cache-Control': 'public',
-			'Expires': new Date(Date.now() + 3600 * 24 * 7 * 1000).toUTCString() // Cache for 1 week
+			Expires: new Date(Date.now() + 3600 * 24 * 7 * 1000).toUTCString() // Cache for 1 week
 		}
 	});
 }

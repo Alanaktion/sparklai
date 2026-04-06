@@ -39,10 +39,7 @@ export async function PUT({ params, locals, request }) {
 	const body = await request.json();
 	const additionalPrompt: string = body.additional_prompt ?? '';
 
-	await db
-		.update(users)
-		.set({ additional_prompt: additionalPrompt })
-		.where(eq(users.id, userId));
+	await db.update(users).set({ additional_prompt: additionalPrompt }).where(eq(users.id, userId));
 
 	return json({ additional_prompt: additionalPrompt });
 }

@@ -2,11 +2,11 @@
 	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import Dialog from '$lib/components/base/dialog.svelte';
-	import Post from '$lib/components/Post.svelte';
-	import type { PostType } from '$lib/server/db/schema';
+	import Image from '$lib/components/Image.svelte';
 	import { trackImageJob, type ImageGenerationJobResponse } from '$lib/stores/image-jobs';
-	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
+	import ImageIcon from 'virtual:icons/fluent-color/image-24';
 	import Loader from 'virtual:icons/lucide/loader';
+	import Ratio from 'virtual:icons/lucide/ratio';
 	import type { PageProps } from './$types';
 	import { getUserProfileContext } from '$lib/user-profile-context';
 
@@ -14,17 +14,12 @@
 	const profileState = getUserProfileContext();
 
 	type ImageJob = ImageGenerationJobResponse;
-	type UserPagePost = PageProps['data']['posts'][number];
 
-	type NewPostResponse = {
-		post: PostType;
-		image_job: ImageJob | null;
-	};
-
-	let posts = $derived(data.posts);
 	let creating = $state(false);
 	let open = $state(false);
 	let prompt = $state('');
+	let aspect = $state('square');
+	let count = $state(1);
 	let pendingImageJobIds = $state<number[]>([]);
 	let recentlyQueuedImageJobIds = $state<number[]>([]);
 	let imageJobError = $state('');
@@ -40,24 +35,20 @@
 		recentlyQueuedImageJobIds = recentlyQueuedImageJobIds.filter((id) => id !== jobId);
 	}
 
-	function trackPendingImageJob(jobId: number, postId: number) {
+	function trackPendingImageJob(jobId: number) {
 		trackPendingJob(jobId);
 		imageJobError = '';
 
-		void trackImageJob(jobId, { label: 'Post image' })
+		void trackImageJob(jobId, { label: 'Profile image' })
 			.then((job) => {
 				if (job.status === 'completed' && job.image_id) {
 					if (job.image && !profileState.images.some((image) => image.id === job.image!.id)) {
 						profileState.images = [...profileState.images, job.image];
 					}
-					posts = posts.map((post) =>
-						post.id === postId
-							? {
-									...post,
-									image_id: job.image_id
-								}
-							: post
-					);
+					if (job.set_as_user_image) {
+						profileState.user.image_id = job.image_id;
+						profileState.avatarRenderKey += 1;
+					}
 					return;
 				}
 				if (job.status === 'failed') {
@@ -72,44 +63,37 @@
 			});
 	}
 
-	const newPost = (event: Event) => {
+	const newImage = (event: Event) => {
 		event.preventDefault();
 		creating = true;
 		imageJobError = '';
-		fetch(resolve(`/users/${data.id}/posts`), {
+		fetch(resolve(`/users/${data.id}/image`), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
 			},
-			body: `prompt=${encodeURIComponent(prompt)}`
+			body: `prompt=${encodeURIComponent(prompt)}&aspect=${aspect}&count=${count}`
 		})
 			.then(async (response) => {
 				if (!response.ok) {
-					throw new Error('Post creation failed');
+					throw new Error('Image request failed');
 				}
-				return (await response.json()) as NewPostResponse;
+				return (await response.json()) as ImageJob[];
 			})
-			.then((body) => {
-				const nextPost: UserPagePost = {
-					...body.post,
-					image: null,
-					media: null
-				};
-				posts = [nextPost, ...posts];
-				if (body.image_job && Number.isFinite(body.image_job.id)) {
-					recentlyQueuedImageJobIds = [body.image_job.id, ...recentlyQueuedImageJobIds].slice(
-						0,
-						10
-					);
-					trackPendingImageJob(body.image_job.id, body.post.id);
+			.then((jobs) => {
+				if (!Array.isArray(jobs) || !jobs.length) {
+					throw new Error('Invalid image jobs response');
+				}
+				for (const job of jobs) {
+					recentlyQueuedImageJobIds = [job.id, ...recentlyQueuedImageJobIds].slice(0, 10);
+					trackPendingImageJob(job.id);
 				}
 				creating = false;
 				open = false;
-				prompt = '';
 			})
 			.catch(() => {
 				creating = false;
-				imageJobError = 'Unable to create post';
+				imageJobError = 'Unable to start image generation';
 			});
 	};
 </script>
@@ -121,18 +105,52 @@
 			type="button"
 			class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 		>
-			<span class="sr-only">Add AI post</span>
-			<SlideTextSparkle class="size-4" />
+			<span class="sr-only">Add AI image</span>
+			<ImageIcon class="size-4" />
 		</button>
-		<Dialog title="Add AI post" bind:open>
-			<form class="grid gap-2" onsubmit={newPost} method="POST">
+		<Dialog title="Add AI image" bind:open>
+			<form class="grid gap-2" onsubmit={newImage} method="POST">
 				<textarea
 					bind:value={prompt}
 					name="message"
 					rows="6"
 					class="flex w-full rounded border border-gray-300 bg-transparent px-2 py-1 text-sm shadow-sm transition-colors placeholder:text-gray-300 focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none disabled:opacity-50 dark:border-gray-500 dark:placeholder:text-gray-600"
-					placeholder="Post prompt (optional)"
+					placeholder="Image prompt (optional)"
 				></textarea>
+				<div class="flex items-center gap-2 rounded focus-within:ring">
+					<Ratio class="size-4 text-gray-400 dark:text-gray-500" />
+					<label
+						class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
+					>
+						<input type="radio" class="sr-only" bind:group={aspect} value="square" />
+						Square
+					</label>
+					<label
+						class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
+					>
+						<input type="radio" class="sr-only" bind:group={aspect} value="landscape" />
+						Wide
+					</label>
+					<label
+						class="has-checked:text-blue-600 has-checked:underline dark:has-checked:text-blue-400"
+					>
+						<input type="radio" class="sr-only" bind:group={aspect} value="portrait" />
+						Tall
+					</label>
+				</div>
+				<div class="flex items-center gap-2 rounded focus-within:ring">
+					<span class="text-sm text-gray-400 dark:text-gray-500">Count:</span>
+					{#each [1, 2, 3, 4, 5] as n (n)}
+						<label
+							class={count === n
+								? 'cursor-pointer text-blue-600 underline dark:text-blue-400'
+								: 'cursor-pointer text-gray-600 dark:text-gray-400'}
+						>
+							<input type="radio" class="sr-only" bind:group={count} value={n} />
+							{n}
+						</label>
+					{/each}
+				</div>
 				{#if creating}
 					<Loader class="mx-auto my-2 size-4 animate-spin text-gray-600 dark:text-gray-400" />
 				{:else}
@@ -140,7 +158,7 @@
 						type="submit"
 						class="rounded-2xl px-2 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 					>
-						Create Post
+						Queue Image
 					</button>
 				{/if}
 				{#if pendingImageJobIds.length}
@@ -159,8 +177,13 @@
 	{/if}
 </div>
 
-{#key profileState.avatarRenderKey}
-	{#each posts as post (post.id)}
-		<Post {post} user={profileState.user} />
+<div class="grid grid-cols-2 gap-2 md:grid-cols-3">
+	{#each profileState.images as image (image.id)}
+		<Image {image} />
 	{/each}
-{/key}
+	{#if creating}
+		<div class="flex aspect-square w-full bg-gray-200 dark:bg-gray-800">
+			<Loader class="m-auto size-8 animate-spin text-gray-600 dark:text-gray-400" />
+		</div>
+	{/if}
+</div>

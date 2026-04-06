@@ -38,7 +38,7 @@ export type LlamaMessage = {
 
 function normalize_llm_output<T>(value: T): T {
 	if (typeof value === 'string') {
-		return value.replace(/\\n/g, '\n') as T;
+		return value.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\"/g, '"') as T;
 	}
 
 	if (Array.isArray(value)) {
