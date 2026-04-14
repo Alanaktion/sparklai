@@ -45,11 +45,11 @@
 		}
 		if (!profileState.user.personality_traits) {
 			profileState.user.personality_traits = {
-				openness: 3,
-				conscientiousness: 3,
-				extraversion: 3,
-				agreeableness: 3,
-				neuroticism: 3
+				openness: 5,
+				conscientiousness: 5,
+				extraversion: 5,
+				agreeableness: 5,
+				neuroticism: 5
 			};
 		}
 		if (!profileState.user.writing_style) {
@@ -358,7 +358,7 @@
 									type="number"
 									min="1"
 									max="10"
-									step="0.1"
+									step="1"
 									bind:value={user.personality_traits!.openness}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 								/>
@@ -369,7 +369,7 @@
 									type="number"
 									min="1"
 									max="10"
-									step="0.1"
+									step="1"
 									bind:value={user.personality_traits!.conscientiousness}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 								/>
@@ -380,7 +380,7 @@
 									type="number"
 									min="1"
 									max="10"
-									step="0.1"
+									step="1"
 									bind:value={user.personality_traits!.extraversion}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 								/>
@@ -391,7 +391,7 @@
 									type="number"
 									min="1"
 									max="10"
-									step="0.1"
+									step="1"
 									bind:value={user.personality_traits!.agreeableness}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 								/>
@@ -402,7 +402,7 @@
 									type="number"
 									min="1"
 									max="10"
-									step="0.1"
+									step="1"
 									bind:value={user.personality_traits!.neuroticism}
 									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 								/>
@@ -453,7 +453,7 @@
 									type="number"
 									min="0"
 									max="10"
-									step="0.1"
+									step="1"
 									bind:value={user.writing_style!.emoji_frequency}
 									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
 								/>

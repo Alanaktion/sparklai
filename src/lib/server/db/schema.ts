@@ -10,21 +10,22 @@ import type {
 } from '../sd/types';
 
 // Field Types
+export type NumberScale = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type Location = {
 	city: string;
 	state_province: string;
 	country: string;
 };
 type Personality = {
-	agreeableness: number;
-	conscientiousness: number;
-	extraversion: number;
-	neuroticism: number;
-	openness: number;
+	agreeableness: NumberScale;
+	conscientiousness: NumberScale;
+	extraversion: NumberScale;
+	neuroticism: NumberScale;
+	openness: NumberScale;
 };
 type WritingStyle = {
 	languages?: string[];
-	emoji_frequency: number;
+	emoji_frequency: NumberScale;
 	formality: string;
 	punctuation_style: string;
 	slang_usage: string;

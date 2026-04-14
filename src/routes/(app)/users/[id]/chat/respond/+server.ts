@@ -3,9 +3,45 @@ import type { LlamaMessage } from '$lib/server/chat/index.js';
 import { completion } from '$lib/server/chat/index.js';
 import { formatDate, nowStr } from '$lib';
 import { db } from '$lib/server/db';
+import type { NumberScale } from '$lib/server/db/schema';
 import { chats, relationships, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
 import { asc, eq } from 'drizzle-orm';
+
+function summarizePersonality(traits: Record<string, NumberScale> | null | undefined): string {
+	if (!traits) {
+		return 'No explicit trait scores provided.';
+	}
+
+	const labels = [
+		{ key: 'extraversion', high: 'social and talkative', low: 'reserved and low-key' },
+		{ key: 'agreeableness', high: 'warm and accommodating', low: 'blunt and skeptical' },
+		{ key: 'conscientiousness', high: 'organized and thoughtful', low: 'spontaneous and loose' },
+		{ key: 'openness', high: 'curious and imaginative', low: 'practical and familiar' },
+		{ key: 'neuroticism', high: 'emotionally reactive', low: 'steady and calm' }
+	] as const;
+
+	const notes: string[] = [];
+	for (const label of labels) {
+		const value = traits[label.key];
+		if (typeof value !== 'number') continue;
+		if (value >= 6) {
+			notes.push(label.high);
+		} else if (value <= 3) {
+			notes.push(label.low);
+		}
+	}
+
+	return notes.length ? notes.join('; ') : 'Balanced personality traits overall.';
+}
+
+function compactJson(value: unknown): string {
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return 'Unavailable';
+	}
+}
 
 // Generate a new response to the conversation
 export async function POST({ params, locals }) {
@@ -47,20 +83,61 @@ export async function POST({ params, locals }) {
 		relationshipContext = `\nYour relationships: ${relationshipsText}`;
 	}
 
-	let systemPrompt =
-		`You are ${user.name} (${user.pronouns}), having an IM conversation.\n` +
-		`Your backstory: ${user.backstory}\n` +
-		`Writing style: ${JSON.stringify(user.writing_style)}\n` +
-		relationshipContext;
+	const interests = user.interests?.length ? user.interests.join(', ') : 'Unknown';
+	const userLocation = user.location
+		? [user.location.city, user.location.state_province, user.location.country]
+				.filter(Boolean)
+				.join(', ')
+		: 'Unknown';
+	const personalitySummary = summarizePersonality(
+		user.personality_traits as Record<string, NumberScale> | null | undefined
+	);
+
+	const basePromptLines = [
+		`You are ${user.name} (${user.pronouns}) in a private one-on-one chat.`,
+		'Write exactly like a real person texting in Messenger or iMessage, not like an assistant.',
+		'',
+		'Character profile:',
+		`- Name: ${user.name}`,
+		`- Age: ${user.age}`,
+		`- Pronouns: ${user.pronouns}`,
+		`- Bio: ${user.bio || 'Unknown'}`,
+		`- Backstory: ${user.backstory || 'Unknown'}`,
+		`- Occupation: ${user.occupation || 'Unknown'}`,
+		`- Location: ${userLocation}`,
+		`- Relationship status: ${user.relationship_status || 'Unknown'}`,
+		`- Interests: ${interests}`,
+		`- Personality tendencies: ${personalitySummary}`,
+		`- Writing style settings: ${compactJson(user.writing_style)}`,
+		relationshipContext ? relationshipContext.trim() : '- Known relationships: none listed',
+		'',
+		'Texting behavior rules (critical):',
+		'- Sound human and in-the-moment. Keep replies grounded in this exact chat context.',
+		'- Prefer short natural message lengths (often 1-3 sentences). Use longer replies only when needed.',
+		'- Use casual rhythm, contractions, and imperfect phrasing when it fits this character.',
+		'- Ask follow-up questions naturally when conversation momentum calls for it.',
+		'- Do not over-explain or lecture. Avoid polished essay-like paragraphs.',
+		'- Do not narrate actions or emotions in stage directions (no *smiles*, no roleplay tags).',
+		'- Never mention being an AI, model, assistant, or following instructions.',
+		'- Never include safety-policy meta commentary unless directly required by the user message.',
+		'',
+		'Output constraints:',
+		'- Return only the next outgoing chat message body.',
+		'- No prefixes like "Assistant:" and no quoted transcript wrappers.'
+	];
+
+	let systemPrompt = basePromptLines.join('\n');
 
 	// Include creator context if available
 	const creator = locals.creator;
 	if (creator) {
-		systemPrompt += `\nYou're chatting with ${creator.name} (${creator.pronouns})`;
-		if (creator.bio) systemPrompt += `\nAbout them: ${creator.bio}`;
-		if (creator.occupation) systemPrompt += `\nTheir occupation: ${creator.occupation}`;
+		systemPrompt += `\n\nConversation partner details:`;
+		systemPrompt += `\n- Name: ${creator.name}`;
+		systemPrompt += `\n- Pronouns: ${creator.pronouns}`;
+		if (creator.bio) systemPrompt += `\n- Bio: ${creator.bio}`;
+		if (creator.occupation) systemPrompt += `\n- Occupation: ${creator.occupation}`;
 		if (creator.interests && creator.interests.length > 0) {
-			systemPrompt += `\nTheir interests: ${creator.interests.join(', ')}`;
+			systemPrompt += `\n- Interests: ${creator.interests.join(', ')}`;
 		}
 		if (creator.location) {
 			const locationParts = [
@@ -69,17 +146,17 @@ export async function POST({ params, locals }) {
 				creator.location.country
 			].filter(Boolean);
 			if (locationParts.length > 0) {
-				systemPrompt += `\nTheir location: ${locationParts.join(', ')}`;
+				systemPrompt += `\n- Location: ${locationParts.join(', ')}`;
 			}
 		}
 
 		if (user.additional_prompt) {
-			systemPrompt += `\n${user.additional_prompt}`;
+			systemPrompt += `\n\nAdditional character guidance:\n${user.additional_prompt}`;
 		}
 	}
 
 	systemPrompt +=
-		'\nDo not include any roleplay metatext, just write the actual response.' +
+		'\n\nDo not include any roleplay metatext, just write the actual response.' +
 		` It is ${nowStr()}.`;
 
 	const history: LlamaMessage[] = [
