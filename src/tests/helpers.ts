@@ -158,6 +158,19 @@ export async function createTestImage(userId: number) {
 	return result[0];
 }
 
+/** Creates a test media record in the database and returns it */
+export async function createTestMedia(userId: number, type = 'audio/mpeg') {
+	const result = await db
+		.insert(media)
+		.values({
+			user_id: userId,
+			type,
+			data: Buffer.from('fake-media-data')
+		})
+		.returning();
+	return result[0];
+}
+
 /** Creates a mock RequestEvent for testing route handlers */
 export function createEvent(
 	params: Record<string, string> = {},

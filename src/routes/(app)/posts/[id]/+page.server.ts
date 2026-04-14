@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { images, posts, users } from '$lib/server/db/schema';
+import { images, media, posts, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	if (!locals.creator) {
-		return { id, post, images: [], users: [] };
+		return { id, post, images: [], media: [], users: [] };
 	}
 
 	const creator_user_ids = db
@@ -37,6 +37,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.select({ id: images.id, blur: images.blur, params: images.params })
 			.from(images)
 			.where(eq(images.user_id, post.user_id)),
+		media: await db
+			.select({ id: media.id, type: media.type })
+			.from(media)
+			.where(eq(media.user_id, post.user_id)),
 		users: await db.select().from(users).where(inArray(users.id, creator_user_ids))
 	};
 };

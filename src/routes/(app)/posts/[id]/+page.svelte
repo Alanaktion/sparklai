@@ -8,6 +8,7 @@
 	import DropdownOption from '$lib/components/base/dropdown-option.svelte';
 	import Dropdown from '$lib/components/base/dropdown.svelte';
 	import ImagePicker from '$lib/components/ImagePicker.svelte';
+	import MediaPicker from '$lib/components/MediaPicker.svelte';
 	import Post from '$lib/components/Post.svelte';
 	import DismissCircle from 'virtual:icons/fluent-color/dismiss-circle-16';
 	import ImageOff from 'virtual:icons/fluent-color/image-off-24';
@@ -26,11 +27,19 @@
 		params?: Record<string, unknown> | null;
 	};
 
+	type PostPickerMedia = {
+		id: number;
+		type: string;
+	};
+
 	let user = $derived<UserType>(data.post.user);
 	let users = $derived<UserType[]>(data.users);
-	let post = $derived(data.post as PostType & { image?: PostPickerImage | null });
+	let post = $derived(
+		data.post as PostType & { image?: PostPickerImage | null; media?: PostPickerMedia | null }
+	);
 	let comments = $derived(data.post.comments);
 	let postImages = $derived<PostPickerImage[]>(data.images);
+	let postMedia = $derived<PostPickerMedia[]>(data.media);
 
 	let open = $state(false);
 	let responding = $state(false);
@@ -90,6 +99,15 @@
 		});
 	}
 
+	function detatchMedia() {
+		fetch(resolve(`/posts/${data.id}`), {
+			method: 'PATCH',
+			body: JSON.stringify({ media_id: null })
+		}).then(() => {
+			post = { ...post, media_id: null, media: null };
+		});
+	}
+
 	function handlePostImageChange(payload: {
 		imageId: number | null;
 		image?: PostPickerImage | null;
@@ -101,6 +119,20 @@
 		};
 		if (payload.image && !postImages.some((existing) => existing.id === payload.image!.id)) {
 			postImages = [...postImages, payload.image];
+		}
+	}
+
+	function handlePostMediaChange(payload: {
+		mediaId: number | null;
+		media?: PostPickerMedia | null;
+	}) {
+		post = {
+			...post,
+			media_id: payload.mediaId,
+			media: payload.media ?? null
+		};
+		if (payload.media && !postMedia.some((existing) => existing.id === payload.media!.id)) {
+			postMedia = [...postMedia, payload.media];
 		}
 	}
 
@@ -148,6 +180,18 @@
 					>
 						<span class="sr-only">Detatch image</span>
 						<ImageOff class="size-4" />
+					</button>
+				{/if}
+				{#if !post.media_id}
+					<MediaPicker {post} mediaItems={postMedia} onPostMediaChange={handlePostMediaChange} />
+				{:else}
+					<button
+						onclick={detatchMedia}
+						type="button"
+						class="rounded p-1 text-sm text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-800"
+					>
+						<span class="sr-only">Detatch media</span>
+						<DismissCircle class="size-4" />
 					</button>
 				{/if}
 				<button

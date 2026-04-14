@@ -68,12 +68,12 @@
 				/>
 			</div>
 		{/if}
-		{#if post.media_id && post.media.type.startsWith('audio/')}
+		{#if post.media_id && post.media?.type?.startsWith('audio/')}
 			<audio controls class="mb-4 block w-full">
 				<source src={resolve(`/media/${post.media_id}`)} type={post.media.type} />
 			</audio>
 		{/if}
-		{#if post.media_id && post.media.type.startsWith('video/')}
+		{#if post.media_id && post.media?.type?.startsWith('video/')}
 			<video controls class="mb-4 block w-full">
 				<source src={resolve(`/media/${post.media_id}`)} type={post.media.type} />
 			</video>
