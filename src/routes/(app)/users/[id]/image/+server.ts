@@ -37,150 +37,55 @@ function normalizeGeneratedPrompt(raw: string) {
 	return unique.slice(0, 8).join(', ');
 }
 
-function inferGenderExpressionFromPronouns(pronouns: string | null | undefined) {
-	if (!pronouns) {
-		return '';
+function describePersonality(traits: Record<string, number> | null | undefined): string {
+	if (!traits) return '';
+	const labels = [
+		{ key: 'extraversion', high: 'very social and outgoing', low: 'introverted and reserved' },
+		{ key: 'agreeableness', high: 'warm and friendly', low: 'blunt and skeptical' },
+		{ key: 'conscientiousness', high: 'highly organized and goal-driven', low: 'spontaneous and carefree' },
+		{ key: 'openness', high: 'very creative and curious', low: 'practical and conventional' },
+		{ key: 'neuroticism', high: 'emotionally sensitive', low: 'calm and even-keeled' }
+	];
+	const notes: string[] = [];
+	for (const { key, high, low } of labels) {
+		const value = traits[key];
+		if (typeof value !== 'number') continue;
+		if (value >= 8) notes.push(high);
+		else if (value <= 3) notes.push(low);
 	}
-
-	const normalized = pronouns.trim().toLowerCase();
-	if (normalized.startsWith('he/')) {
-		return 'masculine, male';
-	}
-	if (normalized.startsWith('she/')) {
-		return 'feminine, female';
-	}
-	if (normalized.startsWith('they/')) {
-		return 'nonbinary';
-	}
-
-	return '';
+	return notes.join(', ');
 }
 
-function buildAppearanceTags(appearance: unknown, pronouns?: string | null) {
-	if (!appearance || typeof appearance !== 'object') {
-		return '';
-	}
-
-	const data = appearance as Record<string, unknown>;
-	const tags: string[] = [];
-	if (typeof data.gender_expression === 'string' && data.gender_expression.trim()) {
-		tags.push(data.gender_expression.trim());
-	} else {
-		const inferredGenderExpression = inferGenderExpressionFromPronouns(pronouns);
-		if (inferredGenderExpression) {
-			tags.push(inferredGenderExpression);
-		}
-	}
-	if (typeof data.body_type === 'string' && data.body_type.trim()) {
-		tags.push(data.body_type.trim());
-	}
-	if (typeof data.skin_tone === 'string' && data.skin_tone.trim()) {
-		tags.push(`${data.skin_tone.trim()} skin`);
-	}
-	if (typeof data.height === 'string' && data.height.trim()) {
-		tags.push(data.height.trim());
-	}
-	if (data.hair && typeof data.hair === 'object') {
-		const hair = data.hair as Record<string, unknown>;
-		const hairColor = typeof hair.color === 'string' ? hair.color.trim() : '';
-		const hairStyle = typeof hair.style === 'string' ? hair.style.trim() : '';
-		if (hairColor || hairStyle) {
-			tags.push(`${hairColor} ${hairStyle} hair`.trim());
-		}
-	}
-	if (data.eyes && typeof data.eyes === 'object') {
-		const eyes = data.eyes as Record<string, unknown>;
-		if (typeof eyes.color === 'string' && eyes.color.trim()) {
-			tags.push(`${eyes.color.trim()} eyes`);
-		}
-	}
-	if (typeof data.clothing_style === 'string' && data.clothing_style.trim()) {
-		tags.push(`wearing ${data.clothing_style.trim()} clothing`);
-	} else {
-		tags.push('fully clothed');
-	}
-
-	return normalizeGeneratedPrompt(tags.join(', '));
-}
-
-async function getScenarioContexts(user: {
+function buildUserProfile(user: {
+	name: string;
+	age: number;
+	pronouns: string;
 	bio?: string | null;
+	backstory?: string | null;
 	occupation?: string | null;
 	interests?: string[] | string | null;
 	location?: { city: string; state_province: string; country: string } | null;
-}) {
-	if (!user.bio || !user.bio.trim()) {
-		return SCENARIO_CONTEXTS;
-	}
-
-	let scenarioPrompt = 'Generate 8 short profile photo scenario ideas for this person.';
-	scenarioPrompt +=
-		' Each line should be one concise scenario phrase like "at a weekend farmers market".';
-	scenarioPrompt += " Keep them realistic and aligned to the person's bio and interests.";
-	scenarioPrompt += `\nBio: ${user.bio}`;
-	if (user.occupation) {
-		scenarioPrompt += `\nOccupation: ${user.occupation}`;
-	}
-	if (user.interests) {
-		const interests = Array.isArray(user.interests) ? user.interests.join(', ') : user.interests;
-		scenarioPrompt += `\nInterests: ${interests}`;
-	}
-	if (user.location) {
-		scenarioPrompt += `\nLocation: ${user.location.city}, ${user.location.state_province}, ${user.location.country}`;
-	}
-	scenarioPrompt += `\nExample scenario styles: ${SCENARIO_CONTEXTS.join('; ')}`;
-	scenarioPrompt += '\n\nReturn only 8 lines, one scenario per line, no numbering.';
-
-	const raw = await completion(scenarioPrompt);
-	const scenarios = raw
-		.split('\n')
-		.map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
-		.filter(Boolean)
-		.slice(0, 8);
-
-	return scenarios.length ? scenarios : SCENARIO_CONTEXTS;
-}
-
-const SCENARIO_CONTEXTS = [
-	'at their workplace or during a professional activity',
-	'outdoors pursuing a hobby or sport',
-	'in a social setting with friends',
-	'in a quiet personal moment at home or in a café',
-	'traveling or exploring somewhere new',
-	'during a creative or artistic pursuit',
-	'on a city street or in an urban environment',
-	'in nature — a forest, beach, or mountain setting'
-];
-
-function buildUserContext(user: {
-	location?: { city: string; state_province: string; country: string } | null;
-	occupation?: string | null;
-	interests?: string | string[] | null;
 	personality_traits?: unknown;
-	backstory?: string | null;
 	appearance?: unknown;
-}) {
-	let context = '';
+}): string {
+	const lines: string[] = [`Name: ${user.name}, age ${user.age} (${user.pronouns})`];
+	if (user.bio) lines.push(`Bio: ${user.bio}`);
+	if (user.backstory) lines.push(`Backstory: ${user.backstory}`);
+	if (user.occupation) lines.push(`Occupation: ${user.occupation}`);
 	if (user.location) {
-		context += `\nLocation: ${user.location.city}, ${user.location.state_province}, ${user.location.country}`;
-	}
-	if (user.occupation) {
-		context += `\nOccupation: ${user.occupation}`;
+		const loc = [user.location.city, user.location.state_province, user.location.country]
+			.filter(Boolean)
+			.join(', ');
+		lines.push(`Location: ${loc}`);
 	}
 	if (user.interests) {
 		const interests = Array.isArray(user.interests) ? user.interests.join(', ') : user.interests;
-		context += `\nInterests: ${interests}`;
+		lines.push(`Interests: ${interests}`);
 	}
-	if (user.personality_traits) {
-		context += `\nPersonality traits: ${JSON.stringify(user.personality_traits)}`;
-	}
-	if (user.backstory) {
-		context += `\nBackstory: ${user.backstory}`;
-	}
-	if (user.appearance) {
-		context += `\nAppearance: ${JSON.stringify(user.appearance)}`;
-	}
-	return context;
+	const personality = describePersonality(user.personality_traits as Record<string, number> | null | undefined);
+	if (personality) lines.push(`Personality: ${personality}`);
+	if (user.appearance) lines.push(`Appearance: ${JSON.stringify(user.appearance)}`);
+	return lines.join('\n');
 }
 
 export async function POST({ params, request }) {
@@ -231,54 +136,31 @@ export async function POST({ params, request }) {
 	let prompts: string[];
 
 	if (image_prompt === '') {
-		const context = buildUserContext(user);
-		const appearanceTags = buildAppearanceTags(user.appearance, user.pronouns);
-		const scenarioContexts = await getScenarioContexts(user);
-		const appearanceRequirement = appearanceTags
-			? `\nAlways include these appearance traits in every prompt: ${appearanceTags}.`
-			: '';
-
+		const profile = buildUserProfile(user);
 		if (count === 1) {
-			const facet = scenarioContexts[Math.floor(Math.random() * scenarioContexts.length)];
-			let llmPrompt = 'Generate a focused profile-image prompt as comma-separated keywords.';
-			llmPrompt +=
-				' Choose exactly one subject, one setting, and one activity that best represent this user.';
-			llmPrompt +=
-				' Do not include multiple alternatives. Keep it to 5-8 short keywords total, ordered:';
-			llmPrompt +=
-				' subject, setting, activity, 2-5 supporting visual details (appearance or style).';
-			llmPrompt += `\nScenario focus: Show the person ${facet}.`;
-			llmPrompt += appearanceRequirement;
-			llmPrompt += context;
-			llmPrompt += '\n\nReturn only the comma-separated keyword list. No prose.';
-
-			const generated = normalizeGeneratedPrompt(await completion(llmPrompt));
-			prompts = [
-				appearanceTags ? normalizeGeneratedPrompt(`${appearanceTags}, ${generated}`) : generated
-			];
+			const llmPrompt =
+				'Generate a Stable Diffusion image prompt for a natural-looking profile photo of this person.\n' +
+				'Choose an authentic setting and activity that genuinely reflects their personality, interests, and lifestyle.\n' +
+				'Weave their appearance in naturally alongside the scene. Return a comma-separated keyword list of 6-10 items ordered:\n' +
+				'appearance/subject first, then setting and activity, then mood and lighting details.\n' +
+				'No prose, no numbering — just the keyword list.\n\n' +
+				profile;
+			prompts = [normalizeGeneratedPrompt(await completion(llmPrompt))];
 		} else {
-			const scenarioList = scenarioContexts.slice(0, Math.max(count + 2, 4)).join('; ');
-			let llmPrompt = `Generate exactly ${count} distinct image prompts for the following person.`;
-			llmPrompt += ` Each prompt is a comma-separated keyword list of 5-8 keywords.`;
-			llmPrompt += ` Return them on separate lines, numbered "1.", "2.", etc.`;
-			llmPrompt += ` Each prompt MUST depict a completely different setting, time of day, and activity — cover a variety of scenarios such as: ${scenarioList}.`;
-			llmPrompt += ` Do not repeat settings, lighting conditions, or activities across prompts.`;
-			llmPrompt += appearanceRequirement;
-			llmPrompt += context;
-			llmPrompt += `\n\nReturn only the numbered list of ${count} keyword prompts. No prose.`;
-
+			const llmPrompt =
+				`Generate exactly ${count} distinct Stable Diffusion image prompts for profile photos of this person.\n` +
+				'Each should depict a completely different setting, activity, and mood — draw from a variety of real moments in their life.\n' +
+				'Integrate their appearance naturally into each. Format: one comma-separated keyword list per line, numbered "1.", "2.", etc.\n' +
+				'Each list: 6-10 keywords. No prose beyond the numbered format.\n\n' +
+				profile;
 			const raw = await completion(llmPrompt);
 			prompts = raw
 				.split('\n')
 				.map((line) => line.replace(/^\d+[.)]\s*/, '').trim())
 				.filter(Boolean)
 				.map((line) => normalizeGeneratedPrompt(line))
-				.map((line) =>
-					appearanceTags ? normalizeGeneratedPrompt(`${appearanceTags}, ${line}`) : line
-				)
 				.filter(Boolean)
 				.slice(0, count);
-
 			while (prompts.length < count) {
 				prompts.push(prompts[0] ?? 'portrait photo');
 			}

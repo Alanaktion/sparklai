@@ -174,7 +174,11 @@
 			{#if bio_tab == 'bio'}
 				<p class="whitespace-pre-wrap">{user.bio}</p>
 			{:else if bio_tab == 'detail'}
-				<p>{user.location?.city}, {user.location?.state_province}, {user.location?.country}</p>
+				<p>
+					{[user.location?.city, user.location?.state_province, user.location?.country]
+						.filter(Boolean)
+						.join(', ')}
+				</p>
 				<p>
 					{#each user.writing_style?.languages || [] as language (language)}
 						{language}&ensp;
