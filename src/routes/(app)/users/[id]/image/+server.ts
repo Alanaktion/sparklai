@@ -42,7 +42,11 @@ function describePersonality(traits: Record<string, number> | null | undefined):
 	const labels = [
 		{ key: 'extraversion', high: 'very social and outgoing', low: 'introverted and reserved' },
 		{ key: 'agreeableness', high: 'warm and friendly', low: 'blunt and skeptical' },
-		{ key: 'conscientiousness', high: 'highly organized and goal-driven', low: 'spontaneous and carefree' },
+		{
+			key: 'conscientiousness',
+			high: 'highly organized and goal-driven',
+			low: 'spontaneous and carefree'
+		},
 		{ key: 'openness', high: 'very creative and curious', low: 'practical and conventional' },
 		{ key: 'neuroticism', high: 'emotionally sensitive', low: 'calm and even-keeled' }
 	];
@@ -82,7 +86,9 @@ function buildUserProfile(user: {
 		const interests = Array.isArray(user.interests) ? user.interests.join(', ') : user.interests;
 		lines.push(`Interests: ${interests}`);
 	}
-	const personality = describePersonality(user.personality_traits as Record<string, number> | null | undefined);
+	const personality = describePersonality(
+		user.personality_traits as Record<string, number> | null | undefined
+	);
 	if (personality) lines.push(`Personality: ${personality}`);
 	if (user.appearance) lines.push(`Appearance: ${JSON.stringify(user.appearance)}`);
 	return lines.join('\n');

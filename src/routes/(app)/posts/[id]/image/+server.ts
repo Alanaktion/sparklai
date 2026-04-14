@@ -30,18 +30,21 @@ function describePersonality(traits: Record<string, number> | null | undefined):
 	return notes.join(', ');
 }
 
-function buildPostImagePrompt(postBody: string, user: {
-	name: string;
-	age: number;
-	pronouns: string;
-	bio?: string | null;
-	backstory?: string | null;
-	occupation?: string | null;
-	interests?: string[] | string | null;
-	location?: { city: string; state_province: string; country: string } | null;
-	personality_traits?: unknown;
-	appearance?: unknown;
-}) {
+function buildPostImagePrompt(
+	postBody: string,
+	user: {
+		name: string;
+		age: number;
+		pronouns: string;
+		bio?: string | null;
+		backstory?: string | null;
+		occupation?: string | null;
+		interests?: string[] | string | null;
+		location?: { city: string; state_province: string; country: string } | null;
+		personality_traits?: unknown;
+		appearance?: unknown;
+	}
+) {
 	const lines: string[] = [
 		'Generate an image concept for a social media post.',
 		'Be creative, but keep it believable for this person and this post.',
