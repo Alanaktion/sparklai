@@ -14,39 +14,27 @@
 				"negative": ["25:7", 0],
 				"latent_image": ["13", 0]
 			},
-			"class_type": "KSampler",
-			"_meta": {
-				"title": "KSampler"
-			}
+			"class_type": "KSampler"
 		},
 		"4": {
 			"inputs": {
 				"ckpt_name": "__MODEL__"
 			},
-			"class_type": "CheckpointLoaderSimple",
-			"_meta": {
-				"title": "Load Checkpoint"
-			}
+			"class_type": "CheckpointLoaderSimple"
 		},
 		"8": {
 			"inputs": {
 				"samples": ["3", 0],
 				"vae": ["4", 2]
 			},
-			"class_type": "VAEDecode",
-			"_meta": {
-				"title": "VAE Decode"
-			}
+			"class_type": "VAEDecode"
 		},
 		"11": {
 			"inputs": {
 				"shift": 4,
 				"model": ["4", 0]
 			},
-			"class_type": "ModelSamplingAuraFlow",
-			"_meta": {
-				"title": "ModelSamplingAuraFlow"
-			}
+			"class_type": "ModelSamplingAuraFlow"
 		},
 		"13": {
 			"inputs": {
@@ -54,20 +42,14 @@
 				"height": "__HEIGHT__",
 				"batch_size": 1
 			},
-			"class_type": "EmptySD3LatentImage",
-			"_meta": {
-				"title": "EmptySD3LatentImage"
-			}
+			"class_type": "EmptySD3LatentImage"
 		},
 		"32": {
 			"inputs": {
 				"filename_prefix": "__FILENAME_PREFIX__",
 				"images": ["8", 0]
 			},
-			"class_type": "SaveImage",
-			"_meta": {
-				"title": "Save Image"
-			}
+			"class_type": "SaveImage"
 		},
 		"25:22": {
 			"inputs": {
@@ -75,19 +57,13 @@
 				"string_b": ["25:24", 0],
 				"delimiter": ""
 			},
-			"class_type": "StringConcatenate",
-			"_meta": {
-				"title": "Concatenate"
-			}
+			"class_type": "StringConcatenate"
 		},
 		"25:23": {
 			"inputs": {
 				"value": "You are an assistant designed to generate low-quality images based on textual prompts <Prompt Start> "
 			},
-			"class_type": "PrimitiveStringMultiline",
-			"_meta": {
-				"title": "System prompt"
-			}
+			"class_type": "PrimitiveStringMultiline"
 		},
 		"25:24": {
 			"inputs": {

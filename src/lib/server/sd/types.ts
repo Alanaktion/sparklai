@@ -1,4 +1,4 @@
-export const sdStyleNames = ['photo', 'drawing', 'stylized'] as const;
+export const sdStyleNames = ['photo', 'drawing', 'stylized', 'sdxl'] as const;
 
 export type SDStyle = (typeof sdStyleNames)[number];
 export type SDBackend = 'automatic1111' | 'comfyui';

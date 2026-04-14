@@ -2,9 +2,9 @@ import { db } from '$lib/server/db';
 import { images, posts, relationships, users } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
-import type { PageServerLoad } from './$types';
+import type { LayoutServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: LayoutServerLoad = async ({ params, locals }) => {
 	const id = Number(params.id);
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, id)

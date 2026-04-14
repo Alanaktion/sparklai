@@ -30,9 +30,7 @@
 	const activeCreator = $derived(
 		(data as { activeCreator?: { id: number } | null }).activeCreator ?? null
 	);
-	const postsHref = $derived(resolve(`/users/${data.id}`));
-	const imagesHref = $derived(resolve(`/users/${data.id}/images`));
-	const isImagesRoute = $derived(page.url.pathname === imagesHref);
+	const isImagesRoute = $derived(page.url.pathname.endsWith('/images'));
 
 	$effect(() => {
 		profileState.user = structuredClone(data.user);
@@ -55,7 +53,7 @@
 		if (!profileState.user.writing_style) {
 			profileState.user.writing_style = {
 				languages: [],
-				emoji_frequency: 0,
+				emoji_frequency: 2,
 				formality: '',
 				punctuation_style: '',
 				slang_usage: ''
@@ -428,7 +426,7 @@
 									if (!user.writing_style) {
 										user.writing_style = {
 											languages: [],
-											emoji_frequency: 0,
+											emoji_frequency: 2,
 											formality: '',
 											punctuation_style: '',
 											slang_usage: ''
@@ -671,8 +669,8 @@
 		<div
 			class="mb-4 flex items-center gap-3 text-xl font-semibold text-gray-800 dark:text-gray-200"
 		>
-			<a href={postsHref} class={routeTabClass(!isImagesRoute)}>Posts</a>
-			<a href={imagesHref} class={routeTabClass(isImagesRoute)}>Images</a>
+			<a href={resolve(`/users/${data.id}`)} class={routeTabClass(!isImagesRoute)}>Posts</a>
+			<a href={resolve(`/users/${data.id}/images`)} class={routeTabClass(isImagesRoute)}>Images</a>
 		</div>
 
 		{@render children()}

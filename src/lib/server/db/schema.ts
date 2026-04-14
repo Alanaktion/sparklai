@@ -16,14 +16,14 @@ type Location = {
 	state_province: string;
 	country: string;
 };
-type Personality = {
+export type Personality = {
 	agreeableness: NumberScale;
 	conscientiousness: NumberScale;
 	extraversion: NumberScale;
 	neuroticism: NumberScale;
 	openness: NumberScale;
 };
-type WritingStyle = {
+export type WritingStyle = {
 	languages?: string[];
 	emoji_frequency: NumberScale;
 	formality: string;

@@ -128,6 +128,11 @@ export const styles: Record<SDStyle, StyleConfig> = {
 		model: env.SD_STYLIZED_MODEL || '',
 		prompt: env.SD_STYLIZED_PROMPT || '',
 		negative_prompt: env.SD_STYLIZED_NEGATIVE_PROMPT || ''
+	},
+	sdxl: {
+		model: env.SD_SDXL_MODEL || '',
+		prompt: env.SD_SDXL_PROMPT || '',
+		negative_prompt: env.SD_SDXL_NEGATIVE_PROMPT || ''
 	}
 };
 export let style: SDStyle = 'photo';

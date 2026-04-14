@@ -3,7 +3,6 @@
 	import type { PostType, UserType } from '$lib/server/db/schema';
 	import Loader from 'virtual:icons/lucide/loader';
 	import X from 'virtual:icons/lucide/x';
-	import UserMinus from 'virtual:icons/lucide/user-minus';
 	import { onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();

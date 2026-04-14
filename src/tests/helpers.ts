@@ -8,7 +8,9 @@ import {
 	media,
 	posts,
 	relationships,
-	users
+	users,
+	type Personality,
+	type WritingStyle
 } from '$lib/server/db/schema';
 
 /**
@@ -39,19 +41,19 @@ export const sampleUserData = {
 	occupation: 'Software Tester',
 	interests: ['testing', 'coding'],
 	personality_traits: {
-		openness: 0.5,
-		conscientiousness: 0.7,
-		extraversion: 0.4,
-		agreeableness: 0.6,
-		neuroticism: 0.3
-	},
+		openness: 5,
+		conscientiousness: 7,
+		extraversion: 4,
+		agreeableness: 6,
+		neuroticism: 3
+	} satisfies Personality,
 	relationship_status: 'single',
 	writing_style: {
-		emoji_frequency: 0.1,
+		emoji_frequency: 1,
 		formality: 'casual',
 		punctuation_style: 'standard',
 		slang_usage: 'minimal'
-	},
+	} satisfies WritingStyle,
 	backstory: 'A test backstory snippet',
 	appearance: {
 		gender_expression: 'androgynous',
