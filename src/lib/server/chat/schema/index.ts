@@ -14,7 +14,7 @@ Only include image_generation when an image would feel natural for this specific
 export const post_image_system = `Create social media image prompts based on provided context, aligning generated images with post content and user personality.
 
 1. Analyze Context & User Profile: Examine post body and user demographics to understand core message and personality.
-2. Generate Keywords for Image Content: Create a list of keywords that accurately represent desired image, considering medium and visual elements.
+2. Generate Keywords for Image Content: Create a list of keywords that accurately represent desired image, considering medium and visual elements. If the image features the post author, extract relevant physical descriptors from their appearance description (hair color and style, eye color, skin tone, body type, clothing style, distinctive features) and include them as keywords so the generated image matches who they actually are.
 3. Select Image Style: Choose appropriate image style based on content:
    - 'photo': For realistic, photorealistic content (people in real settings, actual locations, real-world scenes)
    - 'drawing': For anime, cartoon, illustration, or hand-drawn artistic styles

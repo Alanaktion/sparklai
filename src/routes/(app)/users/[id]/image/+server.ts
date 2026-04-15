@@ -34,7 +34,7 @@ function normalizeGeneratedPrompt(raw: string) {
 		return raw.trim();
 	}
 
-	return unique.slice(0, 8).join(', ');
+	return unique.slice(0, 12).join(', ');
 }
 
 function buildUserProfile(user: {
@@ -121,8 +121,8 @@ export async function POST({ params, request }) {
 			const llmPrompt =
 				'Generate a Stable Diffusion image prompt for a natural-looking profile photo of this person.\n' +
 				'Choose an authentic setting and activity that genuinely reflects their personality, interests, and lifestyle.\n' +
-				'Weave their appearance in naturally alongside the scene. Return a comma-separated keyword list of 6-10 items ordered:\n' +
-				'appearance/subject first, then setting and activity, then mood and lighting details.\n' +
+				'Extract the specific appearance details from their description — hair color and style, eye color, skin tone, body type, clothing style, distinctive features — and include them as the first keywords so the generated image accurately depicts how this person actually looks.\n' +
+				'Return a comma-separated keyword list of 8-12 items ordered: appearance details first, then setting and activity, then mood and lighting.\n' +
 				'No prose, no numbering — just the keyword list.\n\n' +
 				profile;
 			prompts = [normalizeGeneratedPrompt(await completion(llmPrompt))];
@@ -130,8 +130,8 @@ export async function POST({ params, request }) {
 			const llmPrompt =
 				`Generate exactly ${count} distinct Stable Diffusion image prompts for profile photos of this person.\n` +
 				'Each should depict a completely different setting, activity, and mood — draw from a variety of real moments in their life.\n' +
-				'Integrate their appearance naturally into each. Format: one comma-separated keyword list per line, numbered "1.", "2.", etc.\n' +
-				'Each list: 6-10 keywords. No prose beyond the numbered format.\n\n' +
+				'Every prompt must include the same core appearance keywords (hair, eye color, skin tone, body type) so the person looks consistent across all photos — vary only the setting, activity, and mood.\n' +
+				'Format: one comma-separated keyword list per line, numbered "1.", "2.", etc. Each list: 8-12 keywords. No prose beyond the numbered format.\n\n' +
 				profile;
 			const raw = await completion(llmPrompt);
 			prompts = raw

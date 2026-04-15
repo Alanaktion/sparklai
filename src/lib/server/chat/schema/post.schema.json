@@ -18,7 +18,7 @@
 					"items": {
 						"type": "string"
 					},
-					"description": "Keywords for image generation. Include generic keywords like 'brown hair', 'tall woman', etc.",
+					"description": "Keywords for image generation. If the image features the post author, include their specific appearance details (hair color and style, eye color, skin tone, body type, clothing style) from the user profile. Put appearance keywords first, then scene/activity, then mood and lighting.",
 					"minItems": 4
 				},
 				"image_style": {

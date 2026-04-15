@@ -52,8 +52,8 @@ function buildPostPrompt(user: UserType, datetime: string) {
 	if (user.writing_style) {
 		profileBits.push(`Writing style: ${user.writing_style}`);
 	}
-	if (user.backstory) {
-		profileBits.push(`Backstory: ${user.backstory}`);
+	if (user.appearance) {
+		profileBits.push(`Appearance: ${user.appearance}`);
 	}
 
 	return profileBits.join('\n');

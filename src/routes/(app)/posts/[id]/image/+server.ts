@@ -8,28 +8,6 @@ import { eq } from 'drizzle-orm';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
-function describePersonality(traits: Record<string, number> | null | undefined): string {
-	if (!traits) return '';
-
-	const labels = [
-		{ key: 'extraversion', high: 'very social and outgoing', low: 'quiet and introverted' },
-		{ key: 'agreeableness', high: 'warm and empathetic', low: 'direct and skeptical' },
-		{ key: 'conscientiousness', high: 'organized and intentional', low: 'spontaneous and loose' },
-		{ key: 'openness', high: 'imaginative and adventurous', low: 'practical and grounded' },
-		{ key: 'neuroticism', high: 'emotionally intense', low: 'steady and calm' }
-	] as const;
-
-	const notes: string[] = [];
-	for (const { key, high, low } of labels) {
-		const value = traits[key];
-		if (typeof value !== 'number') continue;
-		if (value >= 8) notes.push(high);
-		else if (value <= 3) notes.push(low);
-	}
-
-	return notes.join(', ');
-}
-
 function buildPostImagePrompt(
 	postBody: string,
 	user: {
@@ -41,8 +19,8 @@ function buildPostImagePrompt(
 		occupation?: string | null;
 		interests?: string[] | string | null;
 		location?: { city: string; state_province: string; country: string } | null;
-		personality_traits?: unknown;
-		appearance?: unknown;
+		personality_traits?: string | null;
+		appearance?: string | null;
 	}
 ) {
 	const lines: string[] = [
@@ -50,6 +28,7 @@ function buildPostImagePrompt(
 		'Be creative, but keep it believable for this person and this post.',
 		'Choose a specific moment (setting + activity + mood + lighting) that feels naturally implied by the post text.',
 		'Avoid generic stock-photo compositions unless the post itself suggests one.',
+		'If the image features the post author, extract the relevant physical descriptors from their appearance description and include them as keywords — hair color and style, eye color, skin tone, body type, clothing style, etc.',
 		'',
 		`Post body: ${postBody}`,
 		'',
@@ -70,12 +49,8 @@ function buildPostImagePrompt(
 		const interests = Array.isArray(user.interests) ? user.interests.join(', ') : user.interests;
 		lines.push(`- Interests: ${interests}`);
 	}
-
-	const personality = describePersonality(
-		user.personality_traits as Record<string, number> | null | undefined
-	);
-	if (personality) lines.push(`- Personality: ${personality}`);
-	if (user.appearance) lines.push(`- Appearance: ${JSON.stringify(user.appearance)}`);
+	if (user.personality_traits) lines.push(`- Personality: ${user.personality_traits}`);
+	if (user.appearance) lines.push(`- Appearance: ${user.appearance}`);
 
 	lines.push('');
 	lines.push('Return data that best fits this specific character, not a generic influencer style.');
