@@ -47,10 +47,10 @@ function buildPostPrompt(user: UserType, datetime: string) {
 		profileBits.push(`Relationship status: ${user.relationship_status}`);
 	}
 	if (user.personality_traits) {
-		profileBits.push(`Personality traits: ${JSON.stringify(user.personality_traits)}`);
+		profileBits.push(`Personality traits: ${user.personality_traits}`);
 	}
 	if (user.writing_style) {
-		profileBits.push(`Writing style: ${JSON.stringify(user.writing_style)}`);
+		profileBits.push(`Writing style: ${user.writing_style}`);
 	}
 	if (user.backstory) {
 		profileBits.push(`Backstory: ${user.backstory}`);
@@ -205,7 +205,7 @@ export async function generateComment(user: UserType, post: PostType): Promise<C
 			content:
 				`You are ${user.name} (${user.pronouns}), writing a comment on the given social media post. It can be a reply to other comments (if any), or directly responding to the post itself. *Do not include any meta-text, only the comment body.*\n` +
 				`Your backstory: ${user.backstory}\n` +
-				`Writing style: ${JSON.stringify(user.writing_style)}\n` +
+				`Writing style: ${user.writing_style}\n` +
 				relationship_context +
 				"Write a new comment. Do not include any roleplay or metatext, just write the actual response. If you don't know the language the original post is in, you can use your preferred language."
 		},

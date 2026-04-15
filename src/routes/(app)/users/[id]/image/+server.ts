@@ -37,29 +37,6 @@ function normalizeGeneratedPrompt(raw: string) {
 	return unique.slice(0, 8).join(', ');
 }
 
-function describePersonality(traits: Record<string, number> | null | undefined): string {
-	if (!traits) return '';
-	const labels = [
-		{ key: 'extraversion', high: 'very social and outgoing', low: 'introverted and reserved' },
-		{ key: 'agreeableness', high: 'warm and friendly', low: 'blunt and skeptical' },
-		{
-			key: 'conscientiousness',
-			high: 'highly organized and goal-driven',
-			low: 'spontaneous and carefree'
-		},
-		{ key: 'openness', high: 'very creative and curious', low: 'practical and conventional' },
-		{ key: 'neuroticism', high: 'emotionally sensitive', low: 'calm and even-keeled' }
-	];
-	const notes: string[] = [];
-	for (const { key, high, low } of labels) {
-		const value = traits[key];
-		if (typeof value !== 'number') continue;
-		if (value >= 8) notes.push(high);
-		else if (value <= 3) notes.push(low);
-	}
-	return notes.join(', ');
-}
-
 function buildUserProfile(user: {
 	name: string;
 	age: number;
@@ -69,8 +46,8 @@ function buildUserProfile(user: {
 	occupation?: string | null;
 	interests?: string[] | string | null;
 	location?: { city: string; state_province: string; country: string } | null;
-	personality_traits?: unknown;
-	appearance?: unknown;
+	personality_traits?: string | null;
+	appearance?: string | null;
 }): string {
 	const lines: string[] = [`Name: ${user.name}, age ${user.age} (${user.pronouns})`];
 	if (user.bio) lines.push(`Bio: ${user.bio}`);
@@ -86,11 +63,8 @@ function buildUserProfile(user: {
 		const interests = Array.isArray(user.interests) ? user.interests.join(', ') : user.interests;
 		lines.push(`Interests: ${interests}`);
 	}
-	const personality = describePersonality(
-		user.personality_traits as Record<string, number> | null | undefined
-	);
-	if (personality) lines.push(`Personality: ${personality}`);
-	if (user.appearance) lines.push(`Appearance: ${JSON.stringify(user.appearance)}`);
+	if (user.personality_traits) lines.push(`Personality: ${user.personality_traits}`);
+	if (user.appearance) lines.push(`Appearance: ${user.appearance}`);
 	return lines.join('\n');
 }
 

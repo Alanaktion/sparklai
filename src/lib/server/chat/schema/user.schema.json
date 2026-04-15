@@ -40,120 +40,20 @@
 			"description": "At least a few interests"
 		},
 		"personality_traits": {
-			"type": "object",
-			"properties": {
-				"openness": { "type": "number", "minimum": 0, "maximum": 10 },
-				"conscientiousness": { "type": "number", "minimum": 0, "maximum": 10 },
-				"extraversion": { "type": "number", "minimum": 0, "maximum": 10 },
-				"agreeableness": { "type": "number", "minimum": 0, "maximum": 10 },
-				"neuroticism": { "type": "number", "minimum": 0, "maximum": 10 }
-			},
-			"required": ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]
+			"type": "string",
+			"description": "2–4 sentences describing the person's personality: their temperament, how they relate to others, emotional tendencies, and behavioral patterns. Be specific and vivid."
 		},
 		"relationship_status": {
 			"type": "string",
 			"enum": ["Single", "Married", "Divorced", "Dating", "Complicated"]
 		},
 		"writing_style": {
-			"type": "object",
-			"properties": {
-				"languages": {
-					"type": "array",
-					"items": { "type": "string" },
-					"description": "The languages the user writes in."
-				},
-				"formality": { "type": "string", "enum": ["Formal", "Informal"] },
-				"emoji_frequency": {
-					"type": "integer",
-					"minimum": 0,
-					"maximum": 10,
-					"description": "Scale of emoji use"
-				},
-				"slang_usage": {
-					"type": "string",
-					"description": "Describe slang usage (e.g., 'moderate', 'rarely', 'frequent') and type (dialect, etc.)"
-				},
-				"punctuation_style": {
-					"type": "string",
-					"description": "Excessive commas, ignores punctuation, etc."
-				}
-			},
-			"required": ["languages", "formality", "emoji_frequency", "slang_usage", "punctuation_style"]
+			"type": "string",
+			"description": "1–3 sentences describing how this person writes: tone, formality, punctuation habits, emoji use, slang or dialect, and the language(s) they write in. Be concrete — e.g. 'Writes in Spanish with occasional English slang; uses lots of ellipses and rarely capitalizes; low emoji use, mostly ironic.'"
 		},
 		"appearance": {
-			"type": "object",
-			"properties": {
-				"gender_expression": {
-					"type": "string",
-					"description": "How the character presents their gender (e.g., masculine, feminine, androgynous).  Not necessarily tied to assigned gender.",
-					"default": "neutral"
-				},
-				"body_type": {
-					"type": "string",
-					"enum": ["slim", "average", "athletic", "curvy", "stocky", "other"],
-					"description": "General body build. 'Other' allows for more specific descriptions.",
-					"default": "average"
-				},
-				"height": {
-					"type": "string",
-					"description": "Height in centimeters or inches (e.g., '175 cm' or '69 in'). Allows for numerical parsing."
-				},
-				"hair": {
-					"type": "object",
-					"properties": {
-						"color": {
-							"type": "string",
-							"description": "Hair color (e.g., black, brown, blonde, red, gray).  Allow for more specific shades."
-						},
-						"style": {
-							"type": "string",
-							"description": "Hair style (e.g., short, long, curly, straight, braided, ponytail, shaved)."
-						},
-						"length": {
-							"type": "string",
-							"enum": ["short", "medium", "long"],
-							"description": "General hair length."
-						}
-					},
-					"required": ["color", "style"]
-				},
-				"eyes": {
-					"type": "object",
-					"properties": {
-						"color": {
-							"type": "string",
-							"description": "Eye color (e.g., blue, brown, green, hazel)."
-						},
-						"shape": {
-							"type": "string",
-							"description": "Eye shape (e.g., round, almond, hooded)."
-						}
-					},
-					"required": ["color"]
-				},
-				"skin_tone": {
-					"type": "string",
-					"description": "Skin tone description.  Be mindful of inclusive language and avoid harmful stereotypes."
-				},
-				"facial_features": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"description": "List of notable facial features (e.g., freckles, scars, prominent nose, strong jawline, dimples)."
-				},
-				"clothing_style": {
-					"type": "string",
-					"description": "General clothing style (e.g., casual, formal, gothic, steampunk)"
-				},
-				"accessories": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"description": "List of accessories (e.g., glasses, earrings, necklace, hat, tattoos)."
-				}
-			}
+			"type": "string",
+			"description": "2–4 sentences describing the person's physical appearance in enough detail to generate an image: body type, height, hair (color, length, style), eye color, skin tone, notable facial features, and clothing/style. Be specific and descriptive."
 		},
 		"backstory": {
 			"type": "string",

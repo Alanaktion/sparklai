@@ -41,43 +41,6 @@
 		if (!profileState.user.location) {
 			profileState.user.location = { city: '', state_province: '', country: '' };
 		}
-		if (!profileState.user.personality_traits) {
-			profileState.user.personality_traits = {
-				openness: 5,
-				conscientiousness: 5,
-				extraversion: 5,
-				agreeableness: 5,
-				neuroticism: 5
-			};
-		}
-		if (!profileState.user.writing_style) {
-			profileState.user.writing_style = {
-				languages: [],
-				emoji_frequency: 2,
-				formality: '',
-				punctuation_style: '',
-				slang_usage: ''
-			};
-		}
-		if (!profileState.user.appearance) {
-			profileState.user.appearance = {
-				gender_expression: '',
-				body_type: '',
-				height: '',
-				hair: { color: '', style: '', length: '' },
-				eyes: { color: '', shape: '' },
-				skin_tone: '',
-				facial_features: [],
-				clothing_style: '',
-				accessories: []
-			};
-		}
-		if (!profileState.user.appearance.hair) {
-			profileState.user.appearance.hair = { color: '', style: '', length: '' };
-		}
-		if (!profileState.user.appearance.eyes) {
-			profileState.user.appearance.eyes = { color: '', shape: '' };
-		}
 	});
 
 	let relationships = $derived<
@@ -177,11 +140,9 @@
 						.filter(Boolean)
 						.join(', ')}
 				</p>
-				<p>
-					{#each user.writing_style?.languages || [] as language (language)}
-						{language}&ensp;
-					{/each}
-				</p>
+				{#if user.writing_style}
+					<p class="text-sm">{user.writing_style}</p>
+				{/if}
 			{:else if bio_tab == 'interests'}
 				<ul class="list-inside list-disc">
 					{#each user.interests || [] as interest (interest)}
@@ -350,66 +311,18 @@
 
 					<!-- Personality Traits -->
 					<div class="grid gap-3">
-						<h3 class="font-semibold text-gray-800 dark:text-gray-200">
-							Personality Traits (1-10 scale)
-						</h3>
-						<div class="grid gap-2">
-							<label class="flex items-center justify-between gap-2">
-								<span class="text-sm text-gray-600 dark:text-gray-400">Openness</span>
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="1"
-									bind:value={user.personality_traits!.openness}
-									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex items-center justify-between gap-2">
-								<span class="text-sm text-gray-600 dark:text-gray-400">Conscientiousness</span>
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="1"
-									bind:value={user.personality_traits!.conscientiousness}
-									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex items-center justify-between gap-2">
-								<span class="text-sm text-gray-600 dark:text-gray-400">Extraversion</span>
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="1"
-									bind:value={user.personality_traits!.extraversion}
-									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex items-center justify-between gap-2">
-								<span class="text-sm text-gray-600 dark:text-gray-400">Agreeableness</span>
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="1"
-									bind:value={user.personality_traits!.agreeableness}
-									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex items-center justify-between gap-2">
-								<span class="text-sm text-gray-600 dark:text-gray-400">Neuroticism</span>
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="1"
-									bind:value={user.personality_traits!.neuroticism}
-									class="w-20 rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-						</div>
+						<h3 class="font-semibold text-gray-800 dark:text-gray-200">Personality</h3>
+						<label class="flex flex-col gap-1">
+							<span class="text-xs text-gray-600 dark:text-gray-400"
+								>Describe this person's personality in 2–4 sentences</span
+							>
+							<textarea
+								bind:value={user.personality_traits}
+								rows="4"
+								class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
+								placeholder="e.g. Warm and sociable, she lights up any room she walks into. She's deeply empathetic but can be overly self-critical when things go wrong. Driven by a need to help others, sometimes at the expense of her own needs."
+							></textarea>
+						</label>
 					</div>
 
 					<!-- Writing Style -->
@@ -417,218 +330,30 @@
 						<h3 class="font-semibold text-gray-800 dark:text-gray-200">Writing Style</h3>
 						<label class="flex flex-col gap-1">
 							<span class="text-xs text-gray-600 dark:text-gray-400"
-								>Languages (comma-separated)</span
+								>Describe how this person writes in 1–3 sentences</span
 							>
-							<input
-								type="text"
-								value={user.writing_style?.languages?.join(', ') || ''}
-								oninput={(e) => {
-									if (!user.writing_style) {
-										user.writing_style = {
-											languages: [],
-											emoji_frequency: 2,
-											formality: '',
-											punctuation_style: '',
-											slang_usage: ''
-										};
-									}
-									user.writing_style.languages = e.currentTarget.value
-										.split(',')
-										.map((s) => s.trim())
-										.filter((s) => s.length > 0);
-								}}
+							<textarea
+								bind:value={user.writing_style}
+								rows="3"
 								class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-							/>
+								placeholder="e.g. Writes casually in English with light Spanish phrases; uses ellipses a lot and rarely capitalizes properly. Moderate emoji use, mostly reactions. Doesn't bother with punctuation in texts."
+							></textarea>
 						</label>
-						<div class="grid gap-2 sm:grid-cols-2">
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Formality</span>
-								<input
-									type="text"
-									bind:value={user.writing_style!.formality}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Emoji Frequency</span>
-								<input
-									type="number"
-									min="0"
-									max="10"
-									step="1"
-									bind:value={user.writing_style!.emoji_frequency}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-						</div>
-						<div class="grid gap-2 sm:grid-cols-2">
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Slang Usage</span>
-								<input
-									type="text"
-									bind:value={user.writing_style!.slang_usage}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Punctuation Style</span>
-								<input
-									type="text"
-									bind:value={user.writing_style!.punctuation_style}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-						</div>
 					</div>
 
 					<!-- Appearance -->
 					<div class="grid gap-3">
 						<h3 class="font-semibold text-gray-800 dark:text-gray-200">Appearance</h3>
-						<div class="grid gap-2 sm:grid-cols-2">
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Gender Expression</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.gender_expression}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Body Type</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.body_type}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-						</div>
-						<div class="grid gap-2 sm:grid-cols-2">
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Height</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.height}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Skin Tone</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.skin_tone}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-						</div>
-						<div class="grid gap-2 sm:grid-cols-3">
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Hair Color</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.hair!.color}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Hair Style</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.hair!.style}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Hair Length</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.hair!.length}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-						</div>
-						<div class="grid gap-2 sm:grid-cols-2">
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Eye Color</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.eyes!.color}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-							<label class="flex flex-col gap-1">
-								<span class="text-xs text-gray-600 dark:text-gray-400">Eye Shape</span>
-								<input
-									type="text"
-									bind:value={user.appearance!.eyes!.shape}
-									class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-								/>
-							</label>
-						</div>
-						<label class="flex flex-col gap-1">
-							<span class="text-xs text-gray-600 dark:text-gray-400">Clothing Style</span>
-							<input
-								type="text"
-								bind:value={user.appearance!.clothing_style}
-								class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-							/>
-						</label>
 						<label class="flex flex-col gap-1">
 							<span class="text-xs text-gray-600 dark:text-gray-400"
-								>Facial Features (comma-separated)</span
+								>Describe this person's physical appearance in 2–4 sentences</span
 							>
-							<input
-								type="text"
-								value={user.appearance!.facial_features?.join(', ') || ''}
-								oninput={(e) => {
-									if (!user.appearance) {
-										user.appearance = {
-											gender_expression: '',
-											body_type: '',
-											height: '',
-											hair: { color: '', style: '', length: '' },
-											eyes: { color: '', shape: '' },
-											skin_tone: '',
-											facial_features: [],
-											clothing_style: '',
-											accessories: []
-										};
-									}
-									user.appearance.facial_features = e.currentTarget.value
-										.split(',')
-										.map((s) => s.trim())
-										.filter((s) => s.length > 0);
-								}}
+							<textarea
+								bind:value={user.appearance}
+								rows="4"
 								class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-							/>
-						</label>
-						<label class="flex flex-col gap-1">
-							<span class="text-xs text-gray-600 dark:text-gray-400"
-								>Accessories (comma-separated)</span
-							>
-							<input
-								type="text"
-								value={user.appearance!.accessories?.join(', ') || ''}
-								oninput={(e) => {
-									if (!user.appearance) {
-										user.appearance = {
-											gender_expression: '',
-											body_type: '',
-											height: '',
-											hair: { color: '', style: '', length: '' },
-											eyes: { color: '', shape: '' },
-											skin_tone: '',
-											facial_features: [],
-											clothing_style: '',
-											accessories: []
-										};
-									}
-									user.appearance.accessories = e.currentTarget.value
-										.split(',')
-										.map((s) => s.trim())
-										.filter((s) => s.length > 0);
-								}}
-								class="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
-							/>
+								placeholder="e.g. Tall and slim with warm brown skin and natural 4C hair worn in a loose afro. Dark brown eyes with long lashes and a wide smile. Usually dressed in colorful thrifted outfits — bold prints, wide-leg trousers, and statement earrings."
+							></textarea>
 						</label>
 					</div>
 

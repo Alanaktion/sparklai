@@ -10,43 +10,10 @@ import type {
 } from '../sd/types';
 
 // Field Types
-export type NumberScale = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type Location = {
 	city: string;
 	state_province: string;
 	country: string;
-};
-export type Personality = {
-	agreeableness: NumberScale;
-	conscientiousness: NumberScale;
-	extraversion: NumberScale;
-	neuroticism: NumberScale;
-	openness: NumberScale;
-};
-export type WritingStyle = {
-	languages?: string[];
-	emoji_frequency: NumberScale;
-	formality: string;
-	punctuation_style: string;
-	slang_usage: string;
-};
-type Appearance = {
-	gender_expression?: string;
-	body_type?: string;
-	height?: string;
-	hair?: {
-		color: string;
-		style: string;
-		length?: string;
-	};
-	eyes?: {
-		color: string;
-		shape?: string;
-	};
-	skin_tone?: string;
-	facial_features?: string[];
-	clothing_style?: string;
-	accessories?: string[];
 };
 
 // Models
@@ -74,12 +41,12 @@ export const users = sqliteTable('users', {
 	location: text({ mode: 'json' }).$type<Location>(),
 	occupation: text(),
 	interests: text({ mode: 'json' }).$type<string[]>(),
-	personality_traits: text({ mode: 'json' }).$type<Personality>(),
+	personality_traits: text(),
 	relationship_status: text(),
-	writing_style: text({ mode: 'json' }).$type<WritingStyle>(),
+	writing_style: text(),
 	backstory: text(),
 	additional_prompt: text().notNull().default(''),
-	appearance: text({ mode: 'json' }).$type<Appearance>(),
+	appearance: text(),
 	image_id: integer().references((): AnySQLiteColumn => images.id),
 	creator_id: integer()
 		.notNull()

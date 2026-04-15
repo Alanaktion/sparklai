@@ -8,9 +8,7 @@ import {
 	media,
 	posts,
 	relationships,
-	users,
-	type Personality,
-	type WritingStyle
+	users
 } from '$lib/server/db/schema';
 
 /**
@@ -40,26 +38,14 @@ export const sampleUserData = {
 	location: { city: 'Test City', state_province: 'TC', country: 'Testland' },
 	occupation: 'Software Tester',
 	interests: ['testing', 'coding'],
-	personality_traits: {
-		openness: 5,
-		conscientiousness: 7,
-		extraversion: 4,
-		agreeableness: 6,
-		neuroticism: 3
-	} satisfies Personality,
+	personality_traits:
+		'Curious and methodical, they approach problems analytically and rarely act impulsively. They are reserved in groups but warm one-on-one, and take their commitments seriously.',
 	relationship_status: 'single',
-	writing_style: {
-		emoji_frequency: 1,
-		formality: 'casual',
-		punctuation_style: 'standard',
-		slang_usage: 'minimal'
-	} satisfies WritingStyle,
+	writing_style:
+		'Writes casually in English; uses minimal punctuation in informal messages but proper grammar in professional contexts. Very low emoji use.',
 	backstory: 'A test backstory snippet',
-	appearance: {
-		gender_expression: 'androgynous',
-		body_type: 'average',
-		hair: { color: 'brown', style: 'short' }
-	}
+	appearance:
+		'Average build, around 170 cm. Short brown hair, brown eyes, and light skin. Usually wears plain t-shirts and jeans.'
 };
 
 /** Sample AI-generated user response from schema_completion('user') */
@@ -71,27 +57,14 @@ export const sampleAIUserResponse = {
 	location: { city: 'Portland', state_province: 'OR', country: 'USA' },
 	occupation: 'Software Engineer',
 	interests: ['hiking', 'coffee', 'photography'],
-	personality_traits: {
-		openness: 0.8,
-		conscientiousness: 0.7,
-		extraversion: 0.5,
-		agreeableness: 0.9,
-		neuroticism: 0.2
-	},
+	personality_traits:
+		'Warm and outgoing, she makes friends easily and is genuinely curious about people. She is organized at work but spontaneous in her personal life, and handles stress well.',
 	relationship_status: 'in a relationship',
-	writing_style: {
-		emoji_frequency: 0.3,
-		formality: 'casual',
-		punctuation_style: 'standard',
-		slang_usage: 'minimal'
-	},
+	writing_style:
+		'Writes in English; casual and conversational with a light use of exclamation points. Low emoji use, mostly in reaction to good news.',
 	backstory: 'Grew up in Seattle, moved to Portland for work',
-	appearance: {
-		gender_expression: 'feminine',
-		body_type: 'slim',
-		hair: { color: 'black', style: 'long' },
-		eyes: { color: 'brown' }
-	}
+	appearance:
+		'Slim build, around 165 cm, with straight black hair worn long. Dark brown almond-shaped eyes and light tan skin. Typically dresses in smart-casual layered outfits.'
 };
 
 /** Sample AI-generated post response from schema_completion('post') */

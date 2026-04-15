@@ -3,45 +3,9 @@ import type { LlamaMessage } from '$lib/server/chat/index.js';
 import { completion } from '$lib/server/chat/index.js';
 import { formatDate, nowStr } from '$lib';
 import { db } from '$lib/server/db';
-import type { NumberScale } from '$lib/server/db/schema';
 import { chats, relationships, users } from '$lib/server/db/schema';
 import { error, json } from '@sveltejs/kit';
 import { asc, eq } from 'drizzle-orm';
-
-function summarizePersonality(traits: Record<string, NumberScale> | null | undefined): string {
-	if (!traits) {
-		return 'No explicit trait scores provided.';
-	}
-
-	const labels = [
-		{ key: 'extraversion', high: 'social and talkative', low: 'reserved and low-key' },
-		{ key: 'agreeableness', high: 'warm and accommodating', low: 'blunt and skeptical' },
-		{ key: 'conscientiousness', high: 'organized and thoughtful', low: 'spontaneous and loose' },
-		{ key: 'openness', high: 'curious and imaginative', low: 'practical and familiar' },
-		{ key: 'neuroticism', high: 'emotionally reactive', low: 'steady and calm' }
-	] as const;
-
-	const notes: string[] = [];
-	for (const label of labels) {
-		const value = traits[label.key];
-		if (typeof value !== 'number') continue;
-		if (value >= 6) {
-			notes.push(label.high);
-		} else if (value <= 3) {
-			notes.push(label.low);
-		}
-	}
-
-	return notes.length ? notes.join('; ') : 'Balanced personality traits overall.';
-}
-
-function compactJson(value: unknown): string {
-	try {
-		return JSON.stringify(value);
-	} catch {
-		return 'Unavailable';
-	}
-}
 
 // Generate a new response to the conversation
 export async function POST({ params, locals }) {
@@ -89,9 +53,6 @@ export async function POST({ params, locals }) {
 				.filter(Boolean)
 				.join(', ')
 		: 'Unknown';
-	const personalitySummary = summarizePersonality(
-		user.personality_traits as Record<string, NumberScale> | null | undefined
-	);
 
 	const basePromptLines = [
 		`You are ${user.name} (${user.pronouns}) in a private one-on-one chat.`,
@@ -107,8 +68,8 @@ export async function POST({ params, locals }) {
 		`- Location: ${userLocation}`,
 		`- Relationship status: ${user.relationship_status || 'Unknown'}`,
 		`- Interests: ${interests}`,
-		`- Personality tendencies: ${personalitySummary}`,
-		`- Writing style settings: ${compactJson(user.writing_style)}`,
+		`- Personality: ${user.personality_traits || 'Unknown'}`,
+		`- Writing style: ${user.writing_style || 'Unknown'}`,
 		relationshipContext ? relationshipContext.trim() : '- Known relationships: none listed',
 		'',
 		'Texting behavior rules (critical):',
