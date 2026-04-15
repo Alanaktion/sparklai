@@ -12,7 +12,7 @@ This is a starter Python implementation for running a **single character** again
 
 ## Setup
 
-1. Create a Python environment (3.11+ recommended)
+1. Create a Python environment (3.10+ recommended)
 2. Install dependencies:
 
 ```bash
