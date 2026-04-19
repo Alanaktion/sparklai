@@ -1,4 +1,0 @@
-Mastodon.py==1.8.1
-openai==1.109.1
-python-dotenv==1.1.1
-requests==2.32.5

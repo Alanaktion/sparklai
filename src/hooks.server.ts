@@ -1,11 +1,14 @@
 import { db } from '$lib/server/db';
 import { creators } from '$lib/server/db/schema';
+import { applyModelPreferences } from '$lib/server/model-preferences';
 import type { Handle } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
 const COOKIE_NAME = 'creator_session';
 
 export const handle: Handle = async ({ event, resolve }) => {
+	await applyModelPreferences(event.cookies);
+
 	const creatorIdRaw = event.cookies.get(COOKIE_NAME);
 	const creatorId = creatorIdRaw ? Number(creatorIdRaw) : null;
 

@@ -18,7 +18,10 @@ vi.mock('$env/dynamic/private', () => ({
 		SD_DRAWING_NEGATIVE_PROMPT: process.env.SD_DRAWING_NEGATIVE_PROMPT || '',
 		SD_STYLIZED_MODEL: process.env.SD_STYLIZED_MODEL || 'test-stylized',
 		SD_STYLIZED_PROMPT: process.env.SD_STYLIZED_PROMPT || '',
-		SD_STYLIZED_NEGATIVE_PROMPT: process.env.SD_STYLIZED_NEGATIVE_PROMPT || ''
+		SD_STYLIZED_NEGATIVE_PROMPT: process.env.SD_STYLIZED_NEGATIVE_PROMPT || '',
+		SD_SDXL_MODEL: process.env.SD_SDXL_MODEL || 'test-sdxl',
+		SD_SDXL_PROMPT: process.env.SD_SDXL_PROMPT || '',
+		SD_SDXL_NEGATIVE_PROMPT: process.env.SD_SDXL_NEGATIVE_PROMPT || ''
 	}
 }));
 
@@ -40,7 +43,8 @@ vi.mock('$lib/server/sd', () => ({
 	styles: {
 		photo: { model: 'test-photo', prompt: '', negative_prompt: '' },
 		drawing: { model: 'test-drawing', prompt: '', negative_prompt: '' },
-		stylized: { model: 'test-stylized', prompt: '', negative_prompt: '' }
+		stylized: { model: 'test-stylized', prompt: '', negative_prompt: '' },
+		sdxl: { model: 'test-sdxl', prompt: '', negative_prompt: '' }
 	},
 	fetch_models: vi.fn().mockResolvedValue([]),
 	init: vi.fn(),
