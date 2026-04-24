@@ -47,6 +47,7 @@ export const users = sqliteTable('users', {
 	backstory: text(),
 	additional_prompt: text().notNull().default(''),
 	appearance: text(),
+	memory: text(),
 	image_id: integer().references((): AnySQLiteColumn => images.id),
 	creator_id: integer()
 		.notNull()
