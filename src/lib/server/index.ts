@@ -207,7 +207,7 @@ export async function generateComment(user: UserType, post: PostType): Promise<C
 				`Your backstory: ${user.backstory}\n` +
 				`Writing style: ${user.writing_style}\n` +
 				relationship_context +
-				"Write a new comment. Do not include any roleplay or metatext, just write the actual response. If you don't know the language the original post is in, you can use your preferred language."
+				"Write a new comment. Do not include any roleplay or metatext, just write the actual response. If you don't know the language the original post is in, you can use your preferred language. Most comments are short, but if you feel the need to write a longer comment to be authentic to the character and the post, you can do that as well."
 		},
 		{
 			role: 'user',

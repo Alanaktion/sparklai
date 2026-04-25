@@ -4,18 +4,14 @@
 	import Upload from 'virtual:icons/lucide/upload';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
-	import { trackImageJob } from '$lib/stores/image-jobs';
+	import {
+		failImageJobRequest,
+		replaceImageJobRequest,
+		startImageJobRequest,
+		type ImageGenerationJobResponse
+	} from '$lib/stores/image-jobs';
 
-	type ImageJob = {
-		id: number;
-		status: 'queued' | 'processing' | 'completed' | 'failed';
-		image_id: number | null;
-		error?: string | null;
-		image?: {
-			id: number;
-			blur: boolean;
-		} | null;
-	};
+	type ImageJob = ImageGenerationJobResponse;
 
 	type SelectableImage = {
 		id: number;
@@ -49,30 +45,14 @@
 		onPostImageChange?.({ imageId, image: image ?? null });
 	}
 
-	async function waitForJob(jobId: number) {
-		imageJobId = jobId;
-		imageJobError = '';
-
-		try {
-			const job = (await trackImageJob(jobId, { label: 'Post image' })) as ImageJob;
-			if (job.status === 'completed' && job.image_id) {
-				image_id = job.image_id;
-				applyImageChange(job.image_id, job.image ?? null);
-				open = false;
-				return;
-			}
-			if (job.status === 'failed') {
-				imageJobError = job.error || 'Image generation failed';
-			}
-		} catch {
-			imageJobError = 'Unable to check image generation status';
-		} finally {
-			imageJobId = null;
-		}
-	}
-
 	function addImage() {
 		creating = true;
+		imageJobError = '';
+		open = false;
+		const pendingRequestId = startImageJobRequest({
+			label: 'Post image',
+			phase: 'prompt'
+		});
 		fetch(`/posts/${post.id}/image`, { method: 'POST' })
 			.then(async (response) => {
 				if (!response.ok) {
@@ -80,16 +60,33 @@
 				}
 				return (await response.json()) as ImageJob;
 			})
-			.then((body: ImageJob) => {
+			.then(async (body: ImageJob) => {
 				if (!Number.isFinite(body.id)) {
 					throw new Error('Invalid image job id');
 				}
 				creating = false;
-				void waitForJob(body.id);
+				imageJobId = body.id;
+				const [job] = replaceImageJobRequest(pendingRequestId, [body], {
+					label: 'Post image'
+				});
+				const trackedJob = (await job) as ImageJob;
+				if (trackedJob.status === 'completed' && trackedJob.image_id) {
+					image_id = trackedJob.image_id;
+					applyImageChange(trackedJob.image_id, trackedJob.image ?? null);
+					return;
+				}
+				if (trackedJob.status === 'failed') {
+					imageJobError = trackedJob.error || 'Image generation failed';
+				}
 			})
-			.catch(() => {
+			.catch((error) => {
 				creating = false;
-				imageJobError = 'Unable to start image generation';
+				const message = error instanceof Error ? error.message : 'Unable to start image generation';
+				failImageJobRequest(pendingRequestId, message, { label: 'Post image' });
+				imageJobError = message;
+			})
+			.finally(() => {
+				imageJobId = null;
 			});
 	}
 

@@ -4,7 +4,14 @@
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import Post from '$lib/components/Post.svelte';
 	import type { PostType } from '$lib/server/db/schema';
-	import { trackImageJob, type ImageGenerationJobResponse } from '$lib/stores/image-jobs';
+	import {
+		dismissImageJob,
+		failImageJobRequest,
+		replaceImageJobRequest,
+		startImageJobRequest,
+		trackImageJob,
+		type ImageGenerationJobResponse
+	} from '$lib/stores/image-jobs';
 	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
 	import Loader from 'virtual:icons/lucide/loader';
 	import type { PageProps } from './$types';
@@ -76,6 +83,11 @@
 		event.preventDefault();
 		creating = true;
 		imageJobError = '';
+		open = false;
+		const pendingRequestId = startImageJobRequest({
+			label: 'Post image',
+			phase: 'prompt'
+		});
 		fetch(resolve(`/users/${data.id}/posts`), {
 			method: 'POST',
 			headers: {
@@ -101,15 +113,47 @@
 						0,
 						10
 					);
-					trackPendingImageJob(body.image_job.id, body.post.id);
+					trackPendingJob(body.image_job.id);
+					const [trackedJobPromise] = replaceImageJobRequest(pendingRequestId, [body.image_job], {
+						label: 'Post image'
+					});
+					void trackedJobPromise
+						.then((job) => {
+							if (job.status === 'completed' && job.image_id) {
+								if (job.image && !profileState.images.some((image) => image.id === job.image!.id)) {
+									profileState.images = [...profileState.images, job.image];
+								}
+								posts = posts.map((post) =>
+									post.id === body.post.id
+										? {
+												...post,
+												image_id: job.image_id
+											}
+										: post
+								);
+								return;
+							}
+							if (job.status === 'failed') {
+								imageJobError = job.error || 'Image generation failed';
+							}
+						})
+						.catch(() => {
+							imageJobError = 'Unable to check image generation status';
+						})
+						.finally(() => {
+							finishPendingJob(body.image_job!.id);
+						});
+				} else {
+					dismissImageJob(pendingRequestId);
 				}
 				creating = false;
-				open = false;
 				prompt = '';
 			})
-			.catch(() => {
+			.catch((error) => {
 				creating = false;
-				imageJobError = 'Unable to create post';
+				const message = error instanceof Error ? error.message : 'Unable to create post';
+				failImageJobRequest(pendingRequestId, message, { label: 'Post image' });
+				imageJobError = message;
 			});
 	};
 </script>

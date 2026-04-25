@@ -3,10 +3,16 @@
 	import { resolve } from '$app/paths';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import Image from '$lib/components/Image.svelte';
-	import { trackImageJob, type ImageGenerationJobResponse } from '$lib/stores/image-jobs';
+	import {
+		failImageJobRequest,
+		replaceImageJobRequest,
+		startImageJobRequest,
+		type ImageGenerationJobResponse
+	} from '$lib/stores/image-jobs';
 	import ImageIcon from 'virtual:icons/fluent-color/image-24';
 	import Loader from 'virtual:icons/lucide/loader';
 	import Ratio from 'virtual:icons/lucide/ratio';
+	import Upload from 'virtual:icons/lucide/upload';
 	import type { PageProps } from './$types';
 	import { getUserProfileContext } from '$lib/user-profile-context';
 
@@ -23,6 +29,8 @@
 	let pendingImageJobIds = $state<number[]>([]);
 	let recentlyQueuedImageJobIds = $state<number[]>([]);
 	let imageJobError = $state('');
+	let uploading = $state(false);
+	let uploadError = $state('');
 
 	function trackPendingJob(jobId: number) {
 		if (!pendingImageJobIds.includes(jobId)) {
@@ -35,38 +43,51 @@
 		recentlyQueuedImageJobIds = recentlyQueuedImageJobIds.filter((id) => id !== jobId);
 	}
 
-	function trackPendingImageJob(jobId: number) {
-		trackPendingJob(jobId);
-		imageJobError = '';
+	const uploadImages = async (event: Event) => {
+		const input = event.target as HTMLInputElement;
+		const files = input.files;
+		if (!files || !files.length) return;
 
-		void trackImageJob(jobId, { label: 'Profile image' })
-			.then((job) => {
-				if (job.status === 'completed' && job.image_id) {
-					if (job.image && !profileState.images.some((image) => image.id === job.image!.id)) {
-						profileState.images = [...profileState.images, job.image];
-					}
-					if (job.set_as_user_image) {
-						profileState.user.image_id = job.image_id;
-						profileState.avatarRenderKey += 1;
-					}
-					return;
-				}
-				if (job.status === 'failed') {
-					imageJobError = job.error || 'Image generation failed';
-				}
-			})
-			.catch(() => {
-				imageJobError = 'Unable to check image generation status';
-			})
-			.finally(() => {
-				finishPendingJob(jobId);
+		uploading = true;
+		uploadError = '';
+
+		const formData = new FormData();
+		for (const file of files) {
+			formData.append('files', file);
+		}
+
+		try {
+			const response = await fetch(resolve(`/users/${data.id}/images`), {
+				method: 'POST',
+				body: formData
 			});
-	}
+			if (!response.ok) {
+				const body = await response.json().catch(() => ({}));
+				throw new Error((body as { message?: string }).message || 'Upload failed');
+			}
+			const result = (await response.json()) as { images: (typeof profileState.images)[number][] };
+			for (const image of result.images) {
+				if (!profileState.images.some((img) => img.id === image.id)) {
+					profileState.images = [...profileState.images, image];
+				}
+			}
+		} catch (err) {
+			uploadError = err instanceof Error ? err.message : 'Upload failed';
+		} finally {
+			uploading = false;
+			input.value = '';
+		}
+	};
 
 	const newImage = (event: Event) => {
 		event.preventDefault();
 		creating = true;
 		imageJobError = '';
+		open = false;
+		const pendingRequestId = startImageJobRequest({
+			label: 'Profile image',
+			phase: prompt.trim() === '' ? 'prompt' : 'image'
+		});
 		fetch(resolve(`/users/${data.id}/image`), {
 			method: 'POST',
 			headers: {
@@ -84,22 +105,70 @@
 				if (!Array.isArray(jobs) || !jobs.length) {
 					throw new Error('Invalid image jobs response');
 				}
-				for (const job of jobs) {
+				const trackedJobs = replaceImageJobRequest(pendingRequestId, jobs, {
+					label: 'Profile image'
+				});
+				for (const [index, job] of jobs.entries()) {
 					recentlyQueuedImageJobIds = [job.id, ...recentlyQueuedImageJobIds].slice(0, 10);
-					trackPendingImageJob(job.id);
+					trackPendingJob(job.id);
+					void trackedJobs[index]
+						.then((trackedJob) => {
+							if (trackedJob.status === 'completed' && trackedJob.image_id) {
+								if (
+									trackedJob.image &&
+									!profileState.images.some((image) => image.id === trackedJob.image!.id)
+								) {
+									profileState.images = [...profileState.images, trackedJob.image];
+								}
+								if (trackedJob.set_as_user_image) {
+									profileState.user.image_id = trackedJob.image_id;
+									profileState.avatarRenderKey += 1;
+								}
+								return;
+							}
+							if (trackedJob.status === 'failed') {
+								imageJobError = trackedJob.error || 'Image generation failed';
+							}
+						})
+						.catch(() => {
+							imageJobError = 'Unable to check image generation status';
+						})
+						.finally(() => {
+							finishPendingJob(job.id);
+						});
 				}
 				creating = false;
-				open = false;
 			})
-			.catch(() => {
+			.catch((error) => {
 				creating = false;
-				imageJobError = 'Unable to start image generation';
+				const message = error instanceof Error ? error.message : 'Unable to start image generation';
+				failImageJobRequest(pendingRequestId, message, { label: 'Profile image' });
+				imageJobError = message;
 			});
 	};
 </script>
 
 <div class="mb-4 flex justify-end">
 	{#if browser}
+		<label
+			class="cursor-pointer rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+			title="Upload photos"
+		>
+			<span class="sr-only">Upload photos</span>
+			{#if uploading}
+				<Loader class="size-4 animate-spin" />
+			{:else}
+				<Upload class="size-4" />
+			{/if}
+			<input
+				type="file"
+				accept="image/*"
+				multiple
+				class="sr-only"
+				onchange={uploadImages}
+				disabled={uploading}
+			/>
+		</label>
 		<button
 			onclick={() => (open = true)}
 			type="button"
@@ -187,3 +256,6 @@
 		</div>
 	{/if}
 </div>
+{#if uploadError}
+	<p class="mt-2 text-sm text-red-500">{uploadError}</p>
+{/if}

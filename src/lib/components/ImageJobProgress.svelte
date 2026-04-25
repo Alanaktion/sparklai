@@ -18,6 +18,12 @@
 	}
 
 	function statusLabel(job: TrackedImageJob) {
+		if (job.phase === 'prompt') {
+			return job.status === 'failed' ? 'Prompt generation failed' : 'Generating prompt';
+		}
+		if (job.temporary) {
+			return job.status === 'failed' ? 'Failed to start' : 'Starting image generation';
+		}
 		if (job.status === 'queued') {
 			return 'Queued';
 		}
@@ -69,7 +75,11 @@
 							<div class="min-w-0 flex-1">
 								<p class="truncate font-medium text-gray-800 dark:text-gray-100">{job.label}</p>
 								<p class="truncate text-xs text-gray-500 dark:text-gray-400">
-									Job #{job.id} • {statusLabel(job)}
+									{#if job.temporary}
+										Preparing request • {statusLabel(job)}
+									{:else}
+										Job #{job.id} • {statusLabel(job)}
+									{/if}
 									{#if job.error}
 										• {job.error}
 									{/if}

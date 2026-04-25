@@ -29,6 +29,8 @@ export type TrackedImageJob = {
 	id: number;
 	label: string;
 	status: ImageJobStatus;
+	phase: 'prompt' | 'image';
+	temporary: boolean;
 	image_id: number | null;
 	error: string | null;
 	set_as_user_image: boolean;
@@ -50,6 +52,7 @@ const activePollers = new Map<number, Promise<ImageGenerationJobResponse>>();
 const autoDismissTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
 let initialized = false;
+let nextTemporaryJobId = -1;
 
 function delay(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,11 +85,19 @@ function normalizeStoredJob(value: unknown): TrackedImageJob | null {
 	}
 
 	const status = normalizeStatus(value.status);
+	const phase = value.phase === 'prompt' ? 'prompt' : 'image';
+	const temporary = Boolean(value.temporary);
+	if (temporary) {
+		return null;
+	}
+
 	const now = Date.now();
 	return {
 		id,
 		label: typeof value.label === 'string' && value.label.length ? value.label : 'Image generation',
 		status,
+		phase,
+		temporary,
 		image_id: Number.isFinite(value.image_id) ? Number(value.image_id) : null,
 		error: typeof value.error === 'string' ? value.error : null,
 		set_as_user_image: Boolean(value.set_as_user_image),
@@ -95,6 +106,41 @@ function normalizeStoredJob(value: unknown): TrackedImageJob | null {
 		createdAt: Number.isFinite(value.createdAt) ? Number(value.createdAt) : now,
 		updatedAt: Number.isFinite(value.updatedAt) ? Number(value.updatedAt) : now,
 		finishedAt: Number.isFinite(value.finishedAt) ? Number(value.finishedAt) : null
+	};
+}
+
+function createTrackedJob(
+	id: number,
+	status: ImageJobStatus,
+	options?: {
+		label?: string;
+		phase?: 'prompt' | 'image';
+		temporary?: boolean;
+		image_id?: number | null;
+		error?: string | null;
+		set_as_user_image?: boolean;
+		post_id?: number | null;
+		user_id?: number | null;
+		createdAt?: number;
+		updatedAt?: number;
+		finishedAt?: number | null;
+	}
+): TrackedImageJob {
+	const now = Date.now();
+	return {
+		id,
+		label: options?.label || 'Image generation',
+		status,
+		phase: options?.phase || 'image',
+		temporary: options?.temporary ?? false,
+		image_id: options?.image_id ?? null,
+		error: options?.error ?? null,
+		set_as_user_image: options?.set_as_user_image ?? false,
+		post_id: options?.post_id ?? null,
+		user_id: options?.user_id ?? null,
+		createdAt: options?.createdAt ?? now,
+		updatedAt: options?.updatedAt ?? now,
+		finishedAt: options?.finishedAt ?? null
 	};
 }
 
@@ -128,6 +174,8 @@ function upsertJobFromServer(job: ImageGenerationJobResponse, label?: string) {
 			id: job.id,
 			label: label || existing?.label || 'Image generation',
 			status: job.status,
+			phase: 'image',
+			temporary: false,
 			image_id: job.image_id,
 			error: job.error,
 			set_as_user_image: job.set_as_user_image,
@@ -173,19 +221,12 @@ function markPollingError(jobId: number, message: string, label?: string) {
 		}
 
 		return [
-			{
-				id: jobId,
+			createTrackedJob(jobId, 'failed', {
 				label: label || 'Image generation',
-				status: 'failed',
-				image_id: null,
 				error: message,
-				set_as_user_image: false,
-				post_id: null,
-				user_id: null,
-				createdAt: now,
 				updatedAt: now,
 				finishedAt: now
-			},
+			}),
 			...jobs
 		];
 	});
@@ -242,6 +283,39 @@ function assertImageJobResponse(value: unknown): ImageGenerationJobResponse {
 	};
 }
 
+function assertImageJobListResponse(value: unknown): ImageGenerationJobResponse[] {
+	if (!Array.isArray(value)) {
+		throw new Error('Invalid image jobs response');
+	}
+
+	return value.map((item) => assertImageJobResponse(item));
+}
+
+async function syncActiveJobsFromServer() {
+	if (!browser) {
+		return;
+	}
+
+	try {
+		const response = await fetch('/image-jobs');
+		if (!response.ok) {
+			throw new Error(`Unable to load image jobs (${response.status})`);
+		}
+
+		const payload = (await response.json()) as unknown;
+		const jobs = assertImageJobListResponse(payload);
+
+		for (const job of jobs) {
+			upsertJobFromServer(job);
+			if (activeStatuses.has(job.status)) {
+				void pollImageJob(job.id);
+			}
+		}
+	} catch {
+		// Best-effort sync: keep local tracking if the server refresh fails.
+	}
+}
+
 async function pollImageJob(jobId: number, label?: string): Promise<ImageGenerationJobResponse> {
 	const existing = activePollers.get(jobId);
 	if (existing) {
@@ -279,11 +353,24 @@ async function pollImageJob(jobId: number, label?: string): Promise<ImageGenerat
 	});
 }
 
+function trackKnownImageJob(
+	job: ImageGenerationJobResponse,
+	options?: { label?: string }
+): Promise<ImageGenerationJobResponse> {
+	initImageJobTracker();
+	upsertJobFromServer(job, options?.label);
+	if (activeStatuses.has(job.status)) {
+		return pollImageJob(job.id, options?.label);
+	}
+	return Promise.resolve(job);
+}
+
 function persistJobs(jobs: TrackedImageJob[]) {
 	if (!browser) {
 		return;
 	}
-	localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs.slice(0, MAX_STORED_JOBS)));
+	const persistedJobs = jobs.filter((job) => !job.temporary).slice(0, MAX_STORED_JOBS);
+	localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedJobs));
 }
 
 function hydrateJobs() {
@@ -313,6 +400,8 @@ function hydrateJobs() {
 			scheduleAutoDismiss(job.id);
 		}
 	}
+
+	void syncActiveJobsFromServer();
 }
 
 if (browser) {
@@ -334,26 +423,95 @@ export function trackImageJob(jobId: number, options?: { label?: string }) {
 
 	const existing = get(imageJobsStore).find((job) => job.id === jobId);
 	if (!existing) {
-		const now = Date.now();
 		imageJobsStore.update((jobs) => [
-			{
-				id: jobId,
-				label: options?.label || 'Image generation',
-				status: 'queued',
-				image_id: null,
-				error: null,
-				set_as_user_image: false,
-				post_id: null,
-				user_id: null,
-				createdAt: now,
-				updatedAt: now,
-				finishedAt: null
-			},
+			createTrackedJob(jobId, 'queued', {
+				label: options?.label || 'Image generation'
+			}),
 			...jobs
 		]);
 	}
 
 	return pollImageJob(jobId, options?.label);
+}
+
+export function trackImageJobResponse(
+	job: ImageGenerationJobResponse,
+	options?: { label?: string }
+) {
+	return trackKnownImageJob(job, options);
+}
+
+export function startImageJobRequest(options?: { label?: string; phase?: 'prompt' | 'image' }) {
+	initImageJobTracker();
+
+	const temporaryJobId = nextTemporaryJobId;
+	nextTemporaryJobId -= 1;
+
+	imageJobsStore.update((jobs) => [
+		createTrackedJob(temporaryJobId, 'processing', {
+			label: options?.label || 'Image generation',
+			phase: options?.phase || 'image',
+			temporary: true
+		}),
+		...jobs
+	]);
+
+	return temporaryJobId;
+}
+
+export function startImageJobPrompt(options?: { label?: string }) {
+	return startImageJobRequest({
+		label: options?.label,
+		phase: 'prompt'
+	});
+}
+
+export function failImageJobPrompt(
+	promptJobId: number,
+	message: string,
+	options?: { label?: string }
+) {
+	const now = Date.now();
+	imageJobsStore.update((jobs) => {
+		const index = jobs.findIndex((job) => job.id === promptJobId);
+		if (index < 0) {
+			return jobs;
+		}
+
+		const next = [...jobs];
+		next[index] = {
+			...next[index],
+			label: options?.label || next[index].label,
+			status: 'failed',
+			error: message,
+			updatedAt: now,
+			finishedAt: now
+		};
+		return next;
+	});
+
+	scheduleAutoDismiss(promptJobId);
+}
+
+export function failImageJobRequest(jobId: number, message: string, options?: { label?: string }) {
+	return failImageJobPrompt(jobId, message, options);
+}
+
+export function replaceImageJobPrompt(
+	promptJobId: number,
+	jobs: ImageGenerationJobResponse[],
+	options?: { label?: string }
+) {
+	dismissImageJob(promptJobId);
+	return jobs.map((job) => trackKnownImageJob(job, options));
+}
+
+export function replaceImageJobRequest(
+	jobId: number,
+	jobs: ImageGenerationJobResponse[],
+	options?: { label?: string }
+) {
+	return replaceImageJobPrompt(jobId, jobs, options);
 }
 
 export function dismissImageJob(jobId: number) {
