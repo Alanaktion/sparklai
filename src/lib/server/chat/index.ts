@@ -38,6 +38,11 @@ export type LlamaMessage = {
 
 function normalize_llm_output<T>(value: T): T {
 	if (typeof value === 'string') {
+		if (value.includes('</think>')) {
+			return normalize_llm_output(
+				value.substring(value.indexOf('</think>') + '</think>'.length)
+			) as T;
+		}
 		return value.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\"/g, '"') as T;
 	}
 
