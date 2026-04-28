@@ -2,9 +2,9 @@
 	import { browser } from '$app/environment';
 	import ModelSwitcher from '$lib/components/ModelSwitcher.svelte';
 	import CreatorSwitcher from '$lib/components/CreatorSwitcher.svelte';
-	import Sparkles from 'virtual:icons/lucide/sparkles';
-	import Message from 'virtual:icons/lucide/message-circle';
-	import Settings from 'virtual:icons/lucide/settings';
+	import Sparkles from 'virtual:icons/octicon/sparkles-fill-24';
+	import Message from 'virtual:icons/octicon/comment-discussion-16';
+	import Settings from 'virtual:icons/octicon/gear-24';
 	import { resolve } from '$app/paths';
 	import type { LayoutProps } from './$types';
 
@@ -14,9 +14,7 @@
 <div class="flex items-center px-4 py-4">
 	<a href={resolve('/')} class="me-auto text-blue-600 xl:mb-4 dark:text-blue-400">
 		<span class="sr-only">SparklAI</span>
-		<Sparkles
-			class="size-6 text-amber-500 *:first:fill-amber-400 *:first:stroke-none dark:*:first:fill-amber-300"
-		/>
+		<Sparkles class="size-6 text-amber-500 dark:text-amber-400" />
 	</a>
 	{#if browser}
 		<CreatorSwitcher creators={data.creators} activeCreator={data.activeCreator} />

@@ -4,7 +4,7 @@
 	import ModelSwitcher from '$lib/components/ModelSwitcher.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { twMerge } from 'tailwind-merge';
-	import Sparkles from 'virtual:icons/lucide/sparkles';
+	import Sparkles from 'virtual:icons/octicon/sparkles-fill-24';
 	import type { LayoutProps } from './$types';
 	import { resolve } from '$app/paths';
 
@@ -24,9 +24,7 @@
 		<nav class="flex min-h-full flex-col">
 			<a href={resolve('/')} class="mb-2 self-start p-2 text-blue-600 lg:mb-4 dark:text-blue-400">
 				<span class="sr-only">SparklAI</span>
-				<Sparkles
-					class="size-6 text-amber-500 *:first:fill-amber-400 *:first:stroke-none dark:*:first:fill-amber-300"
-				/>
+				<Sparkles class="size-6 text-amber-500 dark:text-amber-400" />
 			</a>
 			{#each data.users as user (user.id)}
 				<a

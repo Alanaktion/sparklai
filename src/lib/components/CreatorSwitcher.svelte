@@ -3,11 +3,11 @@
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import UserIcon from 'virtual:icons/lucide/user';
-	import LogOut from 'virtual:icons/lucide/log-out';
-	import Plus from 'virtual:icons/lucide/plus';
-	import ChevronDown from 'virtual:icons/lucide/chevron-down';
-	import Loader from 'virtual:icons/lucide/loader';
+	import UserIcon from 'virtual:icons/octicon/person-16';
+	import LogOut from 'virtual:icons/octicon/sign-out-16';
+	import Plus from 'virtual:icons/octicon/plus-16';
+	import ChevronDown from 'virtual:icons/octicon/chevron-down-16';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
 
 	type Props = {
 		creators: CreatorType[];

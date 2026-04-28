@@ -2,7 +2,7 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import type { Snippet } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
-	import Loader from 'virtual:icons/lucide/loader';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
 
 	type Variant = 'default' | 'destructive';
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import Loader from 'virtual:icons/lucide/loader';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
+	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 	import type { PageProps } from './$types';
 	import { getUserProfileContext } from '$lib/user-profile-context';
 
@@ -321,6 +322,6 @@
 	</form>
 {:else}
 	<div class="flex items-center justify-center py-10">
-		<Loader class="size-5 animate-spin text-gray-600 dark:text-gray-400" />
+		<Loader24 class="size-6 animate-spin text-gray-600 dark:text-gray-400" />
 	</div>
 {/if}

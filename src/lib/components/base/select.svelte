@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLSelectAttributes } from 'svelte/elements';
 	import { twMerge } from 'tailwind-merge';
-	import ChevronDown from 'virtual:icons/lucide/chevron-down';
+	import ChevronDown from 'virtual:icons/octicon/chevron-down-16';
 
 	type Props = {
 		children?: Snippet;

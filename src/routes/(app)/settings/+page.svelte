@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import CheckCircle from 'virtual:icons/lucide/check-circle';
-	import AlertCircle from 'virtual:icons/lucide/alert-circle';
+	import CheckCircle from 'virtual:icons/octicon/check-circle-24';
+	import Alert from 'virtual:icons/octicon/alert-24';
 	import type { PageProps } from './$types';
 	import { resolve } from '$app/paths';
 
@@ -280,7 +280,7 @@
 							: 'bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400'}"
 					>
 						{#if hasError}
-							<AlertCircle class="size-5" />
+							<Alert class="size-5" />
 						{:else}
 							<CheckCircle class="size-5" />
 						{/if}

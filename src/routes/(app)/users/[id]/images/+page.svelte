@@ -9,10 +9,11 @@
 		startImageJobRequest,
 		type ImageGenerationJobResponse
 	} from '$lib/stores/image-jobs';
-	import ImageIcon from 'virtual:icons/fluent-color/image-24';
-	import Loader from 'virtual:icons/lucide/loader';
-	import Ratio from 'virtual:icons/lucide/ratio';
-	import Upload from 'virtual:icons/lucide/upload';
+	import ImageIcon from 'virtual:icons/octicon/image-24';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
+	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
+	import Ratio from 'virtual:icons/octicon/screen-normal-16';
+	import Upload from 'virtual:icons/octicon/upload-16';
 	import type { PageProps } from './$types';
 	import { getUserProfileContext } from '$lib/user-profile-context';
 
@@ -252,7 +253,7 @@
 	{/each}
 	{#if creating}
 		<div class="flex aspect-square w-full bg-gray-200 dark:bg-gray-800">
-			<Loader class="m-auto size-8 animate-spin text-gray-600 dark:text-gray-400" />
+			<Loader24 class="m-auto size-8 animate-spin text-gray-600 dark:text-gray-400" />
 		</div>
 	{/if}
 </div>

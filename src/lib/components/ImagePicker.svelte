@@ -1,7 +1,7 @@
 <script lang="ts">
-	import AddStarburst from 'virtual:icons/fluent-color/add-starburst-16';
-	import Image from 'virtual:icons/fluent-color/image-24';
-	import Upload from 'virtual:icons/lucide/upload';
+	import PencilAi from 'virtual:icons/octicon/pencil-ai-16';
+	import Image from 'virtual:icons/octicon/image-16';
+	import Upload from 'virtual:icons/octicon/upload-16';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
 	import {
@@ -186,7 +186,7 @@
 					for="image-new"
 					class="flex aspect-square flex-col items-center justify-center gap-2 rounded bg-slate-50 opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100 dark:bg-slate-900"
 				>
-					<AddStarburst class="size-12" />
+					<PencilAi class="size-12" />
 					<p>Generate image</p>
 				</label>
 			</div>

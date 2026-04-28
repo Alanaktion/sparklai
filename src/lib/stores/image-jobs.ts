@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { get, writable } from 'svelte/store';
+import { writable } from 'svelte/store';
 
 export type ImageJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
 
@@ -416,22 +416,6 @@ export function initImageJobTracker() {
 	}
 	initialized = true;
 	hydrateJobs();
-}
-
-export function trackImageJob(jobId: number, options?: { label?: string }) {
-	initImageJobTracker();
-
-	const existing = get(imageJobsStore).find((job) => job.id === jobId);
-	if (!existing) {
-		imageJobsStore.update((jobs) => [
-			createTrackedJob(jobId, 'queued', {
-				label: options?.label || 'Image generation'
-			}),
-			...jobs
-		]);
-	}
-
-	return pollImageJob(jobId, options?.label);
 }
 
 export function trackImageJobResponse(

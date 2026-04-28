@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Check from 'virtual:icons/lucide/check';
-	import Loader from 'virtual:icons/lucide/loader';
-	import TriangleAlert from 'virtual:icons/lucide/triangle-alert';
-	import X from 'virtual:icons/lucide/x';
+	import Check from 'virtual:icons/octicon/check-16';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
+	import TriangleAlert from 'virtual:icons/octicon/alert-16';
+	import X from 'virtual:icons/octicon/x-16';
 	import { dismissImageJob, imageJobs, initImageJobTracker } from '$lib/stores/image-jobs';
 	import type { ImageJobStatus, TrackedImageJob } from '$lib/stores/image-jobs';
 

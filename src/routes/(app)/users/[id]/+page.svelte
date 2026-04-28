@@ -9,11 +9,10 @@
 		failImageJobRequest,
 		replaceImageJobRequest,
 		startImageJobRequest,
-		trackImageJob,
 		type ImageGenerationJobResponse
 	} from '$lib/stores/image-jobs';
-	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
-	import Loader from 'virtual:icons/lucide/loader';
+	import PencilAi from 'virtual:icons/octicon/pencil-ai-16';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import type { PageProps } from './$types';
 	import { getUserProfileContext } from '$lib/user-profile-context';
 
@@ -45,38 +44,6 @@
 	function finishPendingJob(jobId: number) {
 		pendingImageJobIds = pendingImageJobIds.filter((id) => id !== jobId);
 		recentlyQueuedImageJobIds = recentlyQueuedImageJobIds.filter((id) => id !== jobId);
-	}
-
-	function trackPendingImageJob(jobId: number, postId: number) {
-		trackPendingJob(jobId);
-		imageJobError = '';
-
-		void trackImageJob(jobId, { label: 'Post image' })
-			.then((job) => {
-				if (job.status === 'completed' && job.image_id) {
-					if (job.image && !profileState.images.some((image) => image.id === job.image!.id)) {
-						profileState.images = [...profileState.images, job.image];
-					}
-					posts = posts.map((post) =>
-						post.id === postId
-							? {
-									...post,
-									image_id: job.image_id
-								}
-							: post
-					);
-					return;
-				}
-				if (job.status === 'failed') {
-					imageJobError = job.error || 'Image generation failed';
-				}
-			})
-			.catch(() => {
-				imageJobError = 'Unable to check image generation status';
-			})
-			.finally(() => {
-				finishPendingJob(jobId);
-			});
 	}
 
 	const newPost = (event: Event) => {
@@ -166,7 +133,7 @@
 			class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 		>
 			<span class="sr-only">Add AI post</span>
-			<SlideTextSparkle class="size-4" />
+			<PencilAi class="size-4" />
 		</button>
 		<Dialog title="Add AI post" bind:open>
 			<form class="grid gap-2" onsubmit={newPost} method="POST">

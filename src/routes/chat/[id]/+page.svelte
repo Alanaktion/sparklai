@@ -8,10 +8,10 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import ChatMessage from '$lib/components/ChatMessage.svelte';
 	import Dialog from '$lib/components/base/dialog.svelte';
-	import Info from 'virtual:icons/lucide/info';
-	import Loader from 'virtual:icons/lucide/loader';
-	import Send from 'virtual:icons/fluent-color/send-24';
-	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
+	import Info from 'virtual:icons/octicon/info-24';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
+	import Send from 'virtual:icons/octicon/paper-airplane-24';
+	import CommentAi from 'virtual:icons/octicon/comment-ai-24';
 	import { resolve } from '$app/paths';
 
 	let { data }: PageProps = $props();
@@ -218,7 +218,7 @@
 				class="cursor-pointer rounded p-1 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 				aria-label="Trigger AI response"
 			>
-				<SlideTextSparkle class="size-5" />
+				<CommentAi class="size-5" />
 			</button>
 		{/if}
 		<!-- svelte-ignore a11y_autofocus -->

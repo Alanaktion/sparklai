@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Select from '$lib/components/base/select.svelte';
-	import ChatMultiple from 'virtual:icons/fluent-color/chat-multiple-24';
-	import Image from 'virtual:icons/fluent-color/image-24';
+	import ChatMultiple from 'virtual:icons/octicon/comment-discussion-24';
+	import Image from 'virtual:icons/octicon/image-24';
 
 	type ChatModel = {
 		id: string;
@@ -227,7 +227,7 @@
 		<Select
 			bind:value={chat_model}
 			onchange={onchange_chat}
-			class="max-w-60 text-sm"
+			class="max-w-50 text-sm"
 			disabled={isLoading || isSaving}
 		>
 			{#each chat_models as model (model.id)}
@@ -259,8 +259,6 @@
 					<option value={model.model_name}>{model.model_name}</option>
 				{/each}
 			</Select>
-		{:else}
-			<span class="text-xs text-gray-400 dark:text-gray-500">{sd_backend}</span>
 		{/if}
 	{/if}
 </div>

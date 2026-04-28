@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Aperture from 'virtual:icons/lucide/aperture';
-	import Upload from 'virtual:icons/lucide/upload';
+	import Aperture from 'virtual:icons/octicon/pencil-16';
+	import Upload from 'virtual:icons/octicon/upload-16';
 	import Avatar from './Avatar.svelte';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';

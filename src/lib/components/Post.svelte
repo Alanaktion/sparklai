@@ -2,8 +2,8 @@
 	import { formatDate, localDateTime } from '$lib';
 	import { looksNonEnglish } from '$lib/language';
 	import { parseInlineItalics } from '$lib/text';
-	import CommentMultiple from 'virtual:icons/fluent-color/comment-multiple-24';
-	import ChevronDown from 'virtual:icons/lucide/chevron-down';
+	import CommentMultiple from 'virtual:icons/octicon/comment-discussion-24';
+	import ChevronDown from 'virtual:icons/octicon/chevron-down-16';
 	import { onMount, tick } from 'svelte';
 	import Avatar from './Avatar.svelte';
 	import PostImage from './PostImage.svelte';

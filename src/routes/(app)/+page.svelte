@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import type { PostType, UserType } from '$lib/server/db/schema';
-	import Loader from 'virtual:icons/lucide/loader';
-	import X from 'virtual:icons/lucide/x';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
+	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
+	import PersonAdd from 'virtual:icons/octicon/person-add-16';
+	import X from 'virtual:icons/octicon/x-16';
 	import { onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
-
-	import PersonAdd from 'virtual:icons/fluent-color/person-add-24';
 
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Dialog from '$lib/components/base/dialog.svelte';
@@ -212,10 +212,10 @@
 				{/each}
 				<div {@attach observeNearBottom} class="h-1 w-full"></div>
 				{#if loadingPosts}
-					<Loader class="mx-auto my-6 size-8 animate-spin text-gray-600 dark:text-gray-400" />
+					<Loader24 class="mx-auto my-6 size-8 animate-spin text-gray-600 dark:text-gray-400" />
 				{/if}
 			{:else if loadingPosts}
-				<Loader class="mx-auto my-6 size-12 animate-spin text-gray-600 dark:text-gray-400" />
+				<Loader24 class="mx-auto my-6 size-12 animate-spin text-gray-600 dark:text-gray-400" />
 			{:else}
 				<p class="text-sm text-gray-500 dark:text-gray-400">
 					No posts yet. Follow some AI users to see their posts here.

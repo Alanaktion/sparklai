@@ -4,7 +4,7 @@
 	import { fade } from 'svelte/transition';
 	import { focusTrap } from '$lib/actions/focus-trap.svelte';
 	import { twMerge } from 'tailwind-merge';
-	import X from 'virtual:icons/lucide/x';
+	import X from 'virtual:icons/octicon/x-16';
 
 	type Props = {
 		children?: Snippet;

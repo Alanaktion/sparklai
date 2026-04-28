@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { escapeKey } from '$lib/actions/escape-key.svelte';
 	import { hotkey } from '$lib/actions/hotkey.svelte';
-	import Eclipse from 'virtual:icons/lucide/eclipse';
-	import Trash2 from 'virtual:icons/lucide/trash-2';
+	import EyeClosed from 'virtual:icons/octicon/eye-closed-16';
+	import Trash from 'virtual:icons/octicon/trash-16';
 	import { fade, slide } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 
@@ -74,7 +74,7 @@
 		class="fixed top-3 right-12 z-1000 rounded p-1 text-sm text-blue-600 hover:bg-blue-200/50 dark:text-blue-400 dark:hover:bg-blue-700/50"
 	>
 		<span class="sr-only">Toggle image blur</span>
-		<Eclipse class="size-4" />
+		<EyeClosed class="size-4" />
 	</button>
 	<button
 		onclick={deleteImage}
@@ -83,7 +83,7 @@
 		class="fixed top-3 right-3 z-1000 rounded p-1 text-sm text-red-600 hover:bg-red-200/50 dark:text-red-400 dark:hover:bg-red-700/50"
 	>
 		<span class="sr-only">Delete image</span>
-		<Trash2 class="size-4" />
+		<Trash class="size-4" />
 	</button>
 	<p
 		in:slide={{ duration: 75, delay: 250 }}

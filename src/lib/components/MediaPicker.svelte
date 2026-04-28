@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Video from 'virtual:icons/fluent-color/video-24';
-	import Upload from 'virtual:icons/lucide/upload';
+	import Video from 'virtual:icons/octicon/video-16';
+	import Upload from 'virtual:icons/octicon/upload-16';
 	import Dialog from './base/dialog.svelte';
 	import { resolve } from '$app/paths';
 

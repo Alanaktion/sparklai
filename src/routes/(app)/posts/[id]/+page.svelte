@@ -10,10 +10,11 @@
 	import ImagePicker from '$lib/components/ImagePicker.svelte';
 	import MediaPicker from '$lib/components/MediaPicker.svelte';
 	import Post from '$lib/components/Post.svelte';
-	import DismissCircle from 'virtual:icons/fluent-color/dismiss-circle-16';
-	import ImageOff from 'virtual:icons/fluent-color/image-off-24';
-	import SlideTextSparkle from 'virtual:icons/fluent-color/slide-text-sparkle-24';
-	import Loader from 'virtual:icons/lucide/loader';
+	import DismissCircle from 'virtual:icons/octicon/x-circle-16';
+	import ImageOff from 'virtual:icons/octicon/boolean-off-16';
+	import CommentAi from 'virtual:icons/octicon/comment-ai-16';
+	import Loader from 'virtual:icons/octicon/issue-draft-16';
+	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 
 	import type { PostType, UserType } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';
@@ -90,7 +91,7 @@
 			comments = comments.filter((comment) => comment.id !== id);
 		});
 	}
-	function detatchImage() {
+	function detachImage() {
 		fetch(resolve(`/posts/${data.id}`), {
 			method: 'PATCH',
 			body: JSON.stringify({ image_id: null })
@@ -99,7 +100,7 @@
 		});
 	}
 
-	function detatchMedia() {
+	function detachMedia() {
 		fetch(resolve(`/posts/${data.id}`), {
 			method: 'PATCH',
 			body: JSON.stringify({ media_id: null })
@@ -174,11 +175,12 @@
 					<ImagePicker {post} images={postImages} onPostImageChange={handlePostImageChange} />
 				{:else}
 					<button
-						onclick={detatchImage}
+						onclick={detachImage}
 						type="button"
 						class="rounded p-1 text-sm text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-800"
+						title="Detach image"
 					>
-						<span class="sr-only">Detatch image</span>
+						<span class="sr-only">Detach image</span>
 						<ImageOff class="size-4" />
 					</button>
 				{/if}
@@ -186,11 +188,12 @@
 					<MediaPicker {post} mediaItems={postMedia} onPostMediaChange={handlePostMediaChange} />
 				{:else}
 					<button
-						onclick={detatchMedia}
+						onclick={detachMedia}
 						type="button"
 						class="rounded p-1 text-sm text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-800"
+						title="Detach media"
 					>
-						<span class="sr-only">Detatch media</span>
+						<span class="sr-only">Detach media</span>
 						<DismissCircle class="size-4" />
 					</button>
 				{/if}
@@ -199,6 +202,7 @@
 					use:hotkey={{ code: 'Digit3', shiftKey: true, onKeydown: deletePost }}
 					type="button"
 					class="rounded p-1 text-sm text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-800"
+					title="Delete post (Shift + 3)"
 				>
 					<span class="sr-only">Delete post</span>
 					<DismissCircle class="size-4" />
@@ -277,7 +281,7 @@
 							class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 						>
 							<span class="sr-only">Add AI comment</span>
-							<SlideTextSparkle class="size-4" />
+							<CommentAi class="size-4" />
 						</button>
 						<Dropdown bind:open placement="left">
 							<DropdownOption onclick={() => respond()}>Random User</DropdownOption>
@@ -315,5 +319,5 @@
 		</div>
 	</div>
 {:else}
-	<Loader class="mx-auto my-6 size-12 animate-spin text-gray-600 dark:text-gray-400" />
+	<Loader24 class="mx-auto my-6 size-12 animate-spin text-gray-600 dark:text-gray-400" />
 {/if}
