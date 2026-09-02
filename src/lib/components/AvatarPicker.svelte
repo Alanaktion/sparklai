@@ -3,7 +3,6 @@
 	import Upload from 'virtual:icons/octicon/upload-16';
 	import Avatar from './Avatar.svelte';
 	import Dialog from './base/dialog.svelte';
-	import { resolve } from '$app/paths';
 	import type { ImageType, UserType } from '$lib/server/db/schema';
 
 	const { user, images, onAvatarChange } = $props<{
@@ -41,7 +40,7 @@
 		formData.append('file', file);
 
 		try {
-			const response = await fetch(resolve(`/users/${user.id}/image`), {
+			const response = await fetch(`/api/users/${user.id}/image`, {
 				method: 'POST',
 				body: formData
 			});

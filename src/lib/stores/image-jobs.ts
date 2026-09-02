@@ -297,7 +297,7 @@ async function syncActiveJobsFromServer() {
 	}
 
 	try {
-		const response = await fetch('/image-jobs');
+		const response = await fetch('/api/image-jobs');
 		if (!response.ok) {
 			throw new Error(`Unable to load image jobs (${response.status})`);
 		}
@@ -324,7 +324,7 @@ async function pollImageJob(jobId: number, label?: string): Promise<ImageGenerat
 
 	const task = (async () => {
 		while (true) {
-			const response = await fetch(`/image-jobs/${jobId}`);
+			const response = await fetch(`/api/image-jobs/${jobId}`);
 			if (!response.ok) {
 				throw new Error(`Unable to check image generation status (${response.status})`);
 			}

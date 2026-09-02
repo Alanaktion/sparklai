@@ -27,3 +27,7 @@ class PostResponse(BaseSchema):
 class PostsListResponse(BaseSchema):
     posts: list[PostResponse]
     hasMore: bool
+
+
+class PostImageUploadResponse(BaseSchema):
+    image: PostImageResponse

@@ -1,6 +1,8 @@
+import re
+
 from fastapi import UploadFile
 
-from app.db.models import Creator, Image, User
+from app.db.models import Creator, Image, ImageGenerationJob, User
 from app.exceptions import AppException, BadRequestError, NotFoundError
 from app.posts.repository import PostRepository
 from app.services import chat, image_utils
@@ -8,6 +10,60 @@ from app.services.import_character_card import CharacterCardV2, parse_character_
 from app.users.repository import UserRepository
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
+
+_ASPECT_DIMENSIONS = {
+    "portrait": (480, 640),
+    "landscape": (640, 480),
+}
+_NUMBERED_LINE_RE = re.compile(r"^\d+[.)]\s*")
+_KEYWORD_SPLIT_RE = re.compile(r"[\n|;]+")
+
+
+def _split_prompt_keywords(raw: str) -> list[str]:
+    return [part.strip() for part in _KEYWORD_SPLIT_RE.sub(",", raw).split(",") if part.strip()]
+
+
+def _normalize_generated_prompt(raw: str) -> str:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for part in _split_prompt_keywords(raw):
+        key = part.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(part)
+    return ", ".join(unique[:12]) if unique else raw.strip()
+
+
+def _build_user_profile_text(user: User) -> str:
+    lines = [f"Name: {user.name}, age {user.age} ({user.pronouns})"]
+    if user.bio:
+        lines.append(f"Bio: {user.bio}")
+    if user.backstory:
+        lines.append(f"Backstory: {user.backstory}")
+    if user.occupation:
+        lines.append(f"Occupation: {user.occupation}")
+    if user.location:
+        loc = ", ".join(
+            filter(
+                None,
+                [
+                    user.location.get("city"),
+                    user.location.get("state_province"),
+                    user.location.get("country"),
+                ],
+            )
+        )
+        if loc:
+            lines.append(f"Location: {loc}")
+    if user.interests:
+        interests = ", ".join(user.interests) if isinstance(user.interests, list) else user.interests
+        lines.append(f"Interests: {interests}")
+    if user.personality_traits:
+        lines.append(f"Personality: {user.personality_traits}")
+    if user.appearance:
+        lines.append(f"Appearance: {user.appearance}")
+    return "\n".join(lines)
 
 
 class UserService:
@@ -147,3 +203,92 @@ class UserService:
         if not inserted:
             raise BadRequestError("No valid files uploaded")
         return inserted
+
+    async def upload_avatar(self, user_id: int, contents: bytes) -> Image:
+        """Port of the multipart-upload half of `users/[id]/image/+server.ts` — sets the upload
+        directly as the user's avatar, unlike `upload_images()`'s gallery-only bulk upload."""
+        user = await self.get_by_id_or_raise(user_id)
+        if len(contents) > MAX_UPLOAD_BYTES:
+            raise AppException(
+                message="File too large (max 10MB)",
+                error_code="PAYLOAD_TOO_LARGE",
+                status_code=413,
+            )
+        try:
+            webp_data = image_utils.to_webp(contents)
+        except Exception as exc:
+            raise BadRequestError("Invalid image file") from exc
+        image = await self._repository.add_image(user_id=user.id, data=webp_data)
+        await self._repository.update(user, {"image_id": image.id})
+        return image
+
+    async def generate_avatar(
+        self, user_id: int, *, prompt: str, aspect: str, count: int
+    ) -> list[ImageGenerationJob]:
+        """Port of the AI-generation half of `users/[id]/image/+server.ts` — queues 1-5 profile
+        picture jobs, either from an explicit `prompt` or (when blank) one LLM-written per photo,
+        extracted from the user's own profile/appearance text."""
+        user = await self.get_by_id_or_raise(user_id)
+        set_user_image = prompt == ""
+
+        if prompt == "":
+            profile = _build_user_profile_text(user)
+            if count == 1:
+                llm_prompt = (
+                    "Generate a Stable Diffusion image prompt for a natural-looking profile photo "
+                    "of this person.\n"
+                    "Choose an authentic setting and activity that genuinely reflects their "
+                    "personality, interests, and lifestyle.\n"
+                    "Extract the specific appearance details from their description — hair color "
+                    "and style, eye color, skin tone, body type, clothing style, distinctive "
+                    "features — and include them as the first keywords so the generated image "
+                    "accurately depicts how this person actually looks.\n"
+                    "Return a comma-separated keyword list of 8-12 items ordered: appearance "
+                    "details first, then setting and activity, then mood and lighting.\n"
+                    "No prose, no numbering — just the keyword list.\n\n" + profile
+                )
+                prompts = [_normalize_generated_prompt(await chat.completion(llm_prompt))]
+            else:
+                llm_prompt = (
+                    f"Generate exactly {count} distinct Stable Diffusion image prompts for "
+                    "profile photos of this person.\n"
+                    "Each should depict a completely different setting, activity, and mood — draw "
+                    "from a variety of real moments in their life.\n"
+                    "Every prompt must include the same core appearance keywords (hair, eye "
+                    "color, skin tone, body type) so the person looks consistent across all "
+                    "photos — vary only the setting, activity, and mood.\n"
+                    'Format: one comma-separated keyword list per line, numbered "1.", "2.", '
+                    "etc. Each list: 8-12 keywords. No prose beyond the numbered format.\n\n"
+                    + profile
+                )
+                raw = await chat.completion(llm_prompt)
+                prompts = []
+                for line in raw.split("\n"):
+                    cleaned = _NUMBERED_LINE_RE.sub("", line).strip()
+                    normalized = _normalize_generated_prompt(cleaned) if cleaned else ""
+                    if normalized:
+                        prompts.append(normalized)
+                prompts = prompts[:count]
+                while len(prompts) < count:
+                    prompts.append(prompts[0] if prompts else "portrait photo")
+        else:
+            prompts = [prompt] * count
+
+        width, height = _ASPECT_DIMENSIONS.get(aspect, (512, 512))
+
+        jobs = []
+        for one_prompt in prompts:
+            jobs.append(
+                await self._repository.enqueue_image_job(
+                    user_id=user.id,
+                    target="user_image",
+                    prompt=one_prompt,
+                    negative_prompt=None,
+                    width=width,
+                    height=height,
+                    include_default_prompt=True,
+                    image_style="photo",
+                    set_as_user_image=set_user_image,
+                )
+            )
+        return jobs

@@ -36,7 +36,7 @@
 		chats = [];
 		message = '';
 		loadingChats = true;
-		fetch(resolve(`/api/users/${user.id}/chat/messages`))
+		fetch(`/api/users/${user.id}/chat/messages`)
 			.then((r) => r.json())
 			.then((result) => {
 				chats = result as ChatMessageType[];
@@ -73,7 +73,7 @@
 
 	function respond() {
 		responding = true;
-		fetch(resolve(`/api/users/${user.id}/chat/respond`), { method: 'POST' })
+		fetch(`/api/users/${user.id}/chat/respond`, { method: 'POST' })
 			.then((r) => r.json())
 			.then((body) => {
 				responding = false;
@@ -92,7 +92,7 @@
 		clearTimeout(timeoutId);
 		startingNewConversation = true;
 		try {
-			const response = await fetch(resolve(`/api/users/${user.id}/chat/new-conversation`), {
+			const response = await fetch(`/api/users/${user.id}/chat/new-conversation`, {
 				method: 'POST'
 			});
 			if (!response.ok) {
@@ -109,17 +109,15 @@
 	}
 
 	function delete_message(chat: ChatMessageType) {
-		fetch(resolve(`/api/users/${user.id}/chat/messages/${chat.id}`), { method: 'DELETE' }).then(
-			() => {
-				chats = chats.filter((c) => c.id !== chat.id);
-			}
-		);
+		fetch(`/api/users/${user.id}/chat/messages/${chat.id}`, { method: 'DELETE' }).then(() => {
+			chats = chats.filter((c) => c.id !== chat.id);
+		});
 	}
 
 	let message = $state('');
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
-		fetch(resolve(`/api/users/${user.id}/chat/messages`), {
+		fetch(`/api/users/${user.id}/chat/messages`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ message })

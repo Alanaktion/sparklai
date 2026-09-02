@@ -52,39 +52,6 @@ vi.mock('$lib/server/sd', () => ({
 	supportsModelSelection: vi.fn().mockReturnValue(true)
 }));
 
-// Mock the SD jobs module - provides fake image generation jobs
-vi.mock('$lib/server/sd/jobs', () => ({
-	enqueueImageJob: vi.fn().mockResolvedValue({
-		id: 1,
-		status: 'queued',
-		user_id: 1,
-		post_id: null,
-		image_id: null,
-		provider: 'automatic1111',
-		target: 'post_generation',
-		image_style: 'photo',
-		prompt: 'test prompt',
-		negative_prompt: null,
-		width: 512,
-		height: 512,
-		include_default_prompt: true,
-		set_as_user_image: false,
-		provider_job_id: null,
-		provider_metadata: null,
-		error: null,
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-		started_at: null,
-		completed_at: null,
-		image: null
-	}),
-	ensureImageJobRunning: vi.fn(),
-	getImageGenerationJob: vi.fn()
-}));
-
-// Mock image-utils so sharp is not needed in tests
-vi.mock('$lib/server/image-utils', () => ({
-	toWebp: vi
-		.fn()
-		.mockImplementation((input: Buffer | Uint8Array) => Promise.resolve(Buffer.from(input)))
-}));
+// `$lib/server/sd/jobs` (the image-generation job queue) and `$lib/server/image-utils` (toWebp)
+// no longer have any SvelteKit-side consumers — both ported to the FastAPI backend (see
+// BACKEND_MIGRATION.md) — so their mocks were removed along with the modules themselves.

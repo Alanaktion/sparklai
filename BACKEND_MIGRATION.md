@@ -34,7 +34,7 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   discards every remaining `+server.ts` endpoint's code_ rather than erroring (only genuinely
   prerendered pages and the `index.html` fallback shell survive; `find build -type d` shows no
   page directories at all, everything is fallback-only). That means the cutover can't be validated
-  by "does it build" — it has to wait for every item below to actually be gone, per item 5.
+  by "does it build" — it has to wait for every item below to actually be gone, per item 4.
 - **AI user profile management**: `GET /api/users/{id}` (the whole profile-page bundle: user +
   `isOwner` + posts + gallery images + relationships, in one call — port of
   `users/[id]/+layout.server.ts`), `PATCH`/`DELETE /api/users/{id}` (now enforces the requesting
@@ -42,11 +42,8 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   the edit page's own `+page.server.ts` gated on `isOwner` client-side; see `users/router.py`),
   `POST /api/users/{id}/posts` (generate post for a specific user), `POST /api/users/{id}/images`
   (bulk gallery upload, port of `image-utils.ts`'s `toWebp()` → Pillow in
-  `app/services/image_utils.py`). The singular, dual-purpose `POST /users/{id}/image` (quick
-  avatar upload _or_ SD-prompt generation, depending on content-type) is deliberately **not**
-  ported — splitting one path's upload half onto FastAPI while its SD half stays on SvelteKit
-  would need per-request-body-shape proxy routing for no real benefit; it moves whole once SD
-  lands (item 1 below).
+  `app/services/image_utils.py`). The singular, dual-purpose `POST /api/users/{id}/image` (quick
+  avatar upload _or_ SD-prompt generation) landed with the Stable Diffusion port below.
 - **Binary serving**: `GET/PATCH/DELETE /api/images/{id}` and `/api/media/{id}`.
 - **Comments**: `POST /api/posts/comments` (random-post/random-author AI comment, port of the
   oddly-placed `posts/comments/+server.ts`), `POST /api/posts/{id}/comments` (plain user comment —
@@ -78,30 +75,63 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   pre-existing `todo.txt` item (per-pairing DM prompt overrides — currently `additional_prompt` is
   one value per AI user, not per creator/user pairing) is **not** addressed by this pass; it's
   unrelated to the migration itself and still open.
+- **Stable Diffusion / image generation**: Automatic1111/ComfyUI clients ported to
+  `app/services/sd/client.py` (port of `sd/index.ts` — no mutable module-level "current
+  style"/"current model" default; see that file's docstring for why, and for the one deliberately
+  _local_, non-shared cache it does keep). The in-memory `Map`-based job queue (`sd/jobs.ts`)
+  became `app/services/sd/jobs.py`: `asyncio.create_task` per job, each with its own DB session
+  (`database.async_session_factory()`, not the request's — a background task outlives the
+  request), plus `recover_pending_jobs()` called from `main.py`'s startup to re-attach any
+  `queued`/`processing` rows left over from a previous process. New `app/image_jobs/` entity for
+  `GET /api/image-jobs` (creator's in-flight jobs) and `GET /api/image-jobs/{id}`. The dual-purpose
+  `POST /api/users/{id}/image` (upload avatar directly, or queue 1-5 AI-generated ones) and
+  `POST /api/posts/{id}/image` (upload directly, or queue one AI-concept-generated one via the new
+  `post_image` `schema_completion` variant) landed in `users/router.py` / `posts/router.py`.
+  `posts/service.py`'s `generate_post_for_user()` now actually enqueues a job when
+  `response["image_generation"]` is present, instead of just logging and skipping. Not ported: the
+  `SD_DEBUG_LOG` request/response file-logging hook (dev-only debugging aid, not user-facing
+  behavior).
+  **Also fixed while here** (found via `pnpm check`, not part of the SD port itself): deleting the
+  now-fully-ported-or-dead SvelteKit routes below removed a same-shape catch-all route
+  (`(app)/[id]/+server.ts`, a byte-for-byte duplicate of `image-jobs/[id]/+server.ts` at the bare
+  path `/[id]`) that had been silently widening `resolve()`'s generated type enough to accept
+  _any_ interpolated-string route argument — masking that a bunch of `fetch()` calls elsewhere
+  (`CreatorSwitcher.svelte`, `MediaPicker.svelte`, `ImagePicker.svelte`'s image-thumbnail `src`,
+  from earlier sessions of this same migration) were passing pre-built path strings to `resolve()`,
+  which isn't actually valid for parameterized routes. Fixed every such call by dropping the
+  `resolve()` wrapper (matching `Image.svelte`'s existing plain-string precedent — `resolve()` is
+  for typed internal navigation, not arbitrary fetch targets to begin with) rather than switching
+  to `resolve()`'s tuple-args form, which doesn't apply to `/api/*` paths anyway (they aren't
+  SvelteKit page routes). Two of those turned out to be genuine, unrelated bugs rather than just
+  type noise: `ImagePicker.svelte`'s thumbnail `src` and `MediaPicker.svelte`'s `<source>` `src`
+  were both still pointing at the bare `/images/{id}` / `/media/{id}` paths deleted back in the
+  "Binary serving" pass (should've been `/api/images/{id}` / `/api/media/{id}`), and
+  `users/[id]/edit/+page.svelte`'s "Save Changes" button was PATCHing bare `/users/{id}` (deleted
+  in the "AI user profile management" pass) instead of `/api/users/{id}` — the edit form's save
+  button has been silently broken since that pass landed. All three now fixed alongside the type
+  errors that surfaced them.
+  Also deleted as fully dead code (zero remaining importers once the above landed):
+  `src/lib/server/index.ts` (`generatePost`/`generateComment`, both long superseded — the
+  home-feed and comments passes moved every caller to FastAPI already, this just hadn't been
+  swept up yet) and `src/lib/server/image-utils.ts` (`toWebp`, superseded by
+  `app/services/image_utils.py`).
 
 ## Not done yet — port in roughly this order
 
 Each item: the SvelteKit source to retire, the pattern to reuse.
 
-1. **Stable Diffusion / image generation** — `src/lib/server/sd/**`, the singular
-   `users/[id]/image`, `posts/[id]/image`, `image-jobs/**`. Port the Automatic1111/ComfyUI
-   clients, then replace the in-memory `Map`-based job queue (`sd/jobs.ts`) with the asyncio-based
-   runner + DB-backed status described in the original plan (in-process `asyncio.create_task`,
-   startup recovery of `queued`/`processing` rows — no Celery/Redis). Wire `posts/service.py`'s
-   `generate_post_for_user()` to actually enqueue a job when `response["image_generation"]` is
-   present (currently just logs and skips — see that function's docstring).
-2. **Model/style preferences** — `(app)/models/+server.ts`. Replace
+1. **Model/style preferences** — `(app)/models/+server.ts`. Replace
    `model-preferences.ts`'s per-request global mutation with per-request resolution (cookie/header
    read → passed as a parameter), for both chat model and SD style/model — same fix already
-   applied to the chat client in this pass.
-3. **Dream/memory** — `api/users/[id]/dream/+server.ts`.
-4. **Individual post page** — `posts/[id]/+page.server.ts` (the loader itself: post + comments +
+   applied to the chat client, and designed into `app/services/sd/client.py` from the start (see
+   that file's docstring for the extension point).
+2. **Dream/memory** — `api/users/[id]/dream/+server.ts`.
+3. **Individual post page** — `posts/[id]/+page.server.ts` (the loader itself: post + comments +
    user + creator's other images/media/users, still on Drizzle), `posts/[id]/+server.ts`
    (PATCH/DELETE the post), `posts/[id]/translate/+server.ts` (same
-   `chat.translate_to_english()` this pass added for comments). Not listed in earlier drafts of
-   this plan, discovered while porting comments: `posts/[id]/image` and `posts/[id]/media` overlap
-   with SD (item 1) and gallery-media upload respectively and should land with or after those.
-5. **Cleanup**, once nothing on the SvelteKit side references them any more:
+   `chat.translate_to_english()` the comments pass added). `posts/[id]/media/+server.ts`
+   (audio/video upload) can land with this too, or separately — it doesn't overlap with SD.
+4. **Cleanup**, once nothing on the SvelteKit side references them any more:
    - Delete `src/lib/server/**`, `hooks.server.ts`, `src/app.d.ts`'s `Locals.creator`.
    - Drop `drizzle-orm`, `@libsql/client`, `sharp`, and the `db:push`/`db:migrate`/`db:studio`
      scripts from `package.json`.
@@ -119,6 +149,6 @@ Each item: the SvelteKit source to retire, the pattern to reuse.
   it as more routes move over.
 - There's currently no production-equivalent of that proxy: a shared/deployed environment needs a
   reverse proxy (nginx, etc.) routing ported paths to FastAPI and everything else to the SvelteKit
-  Node server until the full cutover in item 5 above.
+  Node server until the full cutover in item 4 above.
 - Run the backend with `cd backend && uv sync --extra dev && uv run uvicorn app.main:app --reload
 --port 8000`. Tests: `cd backend && uv run pytest`. Lint: `uv run ruff check src/ tests/`.

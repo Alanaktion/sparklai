@@ -3,7 +3,6 @@
 	import Image from 'virtual:icons/octicon/image-16';
 	import Upload from 'virtual:icons/octicon/upload-16';
 	import Dialog from './base/dialog.svelte';
-	import { resolve } from '$app/paths';
 	import {
 		failImageJobRequest,
 		replaceImageJobRequest,
@@ -53,7 +52,7 @@
 			label: 'Post image',
 			phase: 'prompt'
 		});
-		fetch(`/posts/${post.id}/image`, { method: 'POST' })
+		fetch(`/api/posts/${post.id}/image`, { method: 'POST' })
 			.then(async (response) => {
 				if (!response.ok) {
 					throw new Error('Image generation request failed');
@@ -117,7 +116,7 @@
 		formData.append('file', file);
 
 		try {
-			const response = await fetch(resolve(`/posts/${post.id}/image`), {
+			const response = await fetch(`/api/posts/${post.id}/image`, {
 				method: 'POST',
 				body: formData
 			});
@@ -164,7 +163,7 @@
 						class="block overflow-hidden rounded opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
 					>
 						<img
-							src={resolve(`/images/${image.id}`)}
+							src={`/api/images/${image.id}`}
 							class={[
 								'aspect-square object-cover',
 								image.blur && 'blur-lg transition hover:blur-none'

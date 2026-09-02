@@ -29,9 +29,25 @@ class Settings(BaseSettings):
     chat_model: str = ""
     chat_api_key: str = "no-key"
 
-    # Stable Diffusion (not yet consumed here — see BACKEND_MIGRATION.md item 4)
+    # Stable Diffusion (Automatic1111 or ComfyUI — see `app/services/sd/`). `sd_url` is the base
+    # URL for whichever backend is selected: an Automatic1111 `.../sdapi/v1/` root, or a bare
+    # ComfyUI server root (e.g. `http://host:8188/`) — same dual-purpose env var as the original.
     sd_url: str = "http://127.0.0.1:7860/sdapi/v1/"
     sd_backend: str = "automatic1111"
+    sd_photo_model: str = ""
+    sd_photo_prompt: str = ""
+    sd_photo_negative_prompt: str = ""
+    sd_drawing_model: str = ""
+    sd_drawing_prompt: str = ""
+    sd_drawing_negative_prompt: str = ""
+    sd_stylized_model: str = ""
+    sd_stylized_prompt: str = ""
+    sd_stylized_negative_prompt: str = ""
+    sd_sdxl_model: str = ""
+    sd_sdxl_prompt: str = ""
+    sd_sdxl_negative_prompt: str = ""
+    sd_comfy_poll_interval_ms: int = 1500
+    sd_comfy_timeout_ms: int = 180000
 
     # Static SPA build output, mounted by main.py in production
     static_dir: str = "../build"

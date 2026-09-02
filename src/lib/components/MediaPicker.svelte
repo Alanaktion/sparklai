@@ -2,7 +2,6 @@
 	import Video from 'virtual:icons/octicon/video-16';
 	import Upload from 'virtual:icons/octicon/upload-16';
 	import Dialog from './base/dialog.svelte';
-	import { resolve } from '$app/paths';
 
 	type SelectableMedia = {
 		id: number;
@@ -37,7 +36,7 @@
 		if (media_id === null) {
 			return;
 		}
-		fetch(resolve(`/posts/${post.id}`), {
+		fetch(`/posts/${post.id}`, {
 			method: 'PATCH',
 			body: JSON.stringify({ media_id })
 		}).then(() => {
@@ -59,7 +58,7 @@
 		formData.append('file', file);
 
 		try {
-			const response = await fetch(resolve(`/posts/${post.id}/media`), {
+			const response = await fetch(`/posts/${post.id}/media`, {
 				method: 'POST',
 				body: formData
 			});
@@ -107,11 +106,11 @@
 					>
 						{#if item.type.startsWith('audio/')}
 							<audio controls class="w-full">
-								<source src={resolve(`/media/${item.id}`)} type={item.type} />
+								<source src={`/api/media/${item.id}`} type={item.type} />
 							</audio>
 						{:else if item.type.startsWith('video/')}
 							<video controls class="w-full">
-								<source src={resolve(`/media/${item.id}`)} type={item.type} />
+								<source src={`/api/media/${item.id}`} type={item.type} />
 							</video>
 						{/if}
 						<p class="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{item.type}</p>

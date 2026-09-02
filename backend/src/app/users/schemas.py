@@ -86,3 +86,7 @@ class PostGenerateRequest(BaseSchema):
 
 class ImageUploadResponse(BaseSchema):
     images: list[ImageSummary]
+
+
+class AvatarUploadResponse(BaseSchema):
+    image: ImageSummary

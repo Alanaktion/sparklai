@@ -3,7 +3,9 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Image, Relationship, User
+from app.db.models import Image, ImageGenerationJob, Relationship, User
+from app.services.sd import jobs as sd_jobs
+from app.services.sd.types import ImageGenerationJobTarget, SDStyle
 
 
 class UserRepository:
@@ -56,3 +58,29 @@ class UserRepository:
             select(Relationship).where(Relationship.user_id == user_id)
         )
         return result.scalars().all()
+
+    async def enqueue_image_job(
+        self,
+        *,
+        user_id: int,
+        target: ImageGenerationJobTarget,
+        prompt: str,
+        negative_prompt: str | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        include_default_prompt: bool = True,
+        image_style: SDStyle = "photo",
+        set_as_user_image: bool = False,
+    ) -> ImageGenerationJob:
+        return await sd_jobs.enqueue_image_job(
+            self._session,
+            user_id=user_id,
+            target=target,
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            width=width,
+            height=height,
+            include_default_prompt=include_default_prompt,
+            image_style=image_style,
+            set_as_user_image=set_as_user_image,
+        )

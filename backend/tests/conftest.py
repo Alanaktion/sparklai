@@ -38,12 +38,23 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture
-async def client() -> AsyncGenerator[AsyncClient, None]:
+async def client(monkeypatch: pytest.MonkeyPatch) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         async with test_session_factory() as session:
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+
+    # `app.services.sd.jobs`'s background tasks open their own session directly from
+    # `app.database.async_session_factory` (a request-scoped `get_db` override alone can't reach
+    # them — they outlive the request). Patching the module attribute here, rather than the name
+    # `jobs.py` imported, works because `jobs.py` does `from app import database` and calls
+    # `database.async_session_factory()` each time, so it always sees whatever this attribute
+    # currently is instead of a value captured once at import time.
+    import app.database as database_module
+
+    monkeypatch.setattr(database_module, "async_session_factory", test_session_factory)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()

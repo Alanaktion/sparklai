@@ -7,7 +7,6 @@
 	import { looksNonEnglish } from '$lib/language';
 	import { parseInlineItalics } from '$lib/text';
 	import Dialog from '$lib/components/base/dialog.svelte';
-	import { resolve } from '$app/paths';
 	import { twMerge } from 'tailwind-merge';
 	import Image from './Image.svelte';
 
@@ -132,7 +131,7 @@
 		translating = true;
 		try {
 			const response = await fetch(
-				resolve(`/api/users/${chat.user_id}/chat/messages/${chat.id}/translate`),
+				`/api/users/${chat.user_id}/chat/messages/${chat.id}/translate`,
 				{ method: 'POST' }
 			);
 			if (!response.ok) {

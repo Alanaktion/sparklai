@@ -160,6 +160,8 @@ class ImageGenerationJob(Base):
     started_at: Mapped[str | None] = mapped_column(Text)
     completed_at: Mapped[str | None] = mapped_column(Text)
 
+    image: Mapped["Image | None"] = relationship(lazy="selectin")
+
 
 class Relationship(Base):
     __tablename__ = "relationships"

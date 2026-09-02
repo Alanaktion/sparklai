@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { CreatorType } from '$lib/server/db/schema';
 	import Dialog from '$lib/components/base/dialog.svelte';
-	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import UserIcon from 'virtual:icons/octicon/person-16';
 	import LogOut from 'virtual:icons/octicon/sign-out-16';
@@ -44,7 +43,7 @@
 		loggingIn = true;
 		loginError = '';
 		try {
-			const res = await fetch(resolve(`/api/creators/${selectedCreator.id}`), {
+			const res = await fetch(`/api/creators/${selectedCreator.id}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ pin })
@@ -63,7 +62,7 @@
 	};
 
 	const logout = async () => {
-		await fetch(resolve('/api/creators/session'), { method: 'DELETE' });
+		await fetch('/api/creators/session', { method: 'DELETE' });
 		await invalidateAll();
 	};
 
@@ -73,7 +72,7 @@
 		creating = true;
 		createError = '';
 		try {
-			const res = await fetch(resolve('/api/creators'), {
+			const res = await fetch('/api/creators', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ name: newName.trim(), pronouns: newPronouns.trim(), pin: newPin })
@@ -86,7 +85,7 @@
 				newPronouns = 'they/them';
 				newPin = '';
 				// auto-login the new creator
-				await fetch(resolve(`/api/creators/${creator.id}`), {
+				await fetch(`/api/creators/${creator.id}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ pin: savedPin })

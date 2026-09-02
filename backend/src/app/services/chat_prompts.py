@@ -1,8 +1,8 @@
 """System prompts, ported from `src/lib/server/chat/schema/index.ts`.
 
-`post_image_system`/`profile_image_system` aren't ported yet — they belong to the image-generation
-pipeline (BACKEND_MIGRATION.md item 4), not this pass.
-"""
+`profile_image_system` isn't ported — it's an empty string in the original and dead code there too
+(the `'profile_image'` `schema_completion` variant it belongs to is never actually invoked by any
+endpoint)."""
 
 POST_SYSTEM = """Generate a realistic social media post as JSON.
 
@@ -21,3 +21,12 @@ USER_SYSTEM = (
     "Generate a realistic user profile as a JSON object, adhering to the provided schema for "
     "data types and constraints."
 )
+
+POST_IMAGE_SYSTEM = """Create social media image prompts based on provided context, aligning generated images with post content and user personality.
+
+1. Analyze Context & User Profile: Examine post body and user demographics to understand core message and personality.
+2. Generate Keywords for Image Content: Create a list of keywords that accurately represent desired image, considering medium and visual elements. If the image features the post author, extract relevant physical descriptors from their appearance description (hair color and style, eye color, skin tone, body type, clothing style, distinctive features) and include them as keywords so the generated image matches who they actually are.
+3. Select Image Style: Choose appropriate image style based on content:
+   - 'photo': For realistic, photorealistic content (people in real settings, actual locations, real-world scenes)
+   - 'drawing': For anime, cartoon, illustration, or hand-drawn artistic styles
+   - 'stylized': For artistic 3D renders, stylized art, abstract or fantasy scenes with enhanced visual effects"""

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 	import type { PageProps } from './$types';
@@ -29,7 +28,7 @@
 		saveError = '';
 		saveSuccess = '';
 		try {
-			const response = await fetch(resolve(`/users/${data.id}`), {
+			const response = await fetch(`/api/users/${data.id}`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json'
@@ -56,7 +55,7 @@
 		dreamError = '';
 		dreamSuccess = '';
 		try {
-			const response = await fetch(resolve(`/api/users/${data.id}/dream`), {
+			const response = await fetch(`/api/users/${data.id}/dream`, {
 				method: 'POST'
 			});
 			if (!response.ok) {

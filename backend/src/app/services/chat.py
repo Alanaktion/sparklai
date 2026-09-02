@@ -13,18 +13,19 @@ from typing import Literal, TypedDict
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.services.chat_prompts import POST_SYSTEM, USER_SYSTEM
+from app.services.chat_prompts import POST_IMAGE_SYSTEM, POST_SYSTEM, USER_SYSTEM
 from app.services.schema_loader import load_schema
 
 _TEMPERATURE = 0.7
 
 _client = AsyncOpenAI(api_key=settings.chat_api_key or "no-key", base_url=settings.chat_url)
 
-SchemaName = Literal["post", "user"]
+SchemaName = Literal["post", "user", "post_image"]
 
 _SCHEMAS: dict[SchemaName, tuple[dict, str]] = {
     "post": (load_schema("post.schema.json"), POST_SYSTEM),
     "user": (load_schema("user.schema.json"), USER_SYSTEM),
+    "post_image": (load_schema("post_image.schema.json"), POST_IMAGE_SYSTEM),
 }
 
 

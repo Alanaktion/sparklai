@@ -1,30 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-	completion,
-	fetch_models as fetchChatModels,
-	get_model as getChatModel,
-	schema_completion
-} from '$lib/server/chat';
-import { enqueueImageJob } from '$lib/server/sd/jobs';
+import { fetch_models as fetchChatModels, get_model as getChatModel } from '$lib/server/chat';
 import {
 	fetch_models as fetchSdModels,
 	init as initSdModel,
 	init_style as initSdStyle
 } from '$lib/server/sd';
-import { toWebp } from '$lib/server/image-utils';
-import { db } from '$lib/server/db';
-import { images, posts, users } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
-import { POST as generateUserImage } from '../routes/(app)/users/[id]/image/+server';
-import { POST as generatePostImage } from '../routes/(app)/posts/[id]/image/+server';
 import { GET as getModels, POST as setModels } from '../routes/(app)/models/+server';
-import {
-	cleanDatabase,
-	createTestCreator,
-	createTestUser,
-	createTestPost,
-	sampleAIPostImageResponse
-} from './helpers';
+import { cleanDatabase } from './helpers';
+
+// "POST /users/[id]/image", "POST /posts/[id]/image" (generate + upload), and the image-jobs
+// queue moved to the FastAPI backend (backend/tests/test_image_jobs.py,
+// backend/tests/test_image_generation_endpoints.py) — see BACKEND_MIGRATION.md. "GET/PATCH/DELETE
+// /images/[id]" moved earlier still (backend/tests/test_images_media.py).
 
 function createCookieJar(initial: Record<string, string> = {}) {
 	const jar = new Map(Object.entries(initial));
@@ -39,147 +26,6 @@ function createCookieJar(initial: Record<string, string> = {}) {
 		})
 	};
 }
-
-describe('Images API', () => {
-	let creatorId: number;
-
-	beforeEach(async () => {
-		await cleanDatabase();
-		const creator = await createTestCreator();
-		creatorId = creator.id;
-	});
-
-	// "GET/PATCH/DELETE /images/[id]" moved to the FastAPI backend
-	// (backend/tests/test_images_media.py) — see BACKEND_MIGRATION.md.
-
-	describe('POST /users/[id]/image - generate user profile image', () => {
-		it('returns 404 for non-existent user', async () => {
-			const event = {
-				params: { id: '99999' },
-				request: new Request('http://localhost/', { method: 'POST' })
-			} as Parameters<typeof generateUserImage>[0];
-
-			await expect(generateUserImage(event)).rejects.toMatchObject({
-				status: 404
-			});
-		});
-
-		it('enqueues an image generation job when no prompt given', async () => {
-			const user = await createTestUser(creatorId);
-			vi.mocked(completion).mockResolvedValueOnce('brown hair, tall woman');
-
-			const event = {
-				params: { id: String(user.id) },
-				request: new Request('http://localhost/', { method: 'POST' })
-			} as Parameters<typeof generateUserImage>[0];
-
-			const response = await generateUserImage(event);
-			expect(response.status).toBe(202);
-			expect(vi.mocked(enqueueImageJob)).toHaveBeenCalledOnce();
-		});
-	});
-
-	describe('POST /posts/[id]/image - generate post image', () => {
-		it('returns 404 for non-existent post', async () => {
-			const event = {
-				params: { id: '99999' },
-				request: new Request('http://localhost/', { method: 'POST' })
-			} as Parameters<typeof generatePostImage>[0];
-
-			await expect(generatePostImage(event)).rejects.toMatchObject({
-				status: 404
-			});
-		});
-
-		it('enqueues an image generation job for the post', async () => {
-			const user = await createTestUser(creatorId);
-			const post = await createTestPost(user.id, 'A beautiful sunset photo');
-			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostImageResponse);
-
-			const event = {
-				params: { id: String(post.id) },
-				request: new Request('http://localhost/', { method: 'POST' })
-			} as Parameters<typeof generatePostImage>[0];
-
-			const response = await generatePostImage(event);
-			expect(response.status).toBe(202);
-			expect(vi.mocked(enqueueImageJob)).toHaveBeenCalledOnce();
-
-			const jobArgs = vi.mocked(enqueueImageJob).mock.calls[0][0];
-			expect(jobArgs.post_id).toBe(post.id);
-			expect(jobArgs.target).toBe('post_image');
-		});
-	});
-
-	describe('POST /users/[id]/image - upload user profile image', () => {
-		it('stores uploaded file as WebP and sets as user profile image', async () => {
-			const user = await createTestUser(creatorId);
-			const fakeImageData = Buffer.from('fake-image-data');
-			const formData = new FormData();
-			formData.append('file', new File([fakeImageData], 'photo.jpg', { type: 'image/jpeg' }));
-
-			const event = {
-				params: { id: String(user.id) },
-				request: new Request('http://localhost/', {
-					method: 'POST',
-					body: formData
-				})
-			} as Parameters<typeof generateUserImage>[0];
-
-			const response = await generateUserImage(event);
-			expect(response.status).toBe(201);
-			expect(vi.mocked(toWebp)).toHaveBeenCalledOnce();
-
-			const body = await response.json();
-			expect(body.image).toBeDefined();
-			expect(body.image.id).toBeTypeOf('number');
-
-			const updatedUser = await db.query.users.findFirst({ where: eq(users.id, user.id) });
-			expect(updatedUser?.image_id).toBe(body.image.id);
-
-			const storedImage = await db.query.images.findFirst({
-				where: eq(images.id, body.image.id)
-			});
-			expect(storedImage).toBeDefined();
-			expect(storedImage?.user_id).toBe(user.id);
-		});
-	});
-
-	describe('POST /posts/[id]/image - upload post image', () => {
-		it('stores uploaded file as WebP and sets as post image', async () => {
-			const user = await createTestUser(creatorId);
-			const post = await createTestPost(user.id, 'A test post');
-			const fakeImageData = Buffer.from('fake-image-data');
-			const formData = new FormData();
-			formData.append('file', new File([fakeImageData], 'photo.jpg', { type: 'image/jpeg' }));
-
-			const event = {
-				params: { id: String(post.id) },
-				request: new Request('http://localhost/', {
-					method: 'POST',
-					body: formData
-				})
-			} as Parameters<typeof generatePostImage>[0];
-
-			const response = await generatePostImage(event);
-			expect(response.status).toBe(201);
-			expect(vi.mocked(toWebp)).toHaveBeenCalledOnce();
-
-			const body = await response.json();
-			expect(body.image).toBeDefined();
-			expect(body.image.id).toBeTypeOf('number');
-
-			const updatedPost = await db.query.posts.findFirst({ where: eq(posts.id, post.id) });
-			expect(updatedPost?.image_id).toBe(body.image.id);
-
-			const storedImage = await db.query.images.findFirst({
-				where: eq(images.id, body.image.id)
-			});
-			expect(storedImage).toBeDefined();
-			expect(storedImage?.user_id).toBe(user.id);
-		});
-	});
-});
 
 describe('Models API', () => {
 	beforeEach(async () => {

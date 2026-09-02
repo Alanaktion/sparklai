@@ -11,6 +11,7 @@ from app.config import settings
 from app.database import engine
 from app.db.migrate import apply_migrations
 from app.exception_handlers import register_exception_handlers
+from app.services.sd.jobs import recover_pending_jobs
 from app.spa import SPAStaticFiles
 
 logging.basicConfig(
@@ -24,6 +25,9 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Applying database migrations")
     await asyncio.to_thread(apply_migrations)
+
+    logger.info("Recovering pending image generation jobs")
+    await recover_pending_jobs()
 
     yield
 
