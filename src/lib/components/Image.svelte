@@ -12,7 +12,7 @@
 
 	let deleted = $state(false);
 	function deleteImage() {
-		fetch(`/images/${image.id}`, { method: 'DELETE' }).then(() => {
+		fetch(`/api/images/${image.id}`, { method: 'DELETE' }).then(() => {
 			lightbox = false;
 			deleted = true;
 		});
@@ -21,7 +21,7 @@
 	let blur = $derived(image.blur);
 	function toggleBlur() {
 		blur = !blur;
-		fetch(`/images/${image.id}`, {
+		fetch(`/api/images/${image.id}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ blur })
@@ -36,7 +36,7 @@
 >
 	<img
 		loading="lazy"
-		src="/images/{image.id}"
+		src="/api/images/{image.id}"
 		alt={params?.prompt}
 		class="aspect-square w-full object-contain"
 	/>
@@ -63,7 +63,7 @@
 		)}
 	>
 		<img
-			src="/images/{image.id}"
+			src="/api/images/{image.id}"
 			alt={params?.prompt}
 			class="max-h-screen max-w-screen object-contain p-3"
 		/>

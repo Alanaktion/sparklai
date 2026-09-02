@@ -62,7 +62,7 @@
 		{#if post.image_id}
 			<div class="my-3">
 				<PostImage
-					src={resolve(`/images/${post.image_id}`)}
+					src={`/api/images/${post.image_id}`}
 					image={post.image}
 					class="w-full rounded {imgClass}"
 				/>
@@ -70,12 +70,12 @@
 		{/if}
 		{#if post.media_id && post.media?.type?.startsWith('audio/')}
 			<audio controls class="mb-4 block w-full">
-				<source src={resolve(`/media/${post.media_id}`)} type={post.media.type} />
+				<source src={`/api/media/${post.media_id}`} type={post.media.type} />
 			</audio>
 		{/if}
 		{#if post.media_id && post.media?.type?.startsWith('video/')}
 			<video controls class="mb-4 block w-full">
-				<source src={resolve(`/media/${post.media_id}`)} type={post.media.type} />
+				<source src={`/api/media/${post.media_id}`} type={post.media.type} />
 			</video>
 		{/if}
 		<div

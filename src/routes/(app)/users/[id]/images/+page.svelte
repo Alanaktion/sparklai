@@ -58,7 +58,7 @@
 		}
 
 		try {
-			const response = await fetch(resolve(`/users/${data.id}/images`), {
+			const response = await fetch(`/api/users/${data.id}/images`, {
 				method: 'POST',
 				body: formData
 			});
@@ -185,8 +185,7 @@
 					name="message"
 					rows="6"
 					class="flex w-full rounded border border-gray-300 bg-transparent px-2 py-1 text-sm shadow-sm transition-colors placeholder:text-gray-300 focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none disabled:opacity-50 dark:border-gray-500 dark:placeholder:text-gray-600"
-					placeholder="Image prompt (optional)"
-				></textarea>
+					placeholder="Image prompt (optional)"></textarea>
 				<div class="flex items-center gap-2 rounded focus-within:ring">
 					<Ratio class="size-4 text-gray-400 dark:text-gray-500" />
 					<label

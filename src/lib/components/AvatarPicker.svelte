@@ -19,8 +19,9 @@
 
 	function setImage(e: Event) {
 		e.preventDefault();
-		fetch(resolve(`/users/${user.id}`), {
+		fetch(`/api/users/${user.id}`, {
 			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ image_id })
 		}).then(() => {
 			onAvatarChange?.(image_id);
@@ -86,7 +87,7 @@
 						class="relative block aspect-square overflow-hidden rounded-full object-cover object-center opacity-75 ring-blue-500 transition peer-checked:opacity-100 peer-checked:ring-3 hover:opacity-100"
 					>
 						<img
-							src={resolve(`/images/${image.id}`)}
+							src={`/api/images/${image.id}`}
 							class={[
 								'aspect-square object-cover object-center',
 								image.blur && 'blur-lg transition hover:blur-none'

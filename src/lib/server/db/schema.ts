@@ -52,6 +52,8 @@ export const users = sqliteTable('users', {
 	creator_id: integer()
 		.notNull()
 		.references(() => creators.id, { onDelete: 'cascade' }),
+	scenario: text(),
+	first_mes: text(),
 	is_active: integer({ mode: 'boolean' }).notNull().default(true)
 });
 

@@ -1,0 +1,2 @@
+todo:
+- [ ] support messaging-specific prompt text for DMs for each AI user/creator pairing to override the AI's knowledge about the user (default to the human user's name/bio)

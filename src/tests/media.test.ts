@@ -2,15 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '$lib/server/db';
 import { media, posts } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { GET as getMedia } from '../routes/(app)/media/[id]/+server';
 import { POST as uploadPostMedia } from '../routes/(app)/posts/[id]/media/+server';
-import {
-	cleanDatabase,
-	createTestCreator,
-	createTestPost,
-	createTestUser,
-	createTestMedia
-} from './helpers';
+import { cleanDatabase, createTestCreator, createTestPost, createTestUser } from './helpers';
 
 describe('Media API', () => {
 	let creatorId: number;
@@ -21,33 +14,8 @@ describe('Media API', () => {
 		creatorId = creator.id;
 	});
 
-	describe('GET /media/[id] - retrieve media', () => {
-		it('returns 404 for non-existent media', async () => {
-			const event = {
-				params: { id: '99999' }
-			} as Parameters<typeof getMedia>[0];
-
-			await expect(getMedia(event)).rejects.toMatchObject({
-				status: 404
-			});
-		});
-
-		it('returns media data with correct content type', async () => {
-			const user = await createTestUser(creatorId);
-			const file = await createTestMedia(user.id, 'audio/mpeg');
-
-			const event = {
-				params: { id: String(file.id) }
-			} as Parameters<typeof getMedia>[0];
-
-			const response = await getMedia(event);
-			expect(response.status).toBe(200);
-			expect(response.headers.get('Content-Type')).toBe('audio/mpeg');
-
-			const data = await response.arrayBuffer();
-			expect(data.byteLength).toBeGreaterThan(0);
-		});
-	});
+	// "GET /media/[id]" moved to the FastAPI backend (backend/tests/test_images_media.py) — see
+	// BACKEND_MIGRATION.md.
 
 	describe('POST /posts/[id]/media - upload post media', () => {
 		it('stores uploaded audio file and sets as post media', async () => {

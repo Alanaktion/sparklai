@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { resolve } from '$app/paths';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import Post from '$lib/components/Post.svelte';
 	import type { PostType } from '$lib/server/db/schema';
@@ -55,12 +54,12 @@
 			label: 'Post image',
 			phase: 'prompt'
 		});
-		fetch(resolve(`/users/${data.id}/posts`), {
+		fetch(`/api/users/${data.id}/posts`, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
+				'Content-Type': 'application/json'
 			},
-			body: `prompt=${encodeURIComponent(prompt)}`
+			body: JSON.stringify({ prompt: prompt || null })
 		})
 			.then(async (response) => {
 				if (!response.ok) {
@@ -90,7 +89,7 @@
 								if (job.image && !profileState.images.some((image) => image.id === job.image!.id)) {
 									profileState.images = [...profileState.images, job.image];
 								}
-								posts = posts.map((post) =>
+								posts = posts.map((post: UserPagePost) =>
 									post.id === body.post.id
 										? {
 												...post,
@@ -142,8 +141,7 @@
 					name="message"
 					rows="6"
 					class="flex w-full rounded border border-gray-300 bg-transparent px-2 py-1 text-sm shadow-sm transition-colors placeholder:text-gray-300 focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none disabled:opacity-50 dark:border-gray-500 dark:placeholder:text-gray-600"
-					placeholder="Post prompt (optional)"
-				></textarea>
+					placeholder="Post prompt (optional)"></textarea>
 				{#if creating}
 					<Loader class="mx-auto my-2 size-4 animate-spin text-gray-600 dark:text-gray-400" />
 				{:else}

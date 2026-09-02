@@ -4,6 +4,7 @@
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 	import PersonAdd from 'virtual:icons/octicon/person-add-16';
+	import Upload from 'virtual:icons/octicon/upload-16';
 	import X from 'virtual:icons/octicon/x-16';
 	import { onDestroy } from 'svelte';
 	import type { PageProps } from './$types';
@@ -36,15 +37,59 @@
 
 	let creating = $state(false);
 	let user_prompt = $state('');
+
+	let importOpen = $state(false);
+	let importing = $state(false);
+	let importError = $state('');
+	const importCharacter = (e: SubmitEvent) => {
+		e.preventDefault();
+		const form = e.currentTarget as HTMLFormElement;
+		const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
+		const file = fileInput?.files?.[0];
+		if (!file) return;
+
+		importing = true;
+		importError = '';
+		const reader = new FileReader();
+		reader.onload = async () => {
+			try {
+				const text = reader.result as string;
+				const card = JSON.parse(text);
+				const response = await fetch('/api/import-character', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(card)
+				});
+				if (!response.ok) {
+					const err = await response.json().catch(() => null);
+					throw new Error(err?.message || `Import failed (${response.status})`);
+				}
+				const body: UserType = await response.json();
+				additionalUsers.push(body);
+				importOpen = false;
+				fileInput.value = '';
+			} catch (err) {
+				importError = err instanceof Error ? err.message : 'Import failed';
+			} finally {
+				importing = false;
+			}
+		};
+		reader.onerror = () => {
+			importError = 'Failed to read file';
+			importing = false;
+		};
+		reader.readAsText(file);
+	};
+
 	const newUser = (e: Event) => {
 		e.preventDefault();
 		creating = true;
-		fetch(resolve(`/users`), {
+		fetch('/api/users', {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
+				'Content-Type': 'application/json'
 			},
-			body: `prompt=${encodeURIComponent(user_prompt)}`
+			body: JSON.stringify({ prompt: user_prompt || null })
 		})
 			.then((response) => response.json())
 			.then((body: UserType) => {
@@ -89,7 +134,7 @@
 		}
 
 		try {
-			const response = await fetch(resolve(`/posts?${queryParts.join('&')}`));
+			const response = await fetch(`/api/posts?${queryParts.join('&')}`);
 			if (!response.ok) {
 				return;
 			}
@@ -227,14 +272,51 @@
 			<div class="mb-4 flex items-center justify-between">
 				<h2 class="text-xl">Following</h2>
 				{#if browser}
-					<button
-						onclick={() => (open = true)}
-						type="button"
-						class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
-					>
-						<span class="sr-only">Add AI user</span>
-						<PersonAdd class="size-4" />
-					</button>
+					<div class="flex items-center gap-1">
+						<button
+							onclick={() => (open = true)}
+							type="button"
+							class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+							title="Add AI user"
+						>
+							<span class="sr-only">Add AI user</span>
+							<PersonAdd class="size-4" />
+						</button>
+						<button
+							onclick={() => (importOpen = true)}
+							type="button"
+							class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+							title="Import character card"
+						>
+							<span class="sr-only">Import character card</span>
+							<Upload class="size-4" />
+						</button>
+					</div>
+					<Dialog title="Import Character Card" bind:open={importOpen}>
+						<form class="grid gap-2" onsubmit={importCharacter}>
+							<p class="text-sm text-gray-600 dark:text-gray-400">
+								Upload a character card JSON file (chara_card_v2 format).
+							</p>
+							<input
+								type="file"
+								accept=".json,application/json"
+								class="block w-full text-sm text-gray-600 file:mr-2 file:rounded file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-sm file:text-blue-600 dark:text-gray-400 dark:file:bg-blue-900 dark:file:text-blue-400"
+							/>
+							{#if importing}
+								<Loader class="mx-auto my-2 size-4 animate-spin text-gray-600 dark:text-gray-400" />
+							{:else}
+								<button
+									type="submit"
+									class="rounded-2xl px-2 py-2 text-sm leading-none text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+								>
+									Import
+								</button>
+							{/if}
+							{#if importError}
+								<p class="text-sm text-red-500">{importError}</p>
+							{/if}
+						</form>
+					</Dialog>
 					<Dialog title="Add AI user" bind:open>
 						<form class="grid gap-2" onsubmit={newUser} method="POST">
 							<textarea
@@ -242,8 +324,7 @@
 								name="message"
 								rows="6"
 								class="flex w-full rounded border border-gray-300 bg-transparent px-2 py-1 text-sm shadow-sm transition-colors placeholder:text-gray-300 focus:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:outline-none disabled:opacity-50 dark:border-gray-500 dark:placeholder:text-gray-600"
-								placeholder="User prompt (optional)"
-							></textarea>
+								placeholder="User prompt (optional)"></textarea>
 							{#if creating}
 								<Loader class="mx-auto my-2 size-4 animate-spin text-gray-600 dark:text-gray-400" />
 							{:else}

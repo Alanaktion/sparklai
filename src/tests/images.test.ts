@@ -15,11 +15,6 @@ import { toWebp } from '$lib/server/image-utils';
 import { db } from '$lib/server/db';
 import { images, posts, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import {
-	GET as getImage,
-	PATCH as patchImage,
-	DELETE as deleteImage
-} from '../routes/(app)/images/[id]/+server';
 import { POST as generateUserImage } from '../routes/(app)/users/[id]/image/+server';
 import { POST as generatePostImage } from '../routes/(app)/posts/[id]/image/+server';
 import { GET as getModels, POST as setModels } from '../routes/(app)/models/+server';
@@ -28,7 +23,6 @@ import {
 	createTestCreator,
 	createTestUser,
 	createTestPost,
-	createTestImage,
 	sampleAIPostImageResponse
 } from './helpers';
 
@@ -55,72 +49,8 @@ describe('Images API', () => {
 		creatorId = creator.id;
 	});
 
-	describe('GET /images/[id] - retrieve image', () => {
-		it('returns 404 for non-existent image', async () => {
-			const event = {
-				params: { id: '99999' }
-			} as Parameters<typeof getImage>[0];
-
-			await expect(getImage(event)).rejects.toMatchObject({
-				status: 404
-			});
-		});
-
-		it('returns image data with correct content type', async () => {
-			const user = await createTestUser(creatorId);
-			const image = await createTestImage(user.id);
-
-			const event = {
-				params: { id: String(image.id) }
-			} as Parameters<typeof getImage>[0];
-
-			const response = await getImage(event);
-			expect(response.status).toBe(200);
-			expect(response.headers.get('Content-Type')).toBe('image/webp');
-
-			const data = await response.arrayBuffer();
-			expect(data.byteLength).toBeGreaterThan(0);
-		});
-	});
-
-	describe('PATCH /images/[id] - update image metadata', () => {
-		it('updates image blur field', async () => {
-			const user = await createTestUser(creatorId);
-			const image = await createTestImage(user.id);
-
-			const event = {
-				params: { id: String(image.id) },
-				request: new Request('http://localhost/', {
-					method: 'PATCH',
-					body: JSON.stringify({ blur: true }),
-					headers: { 'Content-Type': 'application/json' }
-				})
-			} as Parameters<typeof patchImage>[0];
-
-			const response = await patchImage(event);
-			expect(response.status).toBe(200);
-
-			const updated = await db.query.images.findFirst({ where: eq(images.id, image.id) });
-			expect(updated?.blur).toBe(true);
-		});
-	});
-
-	describe('DELETE /images/[id] - delete image', () => {
-		it('deletes an image and returns 204', async () => {
-			const user = await createTestUser(creatorId);
-			const image = await createTestImage(user.id);
-
-			const event = {
-				params: { id: String(image.id) }
-			} as Parameters<typeof deleteImage>[0];
-
-			const response = await deleteImage(event);
-			expect(response.status).toBe(204);
-
-			const remaining = await db.select().from(images).where(eq(images.id, image.id));
-			expect(remaining).toHaveLength(0);
-		});
-	});
+	// "GET/PATCH/DELETE /images/[id]" moved to the FastAPI backend
+	// (backend/tests/test_images_media.py) — see BACKEND_MIGRATION.md.
 
 	describe('POST /users/[id]/image - generate user profile image', () => {
 		it('returns 404 for non-existent user', async () => {

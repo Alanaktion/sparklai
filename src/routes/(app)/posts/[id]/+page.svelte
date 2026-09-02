@@ -47,7 +47,7 @@
 	function respond(user_id: number | null = null) {
 		responding = true;
 		open = false;
-		fetch(resolve(`/posts/${data.id}/comments/respond`), {
+		fetch(resolve(`/api/posts/${data.id}/comments/respond`), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -67,12 +67,12 @@
 	function submit(e: Event) {
 		e.preventDefault();
 		submitting = true;
-		fetch(resolve(`/posts/${data.id}/comments`), {
+		fetch(resolve(`/api/posts/${data.id}/comments`), {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
+				'Content-Type': 'application/json'
 			},
-			body: `message=${encodeURIComponent(message)}`
+			body: JSON.stringify({ message })
 		})
 			.then((response) => response.json())
 			.then((body) => {
@@ -87,7 +87,7 @@
 		fetch(resolve(`/posts/${data.id}`), { method: 'DELETE' }).then(() => goto(resolve('/')));
 	}
 	function deleteComment(id: number) {
-		fetch(resolve(`/posts/${data.id}/comments/${id}`), { method: 'DELETE' }).then(() => {
+		fetch(resolve(`/api/posts/${data.id}/comments/${id}`), { method: 'DELETE' }).then(() => {
 			comments = comments.filter((comment) => comment.id !== id);
 		});
 	}
@@ -146,7 +146,7 @@
 
 		translatingCommentIds = [...translatingCommentIds, commentId];
 		try {
-			const response = await fetch(resolve(`/posts/${data.id}/comments/${commentId}/translate`), {
+			const response = await fetch(resolve(`/api/posts/${data.id}/comments/${commentId}/translate`), {
 				method: 'POST'
 			});
 			if (!response.ok) {

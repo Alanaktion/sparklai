@@ -132,7 +132,7 @@
 		translating = true;
 		try {
 			const response = await fetch(
-				resolve(`/users/${chat.user_id}/chat/messages/${chat.id}/translate`),
+				resolve(`/api/users/${chat.user_id}/chat/messages/${chat.id}/translate`),
 				{ method: 'POST' }
 			);
 			if (!response.ok) {

@@ -31,6 +31,10 @@ __pycache__
 *.log
 /server/config.toml
 /server/venv
+backend/.venv
+backend/.pytest_cache
+backend/.ruff_cache
+*.egg-info
 
 # SQLite
 *.db

@@ -1,0 +1,37 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Generated Social Media Post",
+	"description": "Schema for a generated social media post, including text and optional image generation details.",
+	"type": "object",
+	"properties": {
+		"post_text": {
+			"type": "string",
+			"description": "The main text content of the post. Write only the post body. Do not include timestamps, date headers, or hashtags.",
+			"minLength": 1
+		},
+		"image_generation": {
+			"type": "object",
+			"description": "Details for generating an image (optional).",
+			"properties": {
+				"image_keywords": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Keywords for image generation. If the image features the post author, include their specific appearance details (hair color and style, eye color, skin tone, body type, clothing style) from the user profile. Put appearance keywords first, then scene/activity, then mood and lighting.",
+					"minItems": 4
+				},
+				"image_style": {
+					"type": "string",
+					"enum": ["photo", "drawing", "stylized"],
+					"description": "The style of the image to generate. Use 'photo' for realistic/photorealistic images, 'drawing' for anime/cartoon/illustrated styles, 'stylized' for artistic/3D rendered/stylized images.",
+					"default": "photo"
+				}
+			},
+			"required": ["image_keywords", "image_style"],
+			"additionalProperties": false
+		}
+	},
+	"required": ["post_text"],
+	"additionalProperties": false
+}

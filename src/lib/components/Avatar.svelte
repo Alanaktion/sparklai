@@ -5,7 +5,7 @@
 
 {#if user?.image_id}
 	<img
-		src="/images/{user?.image_id}"
+		src="/api/images/{user?.image_id}"
 		loading="lazy"
 		alt={user?.name}
 		class="{cls} rounded-full object-cover"

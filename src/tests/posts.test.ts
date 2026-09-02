@@ -1,19 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { schema_completion } from '$lib/server/chat';
-import { enqueueImageJob } from '$lib/server/sd/jobs';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '$lib/server/db';
 import { posts } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { POST as generateRandomPost } from '../routes/(app)/posts/+server';
 import { DELETE as deletePost, PATCH as patchPost } from '../routes/(app)/posts/[id]/+server';
-import { POST as generateUserPost } from '../routes/(app)/users/[id]/posts/+server';
 import {
 	cleanDatabase,
 	createTestCreator,
 	createTestUser,
 	createTestPost,
-	sampleAIPostResponse,
-	sampleAIPostWithImageResponse,
 	createEvent
 } from './helpers';
 
@@ -26,89 +20,13 @@ describe('Posts API', () => {
 		creatorId = creator.id;
 	});
 
-	describe('POST /posts - generate post for random user', () => {
-		it('returns 404 when no users exist', async () => {
-			await expect(generateRandomPost()).rejects.toMatchObject({
-				status: 404
-			});
-		});
+	// "POST /posts - generate post for random user" moved to the FastAPI backend
+	// (backend/tests/test_posts.py::test_generate_post_for_random_active_user) — see
+	// BACKEND_MIGRATION.md.
 
-		it('generates a post for a random AI user', async () => {
-			const user = await createTestUser(creatorId);
-			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostResponse);
-
-			const response = await generateRandomPost();
-
-			expect(response.status).toBe(201);
-			const body = await response.json();
-			expect(body.post).toBeDefined();
-			expect(body.post.body).toBe(sampleAIPostResponse.post_text);
-			expect(body.post.user_id).toBe(user.id);
-			expect(body.image_job).toBeNull();
-		});
-
-		it('generates a post with an image job when AI requests one', async () => {
-			await createTestUser(creatorId);
-			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostWithImageResponse);
-
-			const response = await generateRandomPost();
-
-			expect(response.status).toBe(201);
-			const body = await response.json();
-			expect(body.post).toBeDefined();
-			expect(body.image_job).not.toBeNull();
-			expect(vi.mocked(enqueueImageJob)).toHaveBeenCalledOnce();
-		});
-	});
-
-	describe('POST /users/[id]/posts - generate post for specific user', () => {
-		it('returns 404 for non-existent user', async () => {
-			const event = {
-				params: { id: '99999' },
-				request: new Request('http://localhost/', { method: 'POST' })
-			} as Parameters<typeof generateUserPost>[0];
-
-			await expect(generateUserPost(event)).rejects.toMatchObject({
-				status: 404
-			});
-		});
-
-		it('generates a post for a specific user', async () => {
-			const user = await createTestUser(creatorId);
-			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostResponse);
-
-			const event = {
-				params: { id: String(user.id) },
-				request: new Request('http://localhost/', { method: 'POST' })
-			} as Parameters<typeof generateUserPost>[0];
-
-			const response = await generateUserPost(event);
-			expect(response.status).toBe(200);
-			const body = await response.json();
-			expect(body.post.body).toBe(sampleAIPostResponse.post_text);
-			expect(body.post.user_id).toBe(user.id);
-		});
-
-		it('passes a custom prompt when provided as form data', async () => {
-			const user = await createTestUser(creatorId);
-			vi.mocked(schema_completion).mockResolvedValueOnce(sampleAIPostResponse);
-
-			const fd = new FormData();
-			fd.append('prompt', 'Write about a sunny day');
-			const event = {
-				params: { id: String(user.id) },
-				request: new Request('http://localhost/', {
-					method: 'POST',
-					body: fd
-				})
-			} as Parameters<typeof generateUserPost>[0];
-
-			await generateUserPost(event);
-
-			// The generatePost function is called - verify schema_completion was invoked
-			expect(vi.mocked(schema_completion)).toHaveBeenCalledOnce();
-		});
-	});
+	// "POST /users/[id]/posts - generate post for specific user" moved to the FastAPI backend
+	// (backend/tests/test_users_profile.py::test_generate_post_for_specific_user) — see
+	// BACKEND_MIGRATION.md.
 
 	describe('DELETE /posts/[id] - delete post', () => {
 		it('deletes a post and returns 204', async () => {

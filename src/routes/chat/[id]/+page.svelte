@@ -22,6 +22,7 @@
 
 	let user = $derived<UserType>(data.user);
 	let chats = $state<ChatMessageType[]>([]);
+	let loadingChats = $state(true);
 	let infoOpen = $state(false);
 	let container: HTMLDivElement;
 
@@ -34,10 +35,14 @@
 	afterNavigate(() => {
 		chats = [];
 		message = '';
-		data.chats.then((result) => {
-			chats = result as ChatMessageType[];
-			tick().then(() => container && container.scrollTo(0, container.scrollHeight));
-		});
+		loadingChats = true;
+		fetch(resolve(`/api/users/${user.id}/chat/messages`))
+			.then((r) => r.json())
+			.then((result) => {
+				chats = result as ChatMessageType[];
+				loadingChats = false;
+				tick().then(() => container && container.scrollTo(0, container.scrollHeight));
+			});
 	});
 
 	beforeNavigate(() => {
@@ -68,7 +73,7 @@
 
 	function respond() {
 		responding = true;
-		fetch(resolve(`/users/${user.id}/chat/respond`), { method: 'POST' })
+		fetch(resolve(`/api/users/${user.id}/chat/respond`), { method: 'POST' })
 			.then((r) => r.json())
 			.then((body) => {
 				responding = false;
@@ -87,7 +92,7 @@
 		clearTimeout(timeoutId);
 		startingNewConversation = true;
 		try {
-			const response = await fetch(resolve(`/users/${user.id}/chat/new-conversation`), {
+			const response = await fetch(resolve(`/api/users/${user.id}/chat/new-conversation`), {
 				method: 'POST'
 			});
 			if (!response.ok) {
@@ -104,18 +109,20 @@
 	}
 
 	function delete_message(chat: ChatMessageType) {
-		fetch(resolve(`/users/${user.id}/chat/messages/${chat.id}`), { method: 'DELETE' }).then(() => {
-			chats = chats.filter((c) => c.id !== chat.id);
-		});
+		fetch(resolve(`/api/users/${user.id}/chat/messages/${chat.id}`), { method: 'DELETE' }).then(
+			() => {
+				chats = chats.filter((c) => c.id !== chat.id);
+			}
+		);
 	}
 
 	let message = $state('');
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
-		fetch(resolve(`/users/${user.id}/chat/messages`), {
+		fetch(resolve(`/api/users/${user.id}/chat/messages`), {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: `message=${encodeURIComponent(message)}`
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ message })
 		})
 			.then((r) => r.json())
 			.then((body) => {
@@ -172,9 +179,9 @@
 	</header>
 
 	<div class="mx-auto w-full max-w-2xl px-4 py-4">
-		{#await data.chats}
+		{#if loadingChats}
 			<p class="text-center text-sm text-gray-500">Loading messages...</p>
-		{:then}
+		{:else}
 			<div class="flex flex-col gap-3">
 				{#each chats as chat, i (chat.id)}
 					<ChatMessage
@@ -202,7 +209,7 @@
 					</div>
 				{/if}
 			</div>
-		{/await}
+		{/if}
 	</div>
 
 	<form

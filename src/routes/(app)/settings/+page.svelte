@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import CheckCircle from 'virtual:icons/octicon/check-circle-24';
 	import Alert from 'virtual:icons/octicon/alert-24';
@@ -28,6 +28,55 @@
 	const resetFeedback = () => {
 		feedbackMsg = '';
 		hasError = false;
+	};
+
+	const submitProfile = async (e: SubmitEvent) => {
+		e.preventDefault();
+		submittingForm = true;
+		resetFeedback();
+
+		const interests = profileData.hobbiesList
+			.split(',')
+			.map((item: string) => item.trim())
+			.filter(Boolean);
+		const hasLocation =
+			profileData.cityName || profileData.stateOrProvince || profileData.countryName;
+
+		try {
+			const response = await fetch('/api/creators/me', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					name: profileData.fullName,
+					age: profileData.ageValue,
+					pronouns: profileData.pronounsText,
+					bio: profileData.bioText || null,
+					occupation: profileData.jobTitle || null,
+					interests,
+					relationship_status: profileData.relationshipType || null,
+					location: hasLocation
+						? {
+								city: profileData.cityName,
+								state_province: profileData.stateOrProvince,
+								country: profileData.countryName
+							}
+						: null
+				})
+			});
+			if (response.ok) {
+				feedbackMsg = 'Profile updated successfully!';
+				hasError = false;
+				await invalidateAll();
+			} else {
+				feedbackMsg = 'Failed to update profile. Please try again.';
+				hasError = true;
+			}
+		} catch {
+			feedbackMsg = 'Failed to update profile. Please try again.';
+			hasError = true;
+		} finally {
+			submittingForm = false;
+		}
 	};
 </script>
 
@@ -70,25 +119,7 @@
 				</div>
 			</div>
 
-			<form
-				method="POST"
-				class="space-y-5"
-				use:enhance={() => {
-					submittingForm = true;
-					resetFeedback();
-					return async ({ result, update }) => {
-						submittingForm = false;
-						if (result.type === 'success') {
-							feedbackMsg = 'Profile updated successfully!';
-							hasError = false;
-						} else {
-							feedbackMsg = 'Failed to update profile. Please try again.';
-							hasError = true;
-						}
-						await update();
-					};
-				}}
-			>
+			<form method="POST" class="space-y-5" onsubmit={submitProfile}>
 				<div class="grid gap-5 md:grid-cols-2">
 					<div>
 						<label
