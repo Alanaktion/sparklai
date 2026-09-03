@@ -125,9 +125,8 @@ _TRANSLATE_SYSTEM = (
 )
 
 
-async def translate_to_english(text: str) -> str:
-    """Port of `src/lib/server/chat/translate.ts`. Used by comments now, and by post/chat-message
-    translation once those land (BACKEND_MIGRATION.md items 1-2)."""
+async def translate_to_english(text: str, model: str | None = None) -> str:
+    """Port of `src/lib/server/chat/translate.ts`. Used by comments and chat messages."""
     source = text.strip()
     if not source:
         return ""
@@ -136,5 +135,5 @@ async def translate_to_english(text: str) -> str:
         {"role": "system", "content": _TRANSLATE_SYSTEM},
         {"role": "user", "content": source},
     ]
-    translated = await completion(None, messages)
+    translated = await completion(None, messages, model=model)
     return translated.strip()

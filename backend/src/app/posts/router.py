@@ -3,7 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
-from app.dependencies import CurrentCreator, DbDep
+from app.dependencies import ChatModelPref, CurrentCreator, DbDep
 from app.image_jobs.schemas import ImageGenerationJobResponse
 from app.posts.repository import PostRepository
 from app.posts.schemas import PostImageUploadResponse, PostResponse, PostsListResponse
@@ -35,10 +35,10 @@ async def list_posts(
 
 
 @router.post("", status_code=201)
-async def create_post(db: DbDep):
+async def create_post(db: DbDep, chat_model: ChatModelPref):
     """Generate a post for a random active user (any creator's) — matches the original endpoint,
     which doesn't scope authorship to the requesting creator either."""
-    result = await _service(db).generate_random_post()
+    result = await _service(db).generate_random_post(model=chat_model)
     return {
         "post": PostResponse.model_validate(result["post"]),
         "image_job": _image_job_response(result["image_job"]),
@@ -46,7 +46,9 @@ async def create_post(db: DbDep):
 
 
 @router.post("/{post_id}/image")
-async def generate_or_upload_post_image(post_id: int, request: Request, db: DbDep):
+async def generate_or_upload_post_image(
+    post_id: int, request: Request, db: DbDep, chat_model: ChatModelPref
+):
     """Port of the dual-purpose `posts/[id]/image/+server.ts`: a multipart upload with a `file`
     field sets the post's image directly; anything else queues an AI-generated one. See
     `PostService.upload_post_image()` / `.generate_post_image()`."""
@@ -66,6 +68,6 @@ async def generate_or_upload_post_image(post_id: int, request: Request, db: DbDe
             body = PostImageUploadResponse(image=image)
             return JSONResponse(jsonable_encoder(body), status_code=201)
 
-    job = await service.generate_post_image(post_id)
+    job = await service.generate_post_image(post_id, model=chat_model)
     body = ImageGenerationJobResponse.model_validate(job)
     return JSONResponse(jsonable_encoder(body), status_code=202)

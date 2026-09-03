@@ -4,15 +4,12 @@
 	import ChatMultiple from 'virtual:icons/octicon/comment-discussion-24';
 	import Image from 'virtual:icons/octicon/image-24';
 
-	type ChatModel = {
-		id: string;
-	};
 	type SDModel = {
 		model_name: string;
 	};
 	type SDStyle = 'photo' | 'drawing' | 'stylized' | 'sdxl';
 	type ModelsResponse = {
-		chat_models?: ChatModel[];
+		chat_models?: string[];
 		chat_model?: string;
 		sd_backend?: string;
 		sd_model?: string;
@@ -31,7 +28,7 @@
 		sdxl: 'SDXL'
 	};
 
-	let chat_models = $state<ChatModel[]>([]);
+	let chat_models = $state<string[]>([]);
 	let chat_model = $state('');
 	let sd_models = $state<SDModel[]>([]);
 	let sd_styles = $state<SDStyle[]>(['photo', 'drawing', 'stylized', 'sdxl']);
@@ -87,13 +84,13 @@
 		);
 	}
 
-	function pickChatModel(preferred: string | null | undefined, availableModels: ChatModel[]) {
+	function pickChatModel(preferred: string | null | undefined, availableModels: string[]) {
 		const normalized = preferred?.trim();
-		if (normalized && availableModels.some((model) => model.id === normalized)) {
+		if (normalized && availableModels.includes(normalized)) {
 			return normalized;
 		}
 
-		return availableModels[0]?.id ?? '';
+		return availableModels[0] ?? '';
 	}
 
 	function pickSdStyle(preferred: string | null | undefined, availableStyles: SDStyle[]) {
@@ -135,7 +132,7 @@
 
 	async function syncModels(method: 'GET' | 'POST', body?: Record<string, string>) {
 		const requestId = ++activeRequestId;
-		const response = await fetch('/models', {
+		const response = await fetch('/api/models', {
 			method,
 			headers: body
 				? {
@@ -230,8 +227,8 @@
 			class="max-w-50 text-sm"
 			disabled={isLoading || isSaving}
 		>
-			{#each chat_models as model (model.id)}
-				<option value={model.id}>{model.id}</option>
+			{#each chat_models as model (model)}
+				<option value={model}>{model}</option>
 			{/each}
 		</Select>
 	{/if}

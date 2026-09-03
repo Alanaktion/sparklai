@@ -139,17 +139,21 @@ class ChatService:
     async def delete_message(self, chat_id: int) -> None:
         await self._repository.delete(chat_id)
 
-    async def translate_message(self, user_id: int, chat_id: int) -> str:
+    async def translate_message(
+        self, user_id: int, chat_id: int, model: str | None = None
+    ) -> str:
         chat = await self._repository.get_by_id_and_user(chat_id, user_id)
         if not chat:
             raise NotFoundError("Message", chat_id)
         if chat.body_en:
             return chat.body_en
-        body_en = await chat_module.translate_to_english(chat.body)
+        body_en = await chat_module.translate_to_english(chat.body, model=model)
         await self._repository.update_body_en(chat, body_en)
         return body_en
 
-    async def generate_response(self, user_id: int, creator: Creator | None) -> Chat:
+    async def generate_response(
+        self, user_id: int, creator: Creator | None, model: str | None = None
+    ) -> Chat:
         """Port of `chat/respond/+server.ts`."""
         user = await self.get_user_or_raise(user_id)
         relationships = await self._repository.list_relationships_with_related_user(user_id)
@@ -191,10 +195,12 @@ class ChatService:
                 "\nNo live messages have been exchanged yet in this new conversation."
             )
 
-        response = await chat_module.completion(None, history)
+        response = await chat_module.completion(None, history, model=model)
         return await self._repository.create(user_id=user_id, role="assistant", body=response)
 
-    async def start_new_conversation(self, user_id: int, creator: Creator | None) -> Chat:
+    async def start_new_conversation(
+        self, user_id: int, creator: Creator | None, model: str | None = None
+    ) -> Chat:
         """Port of `chat/new-conversation/+server.ts`."""
         user = await self.get_user_or_raise(user_id)
         chat_history = await self._repository.list_for_user(user_id)
@@ -217,7 +223,7 @@ class ChatService:
 
         summary_messages: list[LlamaMessage] = [{"role": "system", "content": system_prompt}]
         transcript = format_conversation_transcript(active_messages)
-        summary = await chat_module.completion(transcript, summary_messages)
+        summary = await chat_module.completion(transcript, summary_messages, model=model)
 
         return await self._repository.create(
             user_id=user_id, role="system", body=build_conversation_summary_body(summary)

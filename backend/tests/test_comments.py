@@ -128,7 +128,7 @@ async def test_translate_comment_caches_result(client: AsyncClient, monkeypatch:
 
     calls = 0
 
-    async def fake_translate(text: str) -> str:
+    async def fake_translate(text: str, model: str | None = None) -> str:
         nonlocal calls
         calls += 1
         return "Hello"

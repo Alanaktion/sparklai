@@ -115,23 +115,39 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   home-feed and comments passes moved every caller to FastAPI already, this just hadn't been
   swept up yet) and `src/lib/server/image-utils.ts` (`toWebp`, superseded by
   `app/services/image_utils.py`).
+- **Model/style preferences**: `GET/POST /api/models`, port of `(app)/models/+server.ts` /
+  `model-preferences.ts`. New `app/services/model_preferences.py` + `app/model_preferences/`
+  (router/schemas) — same plain, unsigned, session (`httponly`/`samesite=lax`, no `max-age`)
+  cookies as the original (`chat_model`/`sd_style`/`sd_model`, distinct from the signed
+  `creator_session` auth cookie), but resolved as a pure function of the three cookie values
+  instead of mutating `chat`'s/`sd`'s old module-level globals — the same shared-state bug already
+  designed around in both of those modules (see their docstrings), except this was the one place
+  it hadn't actually been _fixed_ yet: nothing previously threaded a resolved chat model into any
+  generation call, so the cookie had zero real effect. Fixed now via `app/dependencies.py`'s new
+  `ChatModelPref` (reads the `chat_model` cookie, `Depends`-injected wherever a router ends up
+  calling `chat.schema_completion()`/`.completion()`/`.translate_to_english()`) threaded as an
+  explicit `model=` argument through `posts/`, `users/`, `comments/`, and `chats/`'s
+  service-layer generation/translation calls — mirroring how `chat.resolve_model()` already
+  resolves per-call instead of from shared state. The SD side (`sd_style`/`sd_model`) is
+  deliberately _not_ wired into any generation call: even in the original, every real caller
+  always passes an explicit `image_style` (the LLM decides it per post/avatar), so the
+  cookie-driven global `style` fallback was already dead code for every real path — the cookie
+  only ever drove this endpoint's own display/preload behavior. `ModelSwitcher.svelte` (previously
+  orphaned — it fetched the bare `/models` path, which nothing had wired up since the SPA cutover
+  moved API paths under `/api/*`) now calls `/api/models` and matches the new `chat_models: string[]`
+  response shape (was `{id: string}[]`, matching `chat.fetch_models()`'s actual return type).
 
 ## Not done yet — port in roughly this order
 
 Each item: the SvelteKit source to retire, the pattern to reuse.
 
-1. **Model/style preferences** — `(app)/models/+server.ts`. Replace
-   `model-preferences.ts`'s per-request global mutation with per-request resolution (cookie/header
-   read → passed as a parameter), for both chat model and SD style/model — same fix already
-   applied to the chat client, and designed into `app/services/sd/client.py` from the start (see
-   that file's docstring for the extension point).
-2. **Dream/memory** — `api/users/[id]/dream/+server.ts`.
-3. **Individual post page** — `posts/[id]/+page.server.ts` (the loader itself: post + comments +
+1. **Dream/memory** — `api/users/[id]/dream/+server.ts`.
+2. **Individual post page** — `posts/[id]/+page.server.ts` (the loader itself: post + comments +
    user + creator's other images/media/users, still on Drizzle), `posts/[id]/+server.ts`
    (PATCH/DELETE the post), `posts/[id]/translate/+server.ts` (same
    `chat.translate_to_english()` the comments pass added). `posts/[id]/media/+server.ts`
    (audio/video upload) can land with this too, or separately — it doesn't overlap with SD.
-4. **Cleanup**, once nothing on the SvelteKit side references them any more:
+3. **Cleanup**, once nothing on the SvelteKit side references them any more:
    - Delete `src/lib/server/**`, `hooks.server.ts`, `src/app.d.ts`'s `Locals.creator`.
    - Drop `drizzle-orm`, `@libsql/client`, `sharp`, and the `db:push`/`db:migrate`/`db:studio`
      scripts from `package.json`.

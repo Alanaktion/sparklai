@@ -121,15 +121,19 @@ class PostService:
         has_more = len(rows) > limit
         return (list(rows[:limit]) if has_more else list(rows)), has_more
 
-    async def generate_random_post(self, prompt: str | None = None) -> dict:
+    async def generate_random_post(
+        self, prompt: str | None = None, model: str | None = None
+    ) -> dict:
         """`POST /api/posts` — port of the random-author-pick half of the original
         `(app)/posts/+server.ts` POST handler."""
         author = await self._repository.get_random_active_user()
         if not author:
             raise NotFoundError("No Users Found")
-        return await self.generate_post_for_user(author, prompt)
+        return await self.generate_post_for_user(author, prompt, model)
 
-    async def generate_post_for_user(self, author: User, prompt: str | None = None) -> dict:
+    async def generate_post_for_user(
+        self, author: User, prompt: str | None = None, model: str | None = None
+    ) -> dict:
         """Port of `generatePost()` in `src/lib/server/index.ts` — the actual generation logic,
         given an author (used directly by `POST /api/users/{id}/posts`, and via
         `generate_random_post` for `POST /api/posts`).
@@ -169,7 +173,7 @@ class PostService:
             prompt_content += "\n\n" + prompt
         history.append({"role": "user", "content": prompt_content})
 
-        response = await chat.schema_completion("post", None, history)
+        response = await chat.schema_completion("post", None, history, model=model)
 
         post = await self._repository.create(user_id=author.id, body=response["post_text"])
 
@@ -220,7 +224,9 @@ class PostService:
         await self._repository.set_image(post, image.id)
         return image
 
-    async def generate_post_image(self, post_id: int) -> ImageGenerationJob:
+    async def generate_post_image(
+        self, post_id: int, model: str | None = None
+    ) -> ImageGenerationJob:
         """Port of the AI-generation half of `posts/[id]/image/+server.ts` — asks the LLM for an
         image concept fitting the post/author, then queues a single generation job."""
         post = await self.get_by_id_or_raise(post_id)
@@ -229,7 +235,7 @@ class PostService:
             raise NotFoundError("User", post.user_id)
 
         prompt = _build_post_image_prompt(post.body, author)
-        response = await chat.schema_completion("post_image", prompt)
+        response = await chat.schema_completion("post_image", prompt, model=model)
 
         negative_keywords = (
             ",".join(response["negative_keywords"]) if response.get("negative_keywords") else None

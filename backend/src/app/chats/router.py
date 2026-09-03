@@ -11,7 +11,7 @@ from app.chats.schemas import (
     TranslateResponse,
 )
 from app.chats.service import ChatService
-from app.dependencies import CurrentCreator, DbDep, RequireCreator
+from app.dependencies import ChatModelPref, CurrentCreator, DbDep, RequireCreator
 
 router = APIRouter(prefix="/users/{user_id}/chat", tags=["chats"])
 
@@ -67,16 +67,22 @@ async def delete_chat_message(user_id: int, message_id: int, db: DbDep):
 
 
 @router.post("/messages/{message_id}/translate", response_model=TranslateResponse)
-async def translate_chat_message(user_id: int, message_id: int, db: DbDep):
-    body_en = await _service(db).translate_message(user_id, message_id)
+async def translate_chat_message(
+    user_id: int, message_id: int, db: DbDep, chat_model: ChatModelPref
+):
+    body_en = await _service(db).translate_message(user_id, message_id, chat_model)
     return TranslateResponse(body_en=body_en)
 
 
 @router.post("/respond", response_model=ChatMessageResponse)
-async def respond_to_chat(user_id: int, creator: CurrentCreator, db: DbDep):
-    return await _service(db).generate_response(user_id, creator)
+async def respond_to_chat(
+    user_id: int, creator: CurrentCreator, db: DbDep, chat_model: ChatModelPref
+):
+    return await _service(db).generate_response(user_id, creator, chat_model)
 
 
 @router.post("/new-conversation", response_model=ChatMessageResponse)
-async def start_new_conversation(user_id: int, creator: CurrentCreator, db: DbDep):
-    return await _service(db).start_new_conversation(user_id, creator)
+async def start_new_conversation(
+    user_id: int, creator: CurrentCreator, db: DbDep, chat_model: ChatModelPref
+):
+    return await _service(db).start_new_conversation(user_id, creator, chat_model)

@@ -7,6 +7,7 @@ from app.creators.router import router as creators_router
 from app.image_jobs.router import router as image_jobs_router
 from app.images.router import router as images_router
 from app.media.router import router as media_router
+from app.model_preferences.router import router as model_preferences_router
 from app.posts.router import router as posts_router
 from app.users.router import import_router as import_character_router
 from app.users.router import router as users_router
@@ -21,6 +22,7 @@ api_router.include_router(conversations_router)
 api_router.include_router(images_router)
 api_router.include_router(image_jobs_router)
 api_router.include_router(media_router)
+api_router.include_router(model_preferences_router)
 api_router.include_router(import_character_router)
 
 

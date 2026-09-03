@@ -8,6 +8,7 @@ from app.database import get_db
 from app.db.models import Creator
 from app.exceptions import UnauthorizedError
 from app.security.session import read_session_token
+from app.services.model_preferences import CHAT_MODEL_COOKIE, normalize_cookie_value
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
@@ -40,3 +41,16 @@ async def require_creator(creator: CurrentCreator) -> Creator:
 
 
 RequireCreator = Annotated[Creator, Depends(require_creator)]
+
+
+async def get_chat_model_preference(
+    chat_model_cookie: Annotated[str | None, Cookie(alias=CHAT_MODEL_COOKIE)] = None,
+) -> str | None:
+    """The per-request replacement for `hooks.server.ts` calling `initChatModel()` on every
+    request (see `app/services/model_preferences.py`'s docstring) — resolved here once and passed
+    down explicitly as `model=` into every `chat.schema_completion()`/`chat.completion()` call,
+    instead of every request racing to mutate a shared global."""
+    return normalize_cookie_value(chat_model_cookie)
+
+
+ChatModelPref = Annotated[str | None, Depends(get_chat_model_preference)]

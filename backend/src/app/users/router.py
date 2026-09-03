@@ -3,7 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
-from app.dependencies import CurrentCreator, DbDep, RequireCreator
+from app.dependencies import ChatModelPref, CurrentCreator, DbDep, RequireCreator
 from app.exceptions import ForbiddenError
 from app.image_jobs.schemas import ImageGenerationJobResponse
 from app.posts.repository import PostRepository
@@ -38,8 +38,10 @@ async def list_users(creator: RequireCreator, db: DbDep):
 
 
 @router.post("", response_model=UserResponse, status_code=201)
-async def create_user(data: UserCreate, creator: RequireCreator, db: DbDep):
-    return await _service(db).create_ai_user(creator, data.prompt)
+async def create_user(
+    data: UserCreate, creator: RequireCreator, db: DbDep, chat_model: ChatModelPref
+):
+    return await _service(db).create_ai_user(creator, data.prompt, model=chat_model)
 
 
 @router.get("/{user_id}", response_model=UserProfileResponse)
@@ -70,10 +72,14 @@ async def delete_user(user_id: int, creator: RequireCreator, db: DbDep):
 
 
 @router.post("/{user_id}/posts")
-async def generate_post_for_user(user_id: int, data: PostGenerateRequest, db: DbDep):
+async def generate_post_for_user(
+    user_id: int, data: PostGenerateRequest, db: DbDep, chat_model: ChatModelPref
+):
     """Port of `users/[id]/posts/+server.ts`."""
     user = await _service(db).get_by_id_or_raise(user_id)
-    result = await PostService(PostRepository(db)).generate_post_for_user(user, data.prompt)
+    result = await PostService(PostRepository(db)).generate_post_for_user(
+        user, data.prompt, chat_model
+    )
     image_job = result["image_job"]
     return {
         "post": PostResponse.model_validate(result["post"]),
@@ -82,7 +88,9 @@ async def generate_post_for_user(user_id: int, data: PostGenerateRequest, db: Db
 
 
 @router.post("/{user_id}/image")
-async def generate_or_upload_avatar(user_id: int, request: Request, db: DbDep):
+async def generate_or_upload_avatar(
+    user_id: int, request: Request, db: DbDep, chat_model: ChatModelPref
+):
     """Port of the dual-purpose `users/[id]/image/+server.ts`: a multipart upload with a `file`
     field sets the avatar directly; anything else (including no body at all) generates one or more
     AI profile pictures via a queued image-generation job. See `UserService.upload_avatar()` /
@@ -116,7 +124,9 @@ async def generate_or_upload_avatar(user_id: int, request: Request, db: DbDep):
         except ValueError:
             count = 1
 
-    jobs = await service.generate_avatar(user_id, prompt=prompt, aspect=aspect, count=count)
+    jobs = await service.generate_avatar(
+        user_id, prompt=prompt, aspect=aspect, count=count, model=chat_model
+    )
     body = [ImageGenerationJobResponse.model_validate(job) for job in jobs]
     return JSONResponse(jsonable_encoder(body), status_code=202)
 

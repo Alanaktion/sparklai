@@ -79,7 +79,9 @@ class UserService:
             raise NotFoundError("User", user_id)
         return user
 
-    async def create_ai_user(self, creator: Creator, prompt: str | None) -> User:
+    async def create_ai_user(
+        self, creator: Creator, prompt: str | None, model: str | None = None
+    ) -> User:
         """Port of `(app)/users/+server.ts`'s POST handler."""
         base_prompt = "Create a new user profile."
         if prompt:
@@ -91,7 +93,7 @@ class UserService:
                 profiles = "\n".join(f"- {u.name} ({u.pronouns}): {u.bio}" for u in existing)
                 base_prompt += f"\nCurrent users are:\n{profiles}"
 
-        generated = await chat.schema_completion("user", base_prompt)
+        generated = await chat.schema_completion("user", base_prompt, model=model)
         return await self._repository.create(
             name=generated["name"],
             age=generated["age"],
@@ -223,7 +225,7 @@ class UserService:
         return image
 
     async def generate_avatar(
-        self, user_id: int, *, prompt: str, aspect: str, count: int
+        self, user_id: int, *, prompt: str, aspect: str, count: int, model: str | None = None
     ) -> list[ImageGenerationJob]:
         """Port of the AI-generation half of `users/[id]/image/+server.ts` — queues 1-5 profile
         picture jobs, either from an explicit `prompt` or (when blank) one LLM-written per photo,
@@ -247,7 +249,9 @@ class UserService:
                     "details first, then setting and activity, then mood and lighting.\n"
                     "No prose, no numbering — just the keyword list.\n\n" + profile
                 )
-                prompts = [_normalize_generated_prompt(await chat.completion(llm_prompt))]
+                prompts = [
+                    _normalize_generated_prompt(await chat.completion(llm_prompt, model=model))
+                ]
             else:
                 llm_prompt = (
                     f"Generate exactly {count} distinct Stable Diffusion image prompts for "
@@ -261,7 +265,7 @@ class UserService:
                     "etc. Each list: 8-12 keywords. No prose beyond the numbered format.\n\n"
                     + profile
                 )
-                raw = await chat.completion(llm_prompt)
+                raw = await chat.completion(llm_prompt, model=model)
                 prompts = []
                 for line in raw.split("\n"):
                     cleaned = _NUMBERED_LINE_RE.sub("", line).strip()

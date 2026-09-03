@@ -43,17 +43,21 @@ class CommentService:
     async def delete_comment(self, comment_id: int) -> None:
         await self._repository.delete(comment_id)
 
-    async def translate_comment(self, post_id: int, comment_id: int) -> str:
+    async def translate_comment(
+        self, post_id: int, comment_id: int, model: str | None = None
+    ) -> str:
         comment = await self._repository.get_by_id_and_post(comment_id, post_id)
         if not comment:
             raise NotFoundError("Comment", comment_id)
         if comment.body_en:
             return comment.body_en
-        body_en = await chat.translate_to_english(comment.body)
+        body_en = await chat.translate_to_english(comment.body, model=model)
         await self._repository.update_body_en(comment, body_en)
         return body_en
 
-    async def generate_comment_for_post(self, post: Post, commenter: User) -> Comment:
+    async def generate_comment_for_post(
+        self, post: Post, commenter: User, model: str | None = None
+    ) -> Comment:
         """Port of `generateComment()` in `src/lib/server/index.ts`."""
         author = await self.get_user_or_raise(post.user_id)
         is_own_post = commenter.id == author.id
@@ -99,7 +103,7 @@ class CommentService:
         for body, commenter_name in prior_comments:
             history.append({"role": "user", "content": f"Comment by {commenter_name}: {body}"})
 
-        response = await chat.completion(None, history)
+        response = await chat.completion(None, history, model=model)
 
         comment = await self._repository.create(post_id=post.id, user_id=commenter.id, body=response)
         return await self._repository.get_with_user(comment.id)
