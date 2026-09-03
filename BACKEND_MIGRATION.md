@@ -34,7 +34,8 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   discards every remaining `+server.ts` endpoint's code_ rather than erroring (only genuinely
   prerendered pages and the `index.html` fallback shell survive; `find build -type d` shows no
   page directories at all, everything is fallback-only). That means the cutover can't be validated
-  by "does it build" — it has to wait for every item below to actually be gone, per item 4.
+  by "does it build" — it has to wait for every route above to actually be gone first, per the
+  Cleanup item below.
 - **AI user profile management**: `GET /api/users/{id}` (the whole profile-page bundle: user +
   `isOwner` + posts + gallery images + relationships, in one call — port of
   `users/[id]/+layout.server.ts`), `PATCH`/`DELETE /api/users/{id}` (now enforces the requesting
@@ -52,10 +53,11 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   (AI-generated reply, specific or random user), `DELETE /api/posts/{id}/comments/{comment_id}`,
   `POST /api/posts/{id}/comments/{comment_id}/translate`. New `app/comments/` entity; translation
   now lives as `chat.translate_to_english()` in `app/services/chat.py` (was
-  `chat/translate.ts`) for reuse once post/chat-message translation land. `posts/[id]/+page.svelte`
-  now calls these `/api/*` paths directly instead of the deleted `+server.ts` files; the page's own
-  server-side `load` (`posts/[id]/+page.server.ts`, still Drizzle-backed) is untouched — see the
-  gap noted below.
+  `chat/translate.ts`) for reuse once post/chat-message translation land (both landed since — see
+  the dream/memory and individual-post-page entries below). `posts/[id]/+page.svelte` now calls
+  these `/api/*` paths directly instead of the deleted `+server.ts` files; the page's own
+  server-side `load` (`posts/[id]/+page.server.ts`, still Drizzle-backed at the time) was ported
+  separately, below.
 - **Chat/messenger**: `GET/PUT /api/users/{id}/chat/context`, `GET/POST /api/users/{id}/chat/messages`
   (create now takes JSON `{message}`, same modernization as comments — the original's
   form-urlencoded body is gone), `DELETE .../messages/{message_id}`,
@@ -146,34 +148,49 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   user), and takes the same `ChatModelPref`-resolved `model=` the other generation endpoints now
   do. `vite.config.ts`'s dev proxy no longer needs its `/api/users/*/dream` bypass — that was the
   last unported path under `/api`, so the whole `bypass` option is gone too.
+- **Individual post page**: `GET /api/posts/{id}` (the whole page bundle: post + author + comments
+  - the author's own gallery images/media + the requesting creator's own active AI users, in one
+    call — port of `posts/[id]/+page.server.ts`'s Drizzle loader), `PATCH`/`DELETE /api/posts/{id}`
+    (port of `posts/[id]/+server.ts` — the original blindly `.set()` the whole PATCH body onto the
+    row with no field allowlist and silently no-opped on a missing id; now a named `PostUpdate`
+    schema, `exclude_unset=True`, and a 404 for both verbs on a missing post, matching every other
+    resource's PATCH/DELETE in this API), `POST /api/posts/{id}/translate` (port of
+    `posts/[id]/translate/+server.ts`, same `chat.translate_to_english()` the comments pass added),
+    `POST /api/posts/{id}/media` (port of `posts/[id]/media/+server.ts`'s audio/video upload). All
+    four SvelteKit source files deleted, along with `$lib/server/chat/translate.ts` (now fully dead —
+    this was its last caller) and the two vitest files that only covered these routes
+    (`src/tests/posts.test.ts`, `src/tests/media.test.ts`; their still-relevant cases had already
+    been noted as moved to `backend/tests/` in earlier passes). `PostDetailResponse` (the bundle's
+    nested post) reuses `CommentResponse`/`CommentUserResponse` from `app/comments/schemas.py` for
+    its `comments`/`user` fields rather than importing from `app/users/schemas.py`, which would have
+    created an import cycle (`users/schemas.py` already imports `PostResponse` from here). The page's
+    own `posts/[id]/+page.server.ts` load became a universal `posts/[id]/+page.ts`, same pattern as
+    the chat/users pages; `ImagePicker.svelte`/`MediaPicker.svelte`/`Post.svelte`'s fetch calls moved
+    from the bare `/posts/{id}` paths to `/api/posts/{id}`, dropping the `resolve()` wrapper on the
+    fetch ones per the precedent set in the SD pass (kept on the plain `<a href>` navigation links,
+    which are legitimate `resolve()` uses).
 
 ## Not done yet — port in roughly this order
 
-Each item: the SvelteKit source to retire, the pattern to reuse.
+**Cleanup**, once nothing on the SvelteKit side references them any more (this is now the only
+remaining item — every domain above has an `/api/*` equivalent):
 
-1. **Individual post page** — `posts/[id]/+page.server.ts` (the loader itself: post + comments +
-   user + creator's other images/media/users, still on Drizzle), `posts/[id]/+server.ts`
-   (PATCH/DELETE the post), `posts/[id]/translate/+server.ts` (same
-   `chat.translate_to_english()` the comments pass added). `posts/[id]/media/+server.ts`
-   (audio/video upload) can land with this too, or separately — it doesn't overlap with SD.
-2. **Cleanup**, once nothing on the SvelteKit side references them any more:
-   - Delete `src/lib/server/**`, `hooks.server.ts`, `src/app.d.ts`'s `Locals.creator`.
-   - Drop `drizzle-orm`, `@libsql/client`, `sharp`, and the `db:push`/`db:migrate`/`db:studio`
-     scripts from `package.json`.
-   - **Only then** switch `svelte.config.js` from `@sveltejs/adapter-node` to the already-installed
-     `@sveltejs/adapter-static` (`fallback: 'index.html'`, SPA mode). Not before — adapter-static
-     can't serve any of the routes above; flipping early breaks everything not yet ported.
-   - Update `Dockerfile`/`docker-compose*.yml` for the two-service (or single, if FastAPI serves
-     the built SPA — see `backend/src/app/main.py`) deployment.
+- Delete `src/lib/server/**`, `hooks.server.ts`, `src/app.d.ts`'s `Locals.creator`.
+- Drop `drizzle-orm`, `@libsql/client`, `sharp`, and the `db:push`/`db:migrate`/`db:studio`
+  scripts from `package.json`.
+- **Only then** switch `svelte.config.js` from `@sveltejs/adapter-node` to the already-installed
+  `@sveltejs/adapter-static` (`fallback: 'index.html'`, SPA mode). Not before — adapter-static
+  can't serve any of the routes above; flipping early breaks everything not yet ported.
+- Update `Dockerfile`/`docker-compose*.yml` for the two-service (or single, if FastAPI serves
+  the built SPA — see `backend/src/app/main.py`) deployment.
 
 ## Working during the transition
 
-- `vite.config.ts` proxies `/api/*` to FastAPI (`http://127.0.0.1:8000` by default, override with
-  `BACKEND_URL`) in dev, **except** `/api/users/*/dream` which isn't ported yet and still needs to
-  hit SvelteKit's own dev server — see the `bypass` in that config for the exact rule, and update
-  it as more routes move over.
+- `vite.config.ts` proxies all of `/api/*` to FastAPI (`http://127.0.0.1:8000` by default,
+  override with `BACKEND_URL`) in dev — every route under `/api` is ported now, so there's no
+  `bypass` left to maintain.
 - There's currently no production-equivalent of that proxy: a shared/deployed environment needs a
   reverse proxy (nginx, etc.) routing ported paths to FastAPI and everything else to the SvelteKit
-  Node server until the full cutover in item 4 above.
+  Node server until the cleanup item above lands.
 - Run the backend with `cd backend && uv sync --extra dev && uv run uvicorn app.main:app --reload
 --port 8000`. Tests: `cd backend && uv run pytest`. Lint: `uv run ruff check src/ tests/`.

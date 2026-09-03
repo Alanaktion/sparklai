@@ -16,7 +16,7 @@
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 
-	import type { PostType, UserType } from '$lib/server/db/schema';
+	import type { CommentType, PostType, UserType } from '$lib/server/db/schema';
 	import type { PageProps } from './$types';
 	import { resolve } from '$app/paths';
 
@@ -33,12 +33,14 @@
 		type: string;
 	};
 
+	type PostComment = CommentType & { user?: UserType | null };
+
 	let user = $derived<UserType>(data.post.user);
 	let users = $derived<UserType[]>(data.users);
 	let post = $derived(
 		data.post as PostType & { image?: PostPickerImage | null; media?: PostPickerMedia | null }
 	);
-	let comments = $derived(data.post.comments);
+	let comments = $derived<PostComment[]>(data.post.comments);
 	let postImages = $derived<PostPickerImage[]>(data.images);
 	let postMedia = $derived<PostPickerMedia[]>(data.media);
 
@@ -84,7 +86,7 @@
 	}
 
 	function deletePost() {
-		fetch(resolve(`/posts/${data.id}`), { method: 'DELETE' }).then(() => goto(resolve('/')));
+		fetch(`/api/posts/${data.id}`, { method: 'DELETE' }).then(() => goto(resolve('/')));
 	}
 	function deleteComment(id: number) {
 		fetch(`/api/posts/${data.id}/comments/${id}`, { method: 'DELETE' }).then(() => {
@@ -92,8 +94,9 @@
 		});
 	}
 	function detachImage() {
-		fetch(resolve(`/posts/${data.id}`), {
+		fetch(`/api/posts/${data.id}`, {
 			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ image_id: null })
 		}).then(() => {
 			post = { ...post, image_id: null, image: null };
@@ -101,8 +104,9 @@
 	}
 
 	function detachMedia() {
-		fetch(resolve(`/posts/${data.id}`), {
+		fetch(`/api/posts/${data.id}`, {
 			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ media_id: null })
 		}).then(() => {
 			post = { ...post, media_id: null, media: null };

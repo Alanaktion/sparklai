@@ -94,13 +94,15 @@
 		if (image_id === null) {
 			addImage();
 		} else {
-			fetch(`/posts/${post.id}`, { method: 'PATCH', body: JSON.stringify({ image_id }) }).then(
-				() => {
-					const selected = images.find((image: SelectableImage) => image.id === image_id) || null;
-					applyImageChange(image_id, selected);
-					open = false;
-				}
-			);
+			fetch(`/api/posts/${post.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ image_id })
+			}).then(() => {
+				const selected = images.find((image: SelectableImage) => image.id === image_id) || null;
+				applyImageChange(image_id, selected);
+				open = false;
+			});
 		}
 	}
 

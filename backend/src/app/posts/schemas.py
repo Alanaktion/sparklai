@@ -1,3 +1,4 @@
+from app.comments.schemas import CommentResponse, CommentUserResponse
 from app.core.schemas import BaseSchema
 
 
@@ -31,3 +32,39 @@ class PostsListResponse(BaseSchema):
 
 class PostImageUploadResponse(BaseSchema):
     image: PostImageResponse
+
+
+class PostUpdate(BaseSchema):
+    """The only two fields any caller ever PATCHes (`ImagePicker.svelte`/`MediaPicker.svelte`
+    setting or clearing `image_id`/`media_id`) — the original blindly `.set()` the whole request
+    body onto the row instead of naming an editable surface."""
+
+    image_id: int | None = None
+    media_id: int | None = None
+
+
+class PostDetailResponse(PostResponse):
+    """`PostResponse` plus the individual post page's extra bundle fields — the post's full
+    author (reusing `CommentUserResponse`'s `id`/`name`/`image_id`, all the page's `Post.svelte`/
+    `Avatar.svelte` actually read) and its comments (each with their own commenter, same shape
+    `POST /api/posts/{id}/comments` already returns)."""
+
+    user: CommentUserResponse
+    comments: list[CommentResponse]
+
+
+class PostBundleResponse(BaseSchema):
+    """Port of `posts/[id]/+page.server.ts`'s load — the whole page in one call. `images`/`media`
+    are the post's author's own gallery (for `ImagePicker`/`MediaPicker`); `users` is the
+    requesting creator's own active AI users (for the "reply as" dropdown) — both empty for a
+    logged-out visitor, matching the original."""
+
+    id: str
+    post: PostDetailResponse
+    images: list[PostImageResponse]
+    media: list[PostMediaResponse]
+    users: list[CommentUserResponse]
+
+
+class PostMediaUploadResponse(BaseSchema):
+    media: PostMediaResponse

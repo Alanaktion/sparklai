@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime
 
-from app.db.models import Image, ImageGenerationJob, Post, User
+from app.db.models import Creator, Image, ImageGenerationJob, Post, User
 from app.exceptions import AppException, BadRequestError, NotFoundError
 from app.posts.repository import PostRepository
 from app.services import chat, image_utils
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_LIMIT = 15
 MAX_LIMIT = 50
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
+MAX_MEDIA_UPLOAD_BYTES = 100 * 1024 * 1024  # 100MB
 
 
 def _build_post_image_prompt(post_body: str, user: User) -> str:
@@ -51,7 +52,9 @@ def _build_post_image_prompt(post_body: str, user: User) -> str:
         if location:
             lines.append(f"- Location: {location}")
     if user.interests:
-        interests = ", ".join(user.interests) if isinstance(user.interests, list) else user.interests
+        interests = (
+            ", ".join(user.interests) if isinstance(user.interests, list) else user.interests
+        )
         lines.append(f"- Interests: {interests}")
     if user.personality_traits:
         lines.append(f"- Personality: {user.personality_traits}")
@@ -253,3 +256,89 @@ class PostService:
             include_default_prompt=True,
             image_style=response.get("image_style") or "photo",
         )
+
+    async def get_bundle(self, post_id: int, creator: Creator | None) -> dict:
+        """Port of `posts/[id]/+page.server.ts`'s load — the whole individual post page in one
+        call."""
+        post = await self._repository.get_by_id_with_user(post_id)
+        if not post:
+            raise NotFoundError("Post", post_id)
+        comments = await self._repository.list_comments_for_post(post_id)
+
+        # `PostDetailResponse` nests `user`/`comments` *inside* the post payload (unlike the
+        # `Post` model, which has no ORM `comments` relationship) — assembled as a plain dict
+        # rather than mutating the ORM object.
+        post_payload = {
+            "id": post.id,
+            "user_id": post.user_id,
+            "image_id": post.image_id,
+            "media_id": post.media_id,
+            "body": post.body,
+            "body_en": post.body_en,
+            "created_at": post.created_at,
+            "image": post.image,
+            "media": post.media,
+            "user": post.user,
+            "comments": comments,
+        }
+
+        if not creator:
+            return {
+                "id": str(post_id),
+                "post": post_payload,
+                "images": [],
+                "media": [],
+                "users": [],
+            }
+
+        return {
+            "id": str(post_id),
+            "post": post_payload,
+            "images": await self._repository.list_images_by_user(post.user_id),
+            "media": await self._repository.list_media_by_user(post.user_id),
+            "users": await self._repository.list_active_users_for_creator(creator.id),
+        }
+
+    async def update_post(self, post_id: int, fields: dict) -> Post:
+        """Port of `posts/[id]/+server.ts`'s PATCH — the original blindly `.set()` the whole
+        request body onto the row with no existence check at all (a PATCH for a nonexistent id
+        silently succeeded); `PostUpdate`'s named fields plus a 404 here bring it in line with
+        every other resource's PATCH in this API."""
+        post = await self.get_by_id_or_raise(post_id)
+        if not fields:
+            return post
+        return await self._repository.update_fields(post, fields)
+
+    async def delete_post(self, post_id: int) -> None:
+        """Port of `posts/[id]/+server.ts`'s DELETE — same 404-on-missing note as `update_post`."""
+        post = await self.get_by_id_or_raise(post_id)
+        await self._repository.delete(post)
+
+    async def translate_post(self, post_id: int, model: str | None = None) -> str:
+        """Port of `posts/[id]/translate/+server.ts`."""
+        post = await self.get_by_id_or_raise(post_id)
+        if post.body_en:
+            return post.body_en
+        body_en = await chat.translate_to_english(post.body, model=model)
+        await self._repository.update_fields(post, {"body_en": body_en})
+        return body_en
+
+    async def upload_post_media(self, post_id: int, content_type: str, contents: bytes) -> dict:
+        """Port of `posts/[id]/media/+server.ts` — audio/video upload, attached to the post's
+        author (not the post itself, matching the original's `media.user_id = postRecord.user_id`)
+        and then set as the post's `media_id`."""
+        post = await self.get_by_id_or_raise(post_id)
+        if len(contents) > MAX_MEDIA_UPLOAD_BYTES:
+            raise AppException(
+                message="File too large (max 100MB)",
+                error_code="PAYLOAD_TOO_LARGE",
+                status_code=413,
+            )
+        if not (content_type.startswith("audio/") or content_type.startswith("video/")):
+            raise BadRequestError("Only audio and video uploads are supported")
+
+        media = await self._repository.add_media(
+            user_id=post.user_id, media_type=content_type, data=contents
+        )
+        await self._repository.set_media(post, media.id)
+        return media

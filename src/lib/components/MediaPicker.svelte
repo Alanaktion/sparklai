@@ -36,8 +36,9 @@
 		if (media_id === null) {
 			return;
 		}
-		fetch(`/posts/${post.id}`, {
+		fetch(`/api/posts/${post.id}`, {
 			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ media_id })
 		}).then(() => {
 			const selected = mediaItems.find((item: SelectableMedia) => item.id === media_id) || null;
@@ -58,7 +59,7 @@
 		formData.append('file', file);
 
 		try {
-			const response = await fetch(`/posts/${post.id}/media`, {
+			const response = await fetch(`/api/posts/${post.id}/media`, {
 				method: 'POST',
 				body: formData
 			});

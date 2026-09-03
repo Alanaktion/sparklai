@@ -34,7 +34,7 @@
 		}
 		translating = true;
 		try {
-			const response = await fetch(resolve(`/posts/${post.id}/translate`), {
+			const response = await fetch(`/api/posts/${post.id}/translate`, {
 				method: 'POST'
 			});
 			if (!response.ok) {
