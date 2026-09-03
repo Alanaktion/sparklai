@@ -90,3 +90,7 @@ class ImageUploadResponse(BaseSchema):
 
 class AvatarUploadResponse(BaseSchema):
     image: ImageSummary
+
+
+class DreamResponse(BaseSchema):
+    memory: str

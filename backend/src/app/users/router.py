@@ -12,6 +12,7 @@ from app.posts.service import PostService
 from app.users.repository import UserRepository
 from app.users.schemas import (
     AvatarUploadResponse,
+    DreamResponse,
     ImageUploadResponse,
     PostGenerateRequest,
     UserCreate,
@@ -140,6 +141,18 @@ async def upload_user_images(
     — see BACKEND_MIGRATION.md."""
     images = await _service(db).upload_images(user_id, files)
     return ImageUploadResponse(images=images)
+
+
+@router.post("/{user_id}/dream", response_model=DreamResponse)
+async def dream(user_id: int, creator: RequireCreator, db: DbDep, chat_model: ChatModelPref):
+    """Port of `api/users/[id]/dream/+server.ts` — reflects on the AI user's recent activity and
+    rewrites their `memory` field. Ownership-gated like `PATCH`/`DELETE` above."""
+    service = _service(db)
+    user = await service.get_by_id_or_raise(user_id)
+    if user.creator_id != creator.id:
+        raise ForbiddenError("You do not own this AI user")
+    memory = await service.dream(user_id, model=chat_model)
+    return DreamResponse(memory=memory)
 
 
 @import_router.post("/import-character", response_model=UserResponse, status_code=201)

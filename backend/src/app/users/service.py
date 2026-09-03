@@ -6,6 +6,7 @@ from app.db.models import Creator, Image, ImageGenerationJob, User
 from app.exceptions import AppException, BadRequestError, NotFoundError
 from app.posts.repository import PostRepository
 from app.services import chat, image_utils
+from app.services.dream import DREAM_SYSTEM, MAX_CHATS, MAX_COMMENTS, MAX_POSTS, build_dream_prompt
 from app.services.import_character_card import CharacterCardV2, parse_character_card
 from app.users.repository import UserRepository
 
@@ -296,3 +297,27 @@ class UserService:
                 )
             )
         return jobs
+
+    async def dream(self, user_id: int, model: str | None = None) -> str:
+        """Port of `api/users/[id]/dream/+server.ts` / `$lib/server/dream.ts`'s `dream()` —
+        reflects on the user's recent posts/comments/chats and rewrites their `memory` field."""
+        user = await self.get_by_id_or_raise(user_id)
+
+        recent_posts = await self._repository.list_recent_posts(user_id, MAX_POSTS)
+        recent_comments = await self._repository.list_recent_comments(user_id, MAX_COMMENTS)
+        recent_chats = await self._repository.list_recent_chats(user_id, MAX_CHATS)
+
+        user_prompt = build_dream_prompt(
+            user, list(recent_posts), list(recent_comments), list(recent_chats)
+        )
+        updated_memory = await chat.completion(
+            None,
+            [
+                {"role": "system", "content": DREAM_SYSTEM},
+                {"role": "user", "content": user_prompt},
+            ],
+            model=model,
+        )
+
+        await self._repository.update_memory(user, updated_memory)
+        return updated_memory

@@ -17,19 +17,13 @@ export default defineConfig({
 			ignored: ['**/*.db', '**/*.db-wal', '**/*.db-shm']
 		},
 		// Routes ported to the FastAPI backend (creators/auth, posts, users CRUD/create/import,
-		// comments, chat/messenger, image generation/image-jobs, images/media blob serving — see
-		// BACKEND_MIGRATION.md) live under /api and are proxied there in dev. Everything else under
-		// /api (dream, and anything else not yet ported) still falls through to SvelteKit's own dev
-		// server. Override with BACKEND_URL if FastAPI isn't running on the default port.
+		// comments, chat/messenger, dream/memory, image generation/image-jobs, model preferences,
+		// images/media blob serving — see BACKEND_MIGRATION.md) live under /api and are proxied
+		// there in dev. Override with BACKEND_URL if FastAPI isn't running on the default port.
 		proxy: {
 			'/api': {
 				target: process.env.BACKEND_URL ?? 'http://127.0.0.1:8000',
-				changeOrigin: true,
-				bypass: (req) => {
-					if (req.url?.startsWith('/api/users') && /\/dream$/.test(req.url)) {
-						return req.url; // not ported yet — let SvelteKit's own route handle it
-					}
-				}
+				changeOrigin: true
 			}
 		}
 	}

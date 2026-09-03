@@ -136,18 +136,27 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
   orphaned — it fetched the bare `/models` path, which nothing had wired up since the SPA cutover
   moved API paths under `/api/*`) now calls `/api/models` and matches the new `chat_models: string[]`
   response shape (was `{id: string}[]`, matching `chat.fetch_models()`'s actual return type).
+- **Dream/memory**: `POST /api/users/{id}/dream`, port of `api/users/[id]/dream/+server.ts` /
+  `$lib/server/dream.ts` (both deleted — nothing else referenced either). Prompt-building split
+  into a pure `app/services/dream.py` (`build_dream_prompt()` + the `DREAM_SYSTEM` text), the same
+  test-without-a-database split `app/services/conversations.py` used; the DB-touching half
+  (fetching the user's most recent posts/comments/chats, calling the LLM, writing `memory` back)
+  is `UserService.dream()` in `app/users/service.py`. Ownership-gated the same way as `PATCH`/
+  `DELETE /api/users/{id}` (401 if logged out, 403 if the requesting creator doesn't own the AI
+  user), and takes the same `ChatModelPref`-resolved `model=` the other generation endpoints now
+  do. `vite.config.ts`'s dev proxy no longer needs its `/api/users/*/dream` bypass — that was the
+  last unported path under `/api`, so the whole `bypass` option is gone too.
 
 ## Not done yet — port in roughly this order
 
 Each item: the SvelteKit source to retire, the pattern to reuse.
 
-1. **Dream/memory** — `api/users/[id]/dream/+server.ts`.
-2. **Individual post page** — `posts/[id]/+page.server.ts` (the loader itself: post + comments +
+1. **Individual post page** — `posts/[id]/+page.server.ts` (the loader itself: post + comments +
    user + creator's other images/media/users, still on Drizzle), `posts/[id]/+server.ts`
    (PATCH/DELETE the post), `posts/[id]/translate/+server.ts` (same
    `chat.translate_to_english()` the comments pass added). `posts/[id]/media/+server.ts`
    (audio/video upload) can land with this too, or separately — it doesn't overlap with SD.
-3. **Cleanup**, once nothing on the SvelteKit side references them any more:
+2. **Cleanup**, once nothing on the SvelteKit side references them any more:
    - Delete `src/lib/server/**`, `hooks.server.ts`, `src/app.d.ts`'s `Locals.creator`.
    - Drop `drizzle-orm`, `@libsql/client`, `sharp`, and the `db:push`/`db:migrate`/`db:studio`
      scripts from `package.json`.

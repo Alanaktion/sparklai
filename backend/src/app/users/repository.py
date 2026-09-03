@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Image, ImageGenerationJob, Relationship, User
+from app.db.models import Chat, Comment, Image, ImageGenerationJob, Post, Relationship, User
 from app.services.sd import jobs as sd_jobs
 from app.services.sd.types import ImageGenerationJobTarget, SDStyle
 
@@ -58,6 +58,32 @@ class UserRepository:
             select(Relationship).where(Relationship.user_id == user_id)
         )
         return result.scalars().all()
+
+    async def list_recent_posts(self, user_id: int, limit: int) -> Sequence[Post]:
+        stmt = (
+            select(Post).where(Post.user_id == user_id).order_by(Post.id.desc()).limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def list_recent_comments(self, user_id: int, limit: int) -> Sequence[Comment]:
+        stmt = (
+            select(Comment)
+            .where(Comment.user_id == user_id)
+            .order_by(Comment.id.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def list_recent_chats(self, user_id: int, limit: int) -> Sequence[Chat]:
+        stmt = select(Chat).where(Chat.user_id == user_id).order_by(Chat.id.desc()).limit(limit)
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def update_memory(self, user: User, memory: str) -> None:
+        user.memory = memory
+        await self._session.commit()
 
     async def enqueue_image_job(
         self,
