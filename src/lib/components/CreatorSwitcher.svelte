@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CreatorType } from '$lib/server/db/schema';
+	import type { CreatorType } from '$lib/types';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import UserIcon from 'virtual:icons/octicon/person-16';

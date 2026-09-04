@@ -1,4 +1,4 @@
-import type { PostType, UserType } from '$lib/server/db/schema';
+import type { PostType, UserType } from '$lib/types';
 import type { PageLoad } from './$types';
 
 const INITIAL_POSTS_LIMIT = 15;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import type { PostType, UserType } from '$lib/server/db/schema';
+	import type { PostType, UserType } from '$lib/types';
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 	import PersonAdd from 'virtual:icons/octicon/person-add-16';

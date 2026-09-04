@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { hasActiveConversation } from '$lib/chat/conversations';
-	import type { ChatType, UserType } from '$lib/server/db/schema';
+	import type { ChatType, UserType } from '$lib/types';
 	import type { PageProps } from './$types';
 
 	import Avatar from '$lib/components/Avatar.svelte';

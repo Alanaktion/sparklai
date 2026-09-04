@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ChatType } from '$lib/server/db/schema';
+	import type { ChatType } from '$lib/types';
 	import {
 		extractConversationSummary,
 		isConversationSummaryMessage

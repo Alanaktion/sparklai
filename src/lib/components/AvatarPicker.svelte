@@ -3,7 +3,7 @@
 	import Upload from 'virtual:icons/octicon/upload-16';
 	import Avatar from './Avatar.svelte';
 	import Dialog from './base/dialog.svelte';
-	import type { ImageType, UserType } from '$lib/server/db/schema';
+	import type { ImageType, UserType } from '$lib/types';
 
 	const { user, images, onAvatarChange } = $props<{
 		user: UserType;

@@ -16,7 +16,7 @@
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 
-	import type { CommentType, PostType, UserType } from '$lib/server/db/schema';
+	import type { CommentType, PostType, UserType } from '$lib/types';
 	import type { PageProps } from './$types';
 	import { resolve } from '$app/paths';
 

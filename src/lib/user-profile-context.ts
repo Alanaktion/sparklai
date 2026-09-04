@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import type { ImageType, UserType } from '$lib/server/db/schema';
+import type { ImageType, UserType } from '$lib/types';
 
 export type UserProfileState = {
 	user: UserType;

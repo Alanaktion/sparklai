@@ -1,4 +1,4 @@
-import type { CreatorType } from '$lib/server/db/schema';
+import type { CreatorType } from '$lib/types';
 import type { LayoutLoad } from './$types';
 
 // Universal (client-side) load, replacing the old `+layout.server.ts` — it now hits the FastAPI

@@ -4,7 +4,7 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import AvatarPicker from '$lib/components/AvatarPicker.svelte';
 	import TabsItem from '$lib/components/base/tabs-item.svelte';
-	import type { ImageType, UserType } from '$lib/server/db/schema';
+	import type { ImageType, UserType } from '$lib/types';
 	import Chat from 'virtual:icons/octicon/comment-discussion-24';
 	import type { LayoutProps } from './$types';
 	import { setUserProfileContext, type UserProfileState } from '$lib/user-profile-context';

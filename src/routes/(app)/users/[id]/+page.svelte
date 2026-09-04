@@ -2,7 +2,7 @@
 	import { browser } from '$app/environment';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import Post from '$lib/components/Post.svelte';
-	import type { PostType } from '$lib/server/db/schema';
+	import type { PostType } from '$lib/types';
 	import {
 		dismissImageJob,
 		failImageJobRequest,
