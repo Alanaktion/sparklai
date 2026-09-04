@@ -1,5 +1,10 @@
 # Dependencies
 node_modules
+backend/.venv
+__pycache__
+backend/.pytest_cache
+backend/.ruff_cache
+*.egg-info
 
 # Build output
 build
@@ -14,7 +19,6 @@ build
 # Environment files
 .env
 .env.*
-!.env.example
 !.env.docker.example
 
 # Git

@@ -1,61 +1,42 @@
-# Build stage for production dependencies
-FROM node:lts-slim AS base
+# syntax=docker/dockerfile:1
+
+# ---- Stage 1: build the static Svelte SPA ----
+FROM node:lts-slim AS frontend-build
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
-COPY . /app
 WORKDIR /app
-
-# Install production dependencies only
-FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
-
-# Build the application
-FROM base AS build
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-# Set temporary environment variables for the SvelteKit build process
-# These are placeholders required during the build and will be overridden at runtime
-ENV DATABASE_URL="file:/tmp/build.db"
-ENV CHAT_URL="http://host.docker.internal:1234/v1/"
-ENV CHAT_MODEL="llama3.1:8b"
-ENV SD_URL="http://host.docker.internal:7860/sdapi/v1/"
-ENV SD_PHOTO_MODEL="dreamshaper_8_93211"
-ENV SD_PHOTO_PROMPT="RAW photo,8k uhd,dslr,high quality"
-ENV SD_PHOTO_NEGATIVE_PROMPT="nsfw,underexposed,underexposure,overexposure,overexposed,canvas frame,cartoon,3d,3d render,CGI,computer graphics"
-ENV SD_DRAWING_MODEL="rabbit_v7"
-ENV SD_DRAWING_PROMPT="masterpiece,best quality,absurdres,highres"
-ENV SD_DRAWING_NEGATIVE_PROMPT="3d,3d render,CGI,computer graphics"
-ENV SD_STYLIZED_MODEL="restlessexistence_v30Reflection"
-ENV SD_STYLIZED_PROMPT="(Maya 3d render:1.05),(masterpiece:1.3),(hires,high resolution:1.3),subsurface scattering,ambient occlusion,bloom"
-ENV SD_STYLIZED_NEGATIVE_PROMPT="underexposed,underexposure,overexposure,overexposed,canvas frame,cartoon"
+COPY . .
 RUN pnpm run build
 
-# Final production image
-FROM node:lts-slim
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-ENV NODE_ENV=production
+# ---- Stage 2: install the FastAPI backend ----
+FROM python:3.13-slim AS backend-build
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+WORKDIR /app/backend
+COPY backend/ .
+RUN uv sync --frozen --no-dev
 
-# Set default database URL (can be overridden via environment variables)
-ENV DATABASE_URL="file:/data/local.db"
+# ---- Final runtime image: FastAPI serves both the API and the built SPA ----
+FROM python:3.13-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+RUN useradd --create-home --uid 1000 appuser
 
-RUN corepack enable
 WORKDIR /app
+COPY --from=backend-build /app/backend /app/backend
+# Lands at /app/build, a sibling of /app/backend — matches Settings.static_dir's default
+# ("../build", resolved relative to backend/src/app/main.py) without needing an env override.
+COPY --from=frontend-build /app/build /app/build
 
-# Copy production dependencies and built application
-COPY --from=prod-deps /app/node_modules /app/node_modules
-COPY --from=build /app/build /app/build
-COPY --from=build /app/package.json /app/package.json
-COPY --from=build /app/drizzle.config.ts /app/drizzle.config.ts
+# Default DB location; override to point elsewhere if not using the /data volume below.
+ENV DATABASE_URL="sqlite+aiosqlite:////data/local.db"
 
-# Create data directory for SQLite database
-RUN mkdir -p /data && chown -R node:node /data /app
+RUN mkdir -p /data && chown -R appuser:appuser /data /app
+USER appuser
+WORKDIR /app/backend
 
-# Switch to non-root user for security
-USER node
-
-# Expose the default SvelteKit port
-EXPOSE 3000
-
-# Start the application
-CMD ["node", "build"]
+EXPOSE 8000
+# Migrations apply automatically on startup (app.db.migrate, run from main.py's lifespan) —
+# no separate init step needed, unlike the old `pnpm run db:push`.
+CMD ["uv", "run", "--no-sync", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

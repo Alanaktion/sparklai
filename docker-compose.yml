@@ -27,14 +27,14 @@ services:
     # Uncomment the deploy section above if you have an NVIDIA GPU
     # The service will fall back to CPU mode without a GPU
 
-  # SparklAI application
+  # SparklAI application — FastAPI backend, also serving the built Svelte SPA
   app:
     build: .
     ports:
-      - '3000:3000'
+      - '8000:8000'
     env_file: .env
     environment:
-      - DATABASE_URL=file:/data/local.db
+      - DATABASE_URL=sqlite+aiosqlite:////data/local.db
     volumes:
       # Persist the SQLite database
       - sparklai-data:/data
