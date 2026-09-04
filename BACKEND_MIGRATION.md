@@ -170,27 +170,52 @@ async SQLAlchemy 2.0, async Alembic) new domains should follow.
     fetch ones per the precedent set in the SD pass (kept on the plain `<a href>` navigation links,
     which are legitimate `resolve()` uses).
 
-## Not done yet — port in roughly this order
+- **Cleanup**: deleted `src/lib/server/**`, `hooks.server.ts`, and `src/app.d.ts`'s `Locals.creator`
+  (nothing referenced any of them — confirmed via grep before deleting, and `pnpm check`/`pnpm
+test` after). Introduced `src/lib/types.ts`, frontend-owned response types replacing the
+  Drizzle-inferred `*Type` aliases that used to live in the deleted schema file (mirrors the
+  backend's Pydantic response schemas' fields, not the raw DB columns — binary `data` columns
+  never appear here since the API never serializes those into JSON). Also deleted the vitest
+  suite under `src/tests/` and `vitest.config.ts`: every remaining test there exercised
+  SvelteKit server code that no longer exists; equivalent coverage already lives in
+  `backend/tests/`.
+  Dropped `drizzle-orm`, `@libsql/client`, `sharp`, `openai`, `drizzle-kit`,
+  `@types/better-sqlite3`, and (once the adapter switch below landed) `@sveltejs/adapter-node`
+  from `package.json`, along with the `db:push`/`db:migrate`/`db:studio`/`pin:reset`/`test`/
+  `test:watch` scripts and `drizzle.config.ts`/`drizzle.test.config.ts`. Ported
+  `scripts/reset-pin.mjs` to `backend/scripts/reset_pin.py` (reuses `app.security.pin.hash_pin`
+  instead of reimplementing PBKDF2, so hash-format compatibility is guaranteed by construction).
+  Switched `svelte.config.js` from `@sveltejs/adapter-node` to `@sveltejs/adapter-static`
+  (`fallback: 'index.html'`) — safe by the time this landed, since `find src/routes -name
+'+server.ts'` was empty; verified the resulting build is a genuine SPA shell (not another
+  silent-discard — there was nothing left to discard) by actually running it behind the FastAPI
+  backend against a `local.db` copy: `/`, deep links, real API data, a real 404 for an unmatched
+  `/api/*` path, and real static-asset content-types all checked out.
+  Rewrote `Dockerfile` as a multi-stage build (Node/pnpm to build the SPA, Python/uv for the
+  backend, final image just the backend + built SPA as siblings) — one process on port 8000
+  instead of SvelteKit's Node server on 3000, no separate database-init step (migrations already
+  apply on startup). Updated `docker-compose.yml`/`docker-compose.prod.yml` to match (new port,
+  `DATABASE_URL` scheme, a Python-based healthcheck instead of the old Node one-liner) and
+  re-added a root `.env.docker.example` (removed earlier in this same cleanup since it described
+  the old server's env vars) with the same variable names `backend/.env.example` uses but
+  Docker-network-aware defaults. Verified by actually building and running the image against a
+  `local.db` copy.
 
-**Cleanup**, once nothing on the SvelteKit side references them any more (this is now the only
-remaining item — every domain above has an `/api/*` equivalent):
+## Migration complete
 
-- Delete `src/lib/server/**`, `hooks.server.ts`, `src/app.d.ts`'s `Locals.creator`.
-- Drop `drizzle-orm`, `@libsql/client`, `sharp`, and the `db:push`/`db:migrate`/`db:studio`
-  scripts from `package.json`.
-- **Only then** switch `svelte.config.js` from `@sveltejs/adapter-node` to the already-installed
-  `@sveltejs/adapter-static` (`fallback: 'index.html'`, SPA mode). Not before — adapter-static
-  can't serve any of the routes above; flipping early breaks everything not yet ported.
-- Update `Dockerfile`/`docker-compose*.yml` for the two-service (or single, if FastAPI serves
-  the built SPA — see `backend/src/app/main.py`) deployment.
+Every domain from the original plan has an `/api/*` equivalent, the SvelteKit server is gone, and
+the frontend is a static SPA served by FastAPI. `src/lib/server/**`, `hooks.server.ts`,
+Drizzle/libSQL/sharp, and the old Node-server Docker setup are all gone. There's no "not done yet"
+list left — day-to-day work from here is normal feature development against `backend/`, following
+the vendored `.agents/skills/fastapi-*` pattern (Router → Service → Repository) documented at the
+top of this file, not further migration.
 
-## Working during the transition
+## Running it
 
-- `vite.config.ts` proxies all of `/api/*` to FastAPI (`http://127.0.0.1:8000` by default,
-  override with `BACKEND_URL`) in dev — every route under `/api` is ported now, so there's no
-  `bypass` left to maintain.
-- There's currently no production-equivalent of that proxy: a shared/deployed environment needs a
-  reverse proxy (nginx, etc.) routing ported paths to FastAPI and everything else to the SvelteKit
-  Node server until the cleanup item above lands.
-- Run the backend with `cd backend && uv sync --extra dev && uv run uvicorn app.main:app --reload
---port 8000`. Tests: `cd backend && uv run pytest`. Lint: `uv run ruff check src/ tests/`.
+- Backend: `cd backend && uv sync --extra dev && uv run uvicorn app.main:app --reload --port
+8000`. Tests: `cd backend && uv run pytest`. Lint: `uv run ruff check src/ tests/`.
+- Frontend: `pnpm run dev` (proxies `/api/*` to `http://127.0.0.1:8000` by default — override with
+  `BACKEND_URL`; see `vite.config.ts`). Type-check: `pnpm run check`. Lint: `pnpm run lint`.
+- Production: a single container, FastAPI serving both `/api/*` and the built SPA — see
+  `Dockerfile`/`docker-compose.yml`/`README.md`'s Docker Deployment section. No reverse proxy or
+  second Node process needed any more.
