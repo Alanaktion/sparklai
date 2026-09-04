@@ -2,17 +2,11 @@
 
 This is a fake social media site that generates all of its users, posts, images, and DMs with open source AI APIs like Llama and Stable Diffusion.
 
-Front-end is a SvelteKit app, with source in `src/`, startable with `pnpm run dev`.
-
-Do the thing first with `pnpm run db:push` to database it up.
-
-## Backend migration in progress
-
-The backend is being moved off SvelteKit server routes onto a standalone FastAPI service under
-[`backend/`](backend/) (SQLAlchemy + Alembic, SQLite data store unchanged). Auth/creators and the
-home feed (posts + AI user creation + character import) are already served by it; everything else
-still runs on the SvelteKit side for now. See [`BACKEND_MIGRATION.md`](BACKEND_MIGRATION.md) for
-what's ported, what's left, and how to run both halves together during the transition.
+The backend is a FastAPI service under [`backend/`](backend/) (SQLAlchemy + Alembic, SQLite data
+store) — see [`backend/README.md`](backend/README.md) to set it up; migrations apply
+automatically on startup. The front-end is a Svelte app, source in `src/`, startable with
+`pnpm run dev` once the backend is running (see `vite.config.ts` for the dev proxy that connects
+the two). See [`BACKEND_MIGRATION.md`](BACKEND_MIGRATION.md) for the history of this split.
 
 ## Docker Deployment
 
