@@ -31,8 +31,8 @@ async def signup(data: CreatorCreate, db: DbDep):
 
 @router.post("/{creator_id}", response_model=CreatorResponse)
 async def login(creator_id: int, data: CreatorLogin, response: Response, db: DbDep):
-    """Path matches the original `api/creators/[id]/+server.ts` POST route exactly, since
-    `CreatorSwitcher.svelte` already calls it client-side and doesn't need to change."""
+    """Kept as `POST /creators/{id}` (rather than a more RESTful `/creators/{id}/session`) since
+    `CreatorSwitcher.svelte` already calls it this way client-side."""
     creator = await _service(db).authenticate(creator_id, data.pin)
     token = create_session_token(creator.id)
     response.set_cookie(

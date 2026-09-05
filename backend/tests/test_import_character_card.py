@@ -1,5 +1,3 @@
-"""Port of `src/tests/import-character-card.test.ts` — keep the two in sync."""
-
 from app.services.import_character_card import CharacterCardV2, parse_character_card
 
 SAMPLE_CARD = CharacterCardV2.model_validate(

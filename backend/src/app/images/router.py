@@ -13,7 +13,7 @@ router = APIRouter(prefix="/images", tags=["images"])
 
 @router.get("/{image_id}")
 async def get_image(image_id: int, db: DbDep) -> Response:
-    """Port of `images/[id]/+server.ts` GET — serves the raw blob straight from SQLite."""
+    """Serves the raw blob straight from SQLite."""
     image = await ImageRepository(db).get_by_id(image_id)
     if not image:
         raise NotFoundError("Image", image_id)

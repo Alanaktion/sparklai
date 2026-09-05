@@ -83,7 +83,6 @@ class UserService:
     async def create_ai_user(
         self, creator: Creator, prompt: str | None, model: str | None = None
     ) -> User:
-        """Port of `(app)/users/+server.ts`'s POST handler."""
         base_prompt = "Create a new user profile."
         if prompt:
             base_prompt += "\n\n" + prompt
@@ -112,7 +111,6 @@ class UserService:
         )
 
     async def import_character_card(self, creator: Creator, raw: dict) -> User:
-        """Port of `api/import-character/+server.ts`."""
         if not raw or raw.get("spec") != "chara_card_v2" or not raw.get("data"):
             raise BadRequestError("Invalid character card format — expected chara_card_v2 spec")
 
@@ -141,7 +139,6 @@ class UserService:
     async def get_profile(
         self, user_id: int, current_creator: Creator | None, post_repository: PostRepository
     ) -> dict:
-        """Port of `users/[id]/+layout.server.ts`'s load."""
         user = await self.get_by_id_or_raise(user_id)
         is_owner = bool(current_creator and user.creator_id == current_creator.id)
         posts = await post_repository.list_by_user_for_profile(user_id)
@@ -168,8 +165,7 @@ class UserService:
         }
 
     async def update_user(self, user_id: int, fields: dict) -> User:
-        """Port of `users/[id]/+server.ts`'s PATCH — `fields` is already
-        `UserUpdate.model_dump(exclude_unset=True)` from the router."""
+        """`fields` is already `UserUpdate.model_dump(exclude_unset=True)` from the router."""
         user = await self.get_by_id_or_raise(user_id)
         if not fields:
             return user
@@ -180,9 +176,8 @@ class UserService:
         await self._repository.delete(user)
 
     async def upload_images(self, user_id: int, files: list[UploadFile]) -> list[Image]:
-        """Port of `users/[id]/images/+server.ts`'s POST — bulk gallery upload. Does *not* set
-        any of these as the user's avatar (that's the separate, still-unported `PATCH
-        {image_id}` / `/users/{id}/image` singular-upload flow — see BACKEND_MIGRATION.md)."""
+        """Bulk gallery upload. Does *not* set any of these as the user's avatar — see
+        `upload_avatar()` for that flow."""
         user = await self.get_by_id_or_raise(user_id)
         real_files = [f for f in files if f.filename]
         if not real_files:
@@ -208,8 +203,8 @@ class UserService:
         return inserted
 
     async def upload_avatar(self, user_id: int, contents: bytes) -> Image:
-        """Port of the multipart-upload half of `users/[id]/image/+server.ts` — sets the upload
-        directly as the user's avatar, unlike `upload_images()`'s gallery-only bulk upload."""
+        """Sets the upload directly as the user's avatar, unlike `upload_images()`'s
+        gallery-only bulk upload."""
         user = await self.get_by_id_or_raise(user_id)
         if len(contents) > MAX_UPLOAD_BYTES:
             raise AppException(
@@ -228,9 +223,8 @@ class UserService:
     async def generate_avatar(
         self, user_id: int, *, prompt: str, aspect: str, count: int, model: str | None = None
     ) -> list[ImageGenerationJob]:
-        """Port of the AI-generation half of `users/[id]/image/+server.ts` — queues 1-5 profile
-        picture jobs, either from an explicit `prompt` or (when blank) one LLM-written per photo,
-        extracted from the user's own profile/appearance text."""
+        """Queues 1-5 profile picture jobs, either from an explicit `prompt` or (when blank) one
+        LLM-written per photo, extracted from the user's own profile/appearance text."""
         user = await self.get_by_id_or_raise(user_id)
         set_user_image = prompt == ""
 
@@ -299,8 +293,8 @@ class UserService:
         return jobs
 
     async def dream(self, user_id: int, model: str | None = None) -> str:
-        """Port of `api/users/[id]/dream/+server.ts` / `$lib/server/dream.ts`'s `dream()` —
-        reflects on the user's recent posts/comments/chats and rewrites their `memory` field."""
+        """Reflects on the user's recent posts/comments/chats and rewrites their `memory`
+        field."""
         user = await self.get_by_id_or_raise(user_id)
 
         recent_posts = await self._repository.list_recent_posts(user_id, MAX_POSTS)

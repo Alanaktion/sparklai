@@ -1,9 +1,4 @@
-"""SillyTavern-style character card (chara_card_v2) parser.
-
-Ported 1:1 from `src/lib/server/import-character-card.ts` — pure logic, no I/O, so this is a
-near-mechanical translation. Keep this in sync with that file's regex patterns and heuristics
-until the TS side is removed (see BACKEND_MIGRATION.md).
-"""
+"""SillyTavern-style character card (chara_card_v2) parser. Pure logic, no I/O."""
 
 import re
 

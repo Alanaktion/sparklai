@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # Stable Diffusion (Automatic1111 or ComfyUI — see `app/services/sd/`). `sd_url` is the base
     # URL for whichever backend is selected: an Automatic1111 `.../sdapi/v1/` root, or a bare
-    # ComfyUI server root (e.g. `http://host:8188/`) — same dual-purpose env var as the original.
+    # ComfyUI server root (e.g. `http://host:8188/`).
     sd_url: str = "http://127.0.0.1:7860/sdapi/v1/"
     sd_backend: str = "automatic1111"
     sd_photo_model: str = ""

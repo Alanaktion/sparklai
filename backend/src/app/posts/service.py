@@ -127,8 +127,8 @@ class PostService:
     async def generate_random_post(
         self, prompt: str | None = None, model: str | None = None
     ) -> dict:
-        """`POST /api/posts` — port of the random-author-pick half of the original
-        `(app)/posts/+server.ts` POST handler."""
+        """`POST /api/posts` — picks a random active user as author, then generates a post for
+        them."""
         author = await self._repository.get_random_active_user()
         if not author:
             raise NotFoundError("No Users Found")
@@ -137,10 +137,8 @@ class PostService:
     async def generate_post_for_user(
         self, author: User, prompt: str | None = None, model: str | None = None
     ) -> dict:
-        """Port of `generatePost()` in `src/lib/server/index.ts` — the actual generation logic,
-        given an author (used directly by `POST /api/users/{id}/posts`, and via
-        `generate_random_post` for `POST /api/posts`).
-        """
+        """The actual generation logic, given an author (used directly by
+        `POST /api/users/{id}/posts`, and via `generate_random_post` for `POST /api/posts`)."""
         now = datetime.now().strftime("%A, %B %-d, %Y, %-I:%M %p")
         content = _build_post_prompt(author, now)
 
@@ -184,10 +182,8 @@ class PostService:
         image_generation = response.get("image_generation")
         if image_generation:
             try:
-                # `image_keywords` is a list per the schema; the original JS joined it into the
-                # `prompt` string only implicitly (via `Array.prototype.toString()`'s comma-join
-                # when the array landed in a template-literal/string-concat context) — done
-                # explicitly here since Python won't coerce a list into a TEXT column for us.
+                # `image_keywords` is a list per the schema; join it into a comma-separated string
+                # since Python won't coerce a list into a TEXT column for us.
                 image_job = await self._repository.enqueue_image_job(
                     user_id=author.id,
                     post_id=post.id,
@@ -211,7 +207,6 @@ class PostService:
         return post
 
     async def upload_post_image(self, post_id: int, contents: bytes) -> Image:
-        """Port of the multipart-upload half of `posts/[id]/image/+server.ts`."""
         post = await self.get_by_id_or_raise(post_id)
         if len(contents) > MAX_UPLOAD_BYTES:
             raise AppException(
@@ -230,8 +225,8 @@ class PostService:
     async def generate_post_image(
         self, post_id: int, model: str | None = None
     ) -> ImageGenerationJob:
-        """Port of the AI-generation half of `posts/[id]/image/+server.ts` — asks the LLM for an
-        image concept fitting the post/author, then queues a single generation job."""
+        """Asks the LLM for an image concept fitting the post/author, then queues a single
+        generation job."""
         post = await self.get_by_id_or_raise(post_id)
         author = await self._repository.get_user(post.user_id)
         if not author:
@@ -258,8 +253,7 @@ class PostService:
         )
 
     async def get_bundle(self, post_id: int, creator: Creator | None) -> dict:
-        """Port of `posts/[id]/+page.server.ts`'s load — the whole individual post page in one
-        call."""
+        """The whole individual post page bundle in one call."""
         post = await self._repository.get_by_id_with_user(post_id)
         if not post:
             raise NotFoundError("Post", post_id)
@@ -300,22 +294,19 @@ class PostService:
         }
 
     async def update_post(self, post_id: int, fields: dict) -> Post:
-        """Port of `posts/[id]/+server.ts`'s PATCH — the original blindly `.set()` the whole
-        request body onto the row with no existence check at all (a PATCH for a nonexistent id
-        silently succeeded); `PostUpdate`'s named fields plus a 404 here bring it in line with
-        every other resource's PATCH in this API."""
+        """`PostUpdate`'s named fields plus a 404-on-missing-id check keep this in line with every
+        other resource's PATCH in this API."""
         post = await self.get_by_id_or_raise(post_id)
         if not fields:
             return post
         return await self._repository.update_fields(post, fields)
 
     async def delete_post(self, post_id: int) -> None:
-        """Port of `posts/[id]/+server.ts`'s DELETE — same 404-on-missing note as `update_post`."""
+        """Same 404-on-missing note as `update_post`."""
         post = await self.get_by_id_or_raise(post_id)
         await self._repository.delete(post)
 
     async def translate_post(self, post_id: int, model: str | None = None) -> str:
-        """Port of `posts/[id]/translate/+server.ts`."""
         post = await self.get_by_id_or_raise(post_id)
         if post.body_en:
             return post.body_en
@@ -324,9 +315,8 @@ class PostService:
         return body_en
 
     async def upload_post_media(self, post_id: int, content_type: str, contents: bytes) -> dict:
-        """Port of `posts/[id]/media/+server.ts` — audio/video upload, attached to the post's
-        author (not the post itself, matching the original's `media.user_id = postRecord.user_id`)
-        and then set as the post's `media_id`."""
+        """Audio/video upload, attached to the post's author (not the post itself) and then set
+        as the post's `media_id`."""
         post = await self.get_by_id_or_raise(post_id)
         if len(contents) > MAX_MEDIA_UPLOAD_BYTES:
             raise AppException(

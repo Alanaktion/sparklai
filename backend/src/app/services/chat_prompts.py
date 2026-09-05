@@ -1,8 +1,4 @@
-"""System prompts, ported from `src/lib/server/chat/schema/index.ts`.
-
-`profile_image_system` isn't ported — it's an empty string in the original and dead code there too
-(the `'profile_image'` `schema_completion` variant it belongs to is never actually invoked by any
-endpoint)."""
+"""System prompts for the schema-constrained chat completions in `app/services/chat.py`."""
 
 POST_SYSTEM = """Generate a realistic social media post as JSON.
 

@@ -24,8 +24,8 @@ from app.users.service import MAX_UPLOAD_BYTES, UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-# Mounted without the `/users` prefix in api/router.py to keep the original `/api/import-character`
-# path the frontend already calls.
+# Mounted without the `/users` prefix in api/router.py so this lands at `/api/import-character`,
+# the path the frontend calls.
 import_router = APIRouter(tags=["users"])
 
 
@@ -47,15 +47,14 @@ async def create_user(
 
 @router.get("/{user_id}", response_model=UserProfileResponse)
 async def get_user_profile(user_id: int, creator: CurrentCreator, db: DbDep):
-    """Port of `users/[id]/+layout.server.ts` — the whole profile-page bundle in one call."""
+    """The whole profile-page bundle in one call."""
     return await _service(db).get_profile(user_id, creator, PostRepository(db))
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(user_id: int, data: UserUpdate, creator: RequireCreator, db: DbDep):
-    """The original had no ownership check at all (any request could edit any AI user) even
-    though the edit *page* itself gated on `isOwner` client-side — enforcing it here too, since a
-    server-side gate that only exists in the page and not the API it calls isn't really a gate."""
+    """Enforces that the requesting creator actually owns this AI user — a server-side check
+    independent of any client-side page gating."""
     service = _service(db)
     user = await service.get_by_id_or_raise(user_id)
     if user.creator_id != creator.id:
@@ -76,7 +75,6 @@ async def delete_user(user_id: int, creator: RequireCreator, db: DbDep):
 async def generate_post_for_user(
     user_id: int, data: PostGenerateRequest, db: DbDep, chat_model: ChatModelPref
 ):
-    """Port of `users/[id]/posts/+server.ts`."""
     user = await _service(db).get_by_id_or_raise(user_id)
     result = await PostService(PostRepository(db)).generate_post_for_user(
         user, data.prompt, chat_model
@@ -92,10 +90,9 @@ async def generate_post_for_user(
 async def generate_or_upload_avatar(
     user_id: int, request: Request, db: DbDep, chat_model: ChatModelPref
 ):
-    """Port of the dual-purpose `users/[id]/image/+server.ts`: a multipart upload with a `file`
-    field sets the avatar directly; anything else (including no body at all) generates one or more
-    AI profile pictures via a queued image-generation job. See `UserService.upload_avatar()` /
-    `.generate_avatar()`."""
+    """Dual-purpose: a multipart upload with a `file` field sets the avatar directly; anything
+    else (including no body at all) generates one or more AI profile pictures via a queued
+    image-generation job. See `UserService.upload_avatar()` / `.generate_avatar()`."""
     content_type = request.headers.get("content-type", "")
     service = _service(db)
 
@@ -136,17 +133,16 @@ async def generate_or_upload_avatar(
 async def upload_user_images(
     user_id: int, db: DbDep, files: list[UploadFile] = File(...)
 ) -> ImageUploadResponse:
-    """Bulk gallery upload (port of `users/[id]/images/+server.ts`). The singular
-    `/users/{id}/image` quick-avatar-upload-or-generate endpoint is intentionally not ported yet
-    — see BACKEND_MIGRATION.md."""
+    """Bulk gallery upload — does not touch the user's avatar (see the singular
+    `/users/{id}/image` endpoint above for that)."""
     images = await _service(db).upload_images(user_id, files)
     return ImageUploadResponse(images=images)
 
 
 @router.post("/{user_id}/dream", response_model=DreamResponse)
 async def dream(user_id: int, creator: RequireCreator, db: DbDep, chat_model: ChatModelPref):
-    """Port of `api/users/[id]/dream/+server.ts` — reflects on the AI user's recent activity and
-    rewrites their `memory` field. Ownership-gated like `PATCH`/`DELETE` above."""
+    """Reflects on the AI user's recent activity and rewrites their `memory` field.
+    Ownership-gated like `PATCH`/`DELETE` above."""
     service = _service(db)
     user = await service.get_by_id_or_raise(user_id)
     if user.creator_id != creator.id:

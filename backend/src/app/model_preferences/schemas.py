@@ -4,9 +4,8 @@ from app.services.sd.types import SDModel
 
 class ModelPreferencesUpdate(BaseSchema):
     """All fields optional and default-omitted: only keys actually present in the request body are
-    applied (`model_dump(exclude_unset=True)` in the router), matching the original's `'chat_model'
-    in body` presence checks — sending `{"chat_model": null}` clears the cookie, while omitting the
-    key entirely leaves it untouched."""
+    applied (`model_dump(exclude_unset=True)` in the router) — sending `{"chat_model": null}`
+    clears the cookie, while omitting the key entirely leaves it untouched."""
 
     chat_model: str | None = None
     sd_style: str | None = None

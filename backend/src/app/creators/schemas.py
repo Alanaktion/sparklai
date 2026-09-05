@@ -26,9 +26,9 @@ class CreatorResponse(BaseSchema):
 
 
 class CreatorUpdate(BaseSchema):
-    """Partial update for the settings page. Unlike the old SvelteKit form action (which always
-    replaced bio/occupation/interests/relationship_status wholesale, defaulting to null when the
-    form field was blank), this only touches fields the client actually sends."""
+    """Partial update for the settings page — only touches fields the client actually sends
+    (`exclude_unset`), rather than replacing bio/occupation/interests/relationship_status
+    wholesale."""
 
     name: str | None = None
     age: int | None = None

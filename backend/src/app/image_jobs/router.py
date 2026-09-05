@@ -11,8 +11,8 @@ router = APIRouter(prefix="/image-jobs", tags=["image-jobs"])
 
 @router.get("", response_model=list[ImageGenerationJobResponse])
 async def list_active_image_jobs(creator: CurrentCreator, db: DbDep):
-    """Port of `image-jobs/+server.ts` — the creator's still-in-flight jobs, re-kicking any that
-    somehow aren't running (e.g. after a backend restart that missed the startup recovery pass)."""
+    """The creator's still-in-flight jobs, re-kicking any that somehow aren't running (e.g. after
+    a backend restart that missed the startup recovery pass)."""
     if not creator:
         return []
     jobs = await ImageJobRepository(db).list_active_for_creator(creator.id)

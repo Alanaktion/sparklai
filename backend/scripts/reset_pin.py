@@ -1,8 +1,7 @@
 """Reset a creator's PIN directly against the database — for when a creator is locked out and
-there's no other way in. Port of the old `scripts/reset-pin.mjs` (removed alongside the rest of
-the SvelteKit/Drizzle stack in BACKEND_MIGRATION.md's cleanup pass); reuses
-`app.security.pin.hash_pin` instead of reimplementing PBKDF2, so hash-format compatibility is
-guaranteed by construction rather than by keeping two implementations in sync.
+there's no other way in. Reuses `app.security.pin.hash_pin` instead of reimplementing PBKDF2, so
+hash-format compatibility is guaranteed by construction rather than by keeping two implementations
+in sync.
 
 Usage:
     uv run python scripts/reset_pin.py --creator-id 1 --pin 1234

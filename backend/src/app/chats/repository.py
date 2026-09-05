@@ -57,8 +57,7 @@ class ChatRepository:
         await self._session.commit()
 
     async def delete(self, chat_id: int) -> None:
-        """Deletes by id alone, matching `chat/messages/[message_id]/+server.ts` — which never
-        checks the `[id]` (AI-user) segment of its own path either."""
+        """Deletes by id alone — does not verify the message belongs to any particular user."""
         chat = await self._session.get(Chat, chat_id)
         if chat:
             await self._session.delete(chat)

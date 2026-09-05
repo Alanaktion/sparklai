@@ -1,7 +1,7 @@
-"""Port of `src/lib/server/dream.ts`'s prompt-building — the pure half, split out from
-`UserService.dream()` (`app/users/service.py`) the same way `app/services/conversations.py` split
-out chat-history formatting: easy to unit test without a database, and the one piece of this
-feature that has no per-request state to resolve.
+"""Prompt-building for the "dream" feature — the pure half, split out from `UserService.dream()`
+(`app/users/service.py`) the same way `app/services/conversations.py` splits out chat-history
+formatting: easy to unit test without a database, and the one piece of this feature that has no
+per-request state to resolve.
 """
 
 from app.db.models import Chat, Comment, Post, User

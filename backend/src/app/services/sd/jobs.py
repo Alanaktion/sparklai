@@ -1,18 +1,15 @@
-"""Port of `src/lib/server/sd/jobs.ts`'s in-memory job queue, adapted for FastAPI/asyncio.
+"""In-memory image-generation job queue, adapted for FastAPI/asyncio.
 
-Same overall shape as the original (fire-and-forget `asyncio.create_task` per job, tracked in a
-process-local dict so a job already running doesn't get double-started), with two adaptations
-forced by moving off a single shared Drizzle `db` singleton:
+Fire-and-forget `asyncio.create_task` per job, tracked in a process-local dict so a job already
+running doesn't get double-started. Two things worth knowing:
 
 - Each background job runs with its *own* `AsyncSession` from `database.async_session_factory`,
   created fresh inside the task — a SQLAlchemy `AsyncSession` isn't safe to share across
-  concurrently running coroutines, unlike the original's request-and-background-both-use-the-same-
-  `db` pattern. Accessed as `database.async_session_factory()` (module attribute), not imported by
-  name, so tests can monkeypatch it to point background tasks at a test database too — see
-  `tests/conftest.py`.
-- `recover_pending_jobs()` (called from `main.py`'s startup, replacing the original's
-  lazy-on-first-request `ensureImageQueueStarted()`) re-attaches any `queued`/`processing` rows
-  left over from a previous process — e.g. after a crash or redeploy mid-generation.
+  concurrently running coroutines. Accessed as `database.async_session_factory()` (module
+  attribute), not imported by name, so tests can monkeypatch it to point background tasks at a
+  test database too — see `tests/conftest.py`.
+- `recover_pending_jobs()` (called from `main.py`'s startup) re-attaches any `queued`/`processing`
+  rows left over from a previous process — e.g. after a crash or redeploy mid-generation.
 """
 
 import asyncio

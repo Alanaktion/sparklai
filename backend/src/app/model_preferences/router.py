@@ -18,7 +18,6 @@ async def get_model_preferences(
     sd_style: SdStyleCookie = None,
     sd_model: SdModelCookie = None,
 ):
-    """Port of `(app)/models/+server.ts` GET."""
     return await model_preferences.get_model_preferences(chat_model, sd_style, sd_model)
 
 
@@ -30,7 +29,6 @@ async def update_model_preferences(
     sd_style: SdStyleCookie = None,
     sd_model: SdModelCookie = None,
 ):
-    """Port of `(app)/models/+server.ts` POST."""
     updates = data.model_dump(exclude_unset=True)
 
     if "chat_model" in updates:

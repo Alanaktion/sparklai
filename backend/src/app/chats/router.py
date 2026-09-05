@@ -15,8 +15,7 @@ from app.dependencies import ChatModelPref, CurrentCreator, DbDep, RequireCreato
 
 router = APIRouter(prefix="/users/{user_id}/chat", tags=["chats"])
 
-# Mounted separately (no `/users/{user_id}` prefix) for the `/chat` sidebar's conversation list —
-# port of `chat/+layout.server.ts`.
+# Mounted separately (no `/users/{user_id}` prefix) for the `/chat` sidebar's conversation list.
 conversations_router = APIRouter(tags=["chats"])
 
 

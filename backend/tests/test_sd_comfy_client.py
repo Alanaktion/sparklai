@@ -1,8 +1,6 @@
-"""ComfyUI request/response flow for `app/services/sd/client.py`'s `_start_comfy_generation()` —
-port of the old SvelteKit-side `src/tests/sd.comfy.test.ts` (deleted in BACKEND_MIGRATION.md's
-cleanup pass along with the `$lib/server/sd` module it tested). Nothing under
-`test_image_generation_endpoints.py`/`test_image_jobs.py` exercises this deep — they mock
-`sd_client.start_generation` itself — so this is the one place the prompt-submission/history-
+"""ComfyUI request/response flow for `app/services/sd/client.py`'s `_start_comfy_generation()`.
+Nothing under `test_image_generation_endpoints.py`/`test_image_jobs.py` exercises this deep — they
+mock `sd_client.start_generation` itself — so this is the one place the prompt-submission/history-
 polling/image-fetch mechanics actually get covered.
 
 Real `httpx.Response` objects stand in for the SD server's replies (constructed directly, not sent
@@ -191,9 +189,8 @@ async def test_raises_when_history_never_yields_an_image_before_timeout(
 
 
 async def test_wait_for_result_polls_at_the_configured_interval(monkeypatch: pytest.MonkeyPatch):
-    """Not part of the original vitest suite — added since porting the timeout test above made it
-    easy to also confirm `sd_comfy_poll_interval_ms` actually throttles the loop rather than
-    spinning it hot."""
+    """Confirms `sd_comfy_poll_interval_ms` actually throttles the loop rather than spinning it
+    hot."""
     from app.config import settings
 
     monkeypatch.setattr(settings, "sd_comfy_timeout_ms", 1000)

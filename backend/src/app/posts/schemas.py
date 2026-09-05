@@ -35,9 +35,8 @@ class PostImageUploadResponse(BaseSchema):
 
 
 class PostUpdate(BaseSchema):
-    """The only two fields any caller ever PATCHes (`ImagePicker.svelte`/`MediaPicker.svelte`
-    setting or clearing `image_id`/`media_id`) — the original blindly `.set()` the whole request
-    body onto the row instead of naming an editable surface."""
+    """The only two fields any caller ever PATCHes: `ImagePicker.svelte`/`MediaPicker.svelte`
+    setting or clearing `image_id`/`media_id`."""
 
     image_id: int | None = None
     media_id: int | None = None
@@ -54,10 +53,9 @@ class PostDetailResponse(PostResponse):
 
 
 class PostBundleResponse(BaseSchema):
-    """Port of `posts/[id]/+page.server.ts`'s load — the whole page in one call. `images`/`media`
-    are the post's author's own gallery (for `ImagePicker`/`MediaPicker`); `users` is the
-    requesting creator's own active AI users (for the "reply as" dropdown) — both empty for a
-    logged-out visitor, matching the original."""
+    """The whole individual post page bundle in one call. `images`/`media` are the post's
+    author's own gallery (for `ImagePicker`/`MediaPicker`); `users` is the requesting creator's
+    own active AI users (for the "reply as" dropdown) — both empty for a logged-out visitor."""
 
     id: str
     post: PostDetailResponse

@@ -23,9 +23,8 @@ class CommentRepository:
         return result.scalars().first()
 
     async def get_random_recent_post(self) -> Post | None:
-        """Port of `posts/comments/+server.ts`'s odd-but-faithfully-copied selection: pull (up to)
-        10 posts in default order, then pick one of those at random client-side, rather than
-        `ORDER BY random()` on the whole table."""
+        """Pulls (up to) 10 posts in default order, then picks one of those at random in Python,
+        rather than `ORDER BY random()` on the whole table."""
         result = await self._session.execute(select(Post).limit(10))
         posts = result.scalars().all()
         return random.choice(posts) if posts else None
@@ -38,8 +37,8 @@ class CommentRepository:
         return result.scalars().first()
 
     async def list_for_post_with_commenter_name(self, post_id: int) -> Sequence[tuple[str, str | None]]:
-        """Returns `(body, commenter_name)` pairs, matching the original's `leftJoin` onto
-        `users` (a comment's `user_id` is nullable for human, non-AI comments)."""
+        """Returns `(body, commenter_name)` pairs via a left join onto `users` (a comment's
+        `user_id` is nullable for human, non-AI comments)."""
         stmt = (
             select(Comment.body, User.name)
             .select_from(Comment)
@@ -69,8 +68,7 @@ class CommentRepository:
         await self._session.commit()
 
     async def delete(self, comment_id: int) -> None:
-        """Deletes by id alone — the original `[comment_id]/+server.ts` DELETE never checks the
-        `[id]` (post id) segment of its own path either, so this matches that as-is."""
+        """Deletes by id alone — does not verify the comment belongs to any particular post."""
         comment = await self._session.get(Comment, comment_id)
         if comment:
             await self._session.delete(comment)

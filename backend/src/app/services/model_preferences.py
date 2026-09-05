@@ -1,24 +1,17 @@
-"""Port of `src/lib/server/model-preferences.ts`.
+"""Chat model / Stable Diffusion style-model preference cookies.
 
-The original mutated `chat`'s and `sd`'s module-level "current model"/"current style" globals on
-every single request (via `hooks.server.ts` calling `applyModelPreferences()` unconditionally) —
-the same shared-mutable-state bug already fixed for the chat client in `app/services/chat.py` and
-designed around from the start in `app/services/sd/client.py` (see both modules' docstrings).
-
-This port keeps the same *cookie* shape (plain, unsigned, `httponly`/`samesite=lax`, session
-cookies — no relation to the separate signed `creator_session` auth cookie), but never mutates
-process-wide state. `get_model_preferences()` is a pure function of the three cookie values;
-`app/dependencies.py`'s `ChatModelPref` reads the `chat_model` cookie and hands it to callers as an
-explicit `model=` argument into `chat.schema_completion()`/`chat.completion()` — the same
-resolve-fresh-per-request pattern `chat.resolve_model()` already uses internally.
+These cookies are plain, unsigned, `httponly`/`samesite=lax` session cookies — no relation to the
+separate signed `creator_session` auth cookie — and nothing here mutates process-wide state.
+`get_model_preferences()` is a pure function of the three cookie values; `app/dependencies.py`'s
+`ChatModelPref` reads the `chat_model` cookie and hands it to callers as an explicit `model=`
+argument into `chat.schema_completion()`/`chat.completion()` — the same resolve-fresh-per-request
+pattern `chat.resolve_model()` uses internally.
 
 The SD side (`sd_style`/`sd_model` cookies) is intentionally *not* wired into any actual generation
-call: even in the original, every real caller of `sd.startGeneration()`/`txt2img()` in this app
-always passes an explicit `image_style` (the LLM decides it per post/avatar, see
-`app/services/sd/client.py`'s docstring), so `request.image_style || style`'s fallback to the
-cookie-driven global `style` was already dead code for every real code path — the cookie only ever
-drove this preferences endpoint's own display/preload behavior, never actual output. So there's
-nothing further to thread through here.
+call: every real caller of `sd.start_generation()`/`txt2img()` in this app always passes an
+explicit `image_style` (the LLM decides it per post/avatar, see `app/services/sd/client.py`'s
+docstring), so there's no code path where a cookie-driven default would ever apply — the cookie
+only ever drives this preferences endpoint's own display/preload behavior, never actual output.
 """
 
 from typing import TypedDict
@@ -71,8 +64,7 @@ def _pick(requested: str | None, available: list[str], fallback: str) -> str:
 def set_chat_model_cookie(response: Response, value: str | None) -> str | None:
     """Sets (or, given a falsy value, clears) the `chat_model` cookie on `response`, returning the
     normalized value now in effect — callers should carry that value forward locally rather than
-    re-reading `request.cookies`, which won't reflect a same-request write (unlike SvelteKit's
-    unified `Cookies` object the original relied on)."""
+    re-reading `request.cookies`, which won't reflect a same-request write."""
     normalized = normalize_cookie_value(value)
     if not normalized:
         response.delete_cookie(CHAT_MODEL_COOKIE, path="/")

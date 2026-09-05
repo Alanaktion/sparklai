@@ -1,13 +1,12 @@
-"""SQLAlchemy models mirroring the original Drizzle schema 1:1.
+"""SQLAlchemy models mirroring the pre-existing SQLite schema exactly.
 
-Source of truth this was ported from: `src/lib/server/db/schema.ts` (SvelteKit/Drizzle side,
-kept around during the transition — see BACKEND_MIGRATION.md). Column names, nullability,
-defaults, and FK `ondelete` behavior all match that file exactly so the existing `local.db` can be
-adopted via `alembic stamp head` (see `app.db.migrate`) instead of being recreated.
+Column names, nullability, defaults, and FK `ondelete` behavior all match the existing schema so
+`local.db` can be adopted via `alembic stamp head` (see `app.db.migrate`) instead of being
+recreated.
 
-Timestamps are intentionally kept as `Text`, not `DateTime`: Drizzle declared them as a `text()`
-column defaulting to `CURRENT_TIMESTAMP`, i.e. plain SQLite-formatted strings, and mapping them to
-SQLAlchemy's `DateTime` type risks a parsing mismatch against rows written by the old app.
+Timestamps are intentionally kept as `Text`, not `DateTime`: the schema stores them as plain
+SQLite-formatted strings defaulting to `CURRENT_TIMESTAMP`, and mapping them to SQLAlchemy's
+`DateTime` type risks a parsing mismatch against existing rows.
 """
 
 from sqlalchemy import JSON, Boolean, ForeignKey, Integer, Text

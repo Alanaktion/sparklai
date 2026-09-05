@@ -34,7 +34,7 @@ class CommentService:
         return post
 
     async def create_comment(self, post_id: int, message: str) -> Comment:
-        """Port of `posts/[id]/comments/+server.ts` POST — a plain (non-AI) user comment."""
+        """A plain (non-AI) user comment."""
         if not message.strip():
             raise BadRequestError("message is required")
         comment = await self._repository.create(post_id=post_id, user_id=None, body=message)
@@ -58,7 +58,6 @@ class CommentService:
     async def generate_comment_for_post(
         self, post: Post, commenter: User, model: str | None = None
     ) -> Comment:
-        """Port of `generateComment()` in `src/lib/server/index.ts`."""
         author = await self.get_user_or_raise(post.user_id)
         is_own_post = commenter.id == author.id
 

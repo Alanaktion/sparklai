@@ -1,11 +1,11 @@
-"""Port of `src/lib/server/sd/index.ts`'s Automatic1111/ComfyUI clients.
+"""Automatic1111/ComfyUI clients.
 
-Unlike the original, there's no mutable module-level "current style"/"current model" default —
-each request must say what style it wants (`ImageGenerationRequest.image_style`), falling back to
-a fixed `"photo"` default rather than a shared, cookie-settable global (the same bug class fixed
-for the chat client in `app/services/chat.py`). Per-request style/model *overrides* driven by a
-cookie (BACKEND_MIGRATION.md's "Model/style preferences" item) can layer on top of this later by
-resolving the cookie to an explicit `image_style`/model argument before calling in, exactly like
+There's no mutable module-level "current style"/"current model" default — each request must say
+what style it wants (`ImageGenerationRequest.image_style`), falling back to a fixed `"photo"`
+default rather than a shared, cookie-settable global (the same bug class avoided for the chat
+client in `app/services/chat.py`). A per-request style/model *override* driven by a cookie
+(see `app/services/model_preferences.py`) could layer on top of this later by resolving the
+cookie to an explicit `image_style`/model argument before calling in, exactly like
 `chat.resolve_model()` already does for chat.
 
 The one piece of intentional, non-shared mutable state here is `_last_applied_model`: a
@@ -13,9 +13,6 @@ process-local cache of the last Automatic1111 checkpoint we told the backend to 
 skip a redundant (and expensive — it's a multi-GB checkpoint swap) `options` call when consecutive
 jobs use the same style. It does not affect *which* style/model any given job uses (that always
 comes from the job's own data), only whether we bother re-issuing the switch.
-
-Not ported from the original: the `SD_DEBUG_LOG` request/response file-logging hook — it's a
-dev-only debugging aid, not user-facing behavior.
 """
 
 import asyncio

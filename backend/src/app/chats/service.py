@@ -12,7 +12,7 @@ from app.services.formatting import format_date, now_str
 
 
 def _build_persona_system_prompt(user: User, creator: Creator | None, relationships) -> str:
-    """Port of the (very long) system prompt built in `users/[id]/chat/respond/+server.ts`."""
+    """Builds the system prompt that gives the AI user's chat responses their persona."""
     interests = ", ".join(user.interests) if user.interests else "Unknown"
     if user.location:
         loc = user.location
@@ -131,9 +131,8 @@ class ChatService:
         return await self._repository.list_for_user(user_id)
 
     async def add_user_message(self, user_id: int, message: str) -> Chat:
-        """Port of `chat/messages/+server.ts` POST — unlike comments, an empty-string message is
-        accepted here (the original only rejects a wholly-missing `message` field, which a
-        required Pydantic field already does)."""
+        """Unlike comments, an empty-string message is accepted here — only a wholly-missing
+        `message` field is rejected, which a required Pydantic field already does."""
         return await self._repository.create(user_id=user_id, role="user", body=message)
 
     async def delete_message(self, chat_id: int) -> None:
@@ -154,7 +153,8 @@ class ChatService:
     async def generate_response(
         self, user_id: int, creator: Creator | None, model: str | None = None
     ) -> Chat:
-        """Port of `chat/respond/+server.ts`."""
+        """Generates the AI user's next chat reply from the full conversation history (plus any
+        summarized earlier context)."""
         user = await self.get_user_or_raise(user_id)
         relationships = await self._repository.list_relationships_with_related_user(user_id)
         system_prompt = _build_persona_system_prompt(user, creator, relationships)
@@ -201,7 +201,7 @@ class ChatService:
     async def start_new_conversation(
         self, user_id: int, creator: Creator | None, model: str | None = None
     ) -> Chat:
-        """Port of `chat/new-conversation/+server.ts`."""
+        """Summarizes the current conversation and starts a fresh one."""
         user = await self.get_user_or_raise(user_id)
         chat_history = await self._repository.list_for_user(user_id)
         _, active_messages = partition_chat_history(chat_history)
@@ -230,8 +230,8 @@ class ChatService:
         )
 
     async def list_conversation_previews(self, creator_id: int | None) -> list[tuple[User, Chat | None]]:
-        """Port of `chat/+layout.server.ts` — the `/chat` sidebar's per-user conversation
-        previews, newest-active-conversation first."""
+        """The `/chat` sidebar's per-user conversation previews, newest-active-conversation
+        first."""
         if creator_id is None:
             return []
         users = await self._repository.list_for_creator(creator_id)

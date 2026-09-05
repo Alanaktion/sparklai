@@ -1,10 +1,7 @@
-"""Port of `src/lib/server/image-utils.ts`'s `toWebp()` — sharp → Pillow.
-
-Converts arbitrary image bytes to compressed lossy WebP, resizing so the largest dimension is at
-most MAX_DIMENSION. Never enlarges images. PNG text chunks (e.g. ComfyUI's "prompt"/"workflow",
-read into Pillow's `Image.info` the same way sharp exposes them as `metadata.comments`) are mapped
-to EXIF IFD0 fields with a matching "Prompt: " / "Workflow: " prefix; otherwise any EXIF already on
-the input is carried through as-is.
+"""Converts arbitrary image bytes to compressed lossy WebP, resizing so the largest dimension is
+at most MAX_DIMENSION. Never enlarges images. PNG text chunks (e.g. ComfyUI's "prompt"/"workflow",
+read into Pillow's `Image.info`) are mapped to EXIF IFD0 fields with a matching "Prompt: " /
+"Workflow: " prefix; otherwise any EXIF already on the input is carried through as-is.
 """
 
 import io

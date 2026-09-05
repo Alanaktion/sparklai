@@ -39,7 +39,7 @@ class ConversationPreviewItem(BaseSchema):
 
 
 class ConversationPreviewResponse(BaseSchema):
-    """One entry in the `/chat` sidebar — port of `chat/+layout.server.ts`'s per-user bundle."""
+    """One entry in the `/chat` sidebar's per-user conversation preview list."""
 
     id: int
     name: str

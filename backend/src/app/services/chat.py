@@ -1,10 +1,9 @@
-"""LLM chat client, ported from `src/lib/server/chat/index.ts`.
+"""LLM chat client.
 
-Unlike the original, there is no module-level `model` global that every request mutates
-(`hooks.server.ts` called `initChatModel()` on every single request, racing concurrent creators
-against each other). The requested model is instead resolved fresh per call from an explicit
-parameter, falling back to `settings.chat_model` — a pure function of its inputs, not shared
-process state.
+The requested model is resolved fresh per call from an explicit parameter, falling back to
+`settings.chat_model` — a pure function of its inputs, not shared process state. There is
+deliberately no module-level "current model" global that concurrent requests could race each
+other to mutate.
 """
 
 import json
@@ -126,7 +125,7 @@ _TRANSLATE_SYSTEM = (
 
 
 async def translate_to_english(text: str, model: str | None = None) -> str:
-    """Port of `src/lib/server/chat/translate.ts`. Used by comments and chat messages."""
+    """Used by comments and chat messages."""
     source = text.strip()
     if not source:
         return ""

@@ -1,8 +1,5 @@
 # SparklAI backend (FastAPI)
 
-See [`../BACKEND_MIGRATION.md`](../BACKEND_MIGRATION.md) for what's ported here vs. still on the
-SvelteKit side, and why.
-
 ## Setup
 
 ```bash
@@ -35,7 +32,6 @@ touch `local.db`.
 
 Router → Service → Repository per entity (`app/creators/`, `app/users/`, `app/posts/`), following
 the vendored `.agents/skills/fastapi-*` pattern. Cross-entity SQLAlchemy models live together in
-`app/db/models.py` rather than split per-entity, since the schema (ported from
-`src/lib/server/db/schema.ts`) is heavily interlinked — same rationale that file itself uses.
-Business logic that isn't tied to one entity (the LLM client, character-card parsing) lives under
-`app/services/`.
+`app/db/models.py` rather than split per-entity, since the schema is heavily interlinked — see
+that file's docstring. Business logic that isn't tied to one entity (the LLM client,
+character-card parsing) lives under `app/services/`.

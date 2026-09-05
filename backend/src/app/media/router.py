@@ -10,7 +10,7 @@ router = APIRouter(prefix="/media", tags=["media"])
 
 @router.get("/{media_id}")
 async def get_media(media_id: int, db: DbDep) -> Response:
-    """Port of `media/[id]/+server.ts` GET."""
+    """Serves the raw blob straight from SQLite."""
     media = await MediaRepository(db).get_by_id(media_id)
     if not media:
         raise NotFoundError("Media", media_id)

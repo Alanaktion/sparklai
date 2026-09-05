@@ -17,12 +17,9 @@ async def get_current_creator(
     db: DbDep,
     session_cookie: Annotated[str | None, Cookie(alias=settings.session_cookie_name)] = None,
 ) -> Creator | None:
-    """Resolve the active creator from the signed session cookie, if any.
-
-    This replaces `hooks.server.ts`, which did the same DB lookup on every request via
-    `event.locals.creator` — the difference here is it's an explicit per-request dependency
-    instead of implicit request-scoped state, and it doesn't touch anything process-wide.
-    """
+    """Resolve the active creator from the signed session cookie, if any. An explicit per-request
+    dependency rather than implicit request-scoped state, and it doesn't touch anything
+    process-wide."""
     if not session_cookie:
         return None
     creator_id = read_session_token(session_cookie)
@@ -46,10 +43,9 @@ RequireCreator = Annotated[Creator, Depends(require_creator)]
 async def get_chat_model_preference(
     chat_model_cookie: Annotated[str | None, Cookie(alias=CHAT_MODEL_COOKIE)] = None,
 ) -> str | None:
-    """The per-request replacement for `hooks.server.ts` calling `initChatModel()` on every
-    request (see `app/services/model_preferences.py`'s docstring) — resolved here once and passed
-    down explicitly as `model=` into every `chat.schema_completion()`/`chat.completion()` call,
-    instead of every request racing to mutate a shared global."""
+    """Resolved here once per request and passed down explicitly as `model=` into every
+    `chat.schema_completion()`/`chat.completion()` call, instead of every request racing to
+    mutate a shared global (see `app/services/model_preferences.py`'s docstring)."""
     return normalize_cookie_value(chat_model_cookie)
 
 

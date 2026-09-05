@@ -1,5 +1,5 @@
 """Domain exceptions, adapted from the vendored `fastapi-exceptions` skill (trimmed: no
-correlation-id middleware for this pass — see BACKEND_MIGRATION.md for what's still deferred)."""
+correlation-id middleware for this pass)."""
 
 from typing import Any
 

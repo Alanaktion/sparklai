@@ -6,7 +6,7 @@ The backend is a FastAPI service under [`backend/`](backend/) (SQLAlchemy + Alem
 store) — see [`backend/README.md`](backend/README.md) to set it up; migrations apply
 automatically on startup. The front-end is a Svelte app, source in `src/`, startable with
 `pnpm run dev` once the backend is running (see `vite.config.ts` for the dev proxy that connects
-the two). See [`BACKEND_MIGRATION.md`](BACKEND_MIGRATION.md) for the history of this split.
+the two).
 
 ## Docker Deployment
 

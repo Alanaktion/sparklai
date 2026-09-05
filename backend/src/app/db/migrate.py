@@ -1,8 +1,8 @@
-"""Applies Alembic migrations on startup (see the vendored `fastapi-alembic-setup` skill and
-BACKEND_MIGRATION.md's "Database" section for the reasoning).
+"""Applies Alembic migrations on startup (see the vendored `fastapi-alembic-setup` skill for the
+reasoning).
 
-A pre-existing `local.db` (created by the old Drizzle/SvelteKit app) already has every table the
-baseline migration (`0001_baseline`) would create, but no `alembic_version` table. Running
+A pre-existing database created before Alembic tracking was introduced already has every table
+the baseline migration (`0001_baseline`) would create, but no `alembic_version` table. Running
 `upgrade head` against it would try to `CREATE TABLE` things that already exist and fail. So: if
 that exact shape is detected (app tables present, no `alembic_version` table), we stamp it to head
 instead of upgrading — a one-time cutover that doesn't touch a single row. Anything else (a fresh/

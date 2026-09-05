@@ -1,4 +1,4 @@
-"""Port of `src/lib/server/sd/types.ts`."""
+"""Shared types for the Stable Diffusion clients and job queue."""
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass

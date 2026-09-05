@@ -44,8 +44,8 @@ async def list_posts(
 
 @router.post("", status_code=201)
 async def create_post(db: DbDep, chat_model: ChatModelPref):
-    """Generate a post for a random active user (any creator's) — matches the original endpoint,
-    which doesn't scope authorship to the requesting creator either."""
+    """Generate a post for a random active user (any creator's) — not scoped to the requesting
+    creator."""
     result = await _service(db).generate_random_post(model=chat_model)
     return {
         "post": PostResponse.model_validate(result["post"]),
@@ -57,9 +57,9 @@ async def create_post(db: DbDep, chat_model: ChatModelPref):
 async def generate_or_upload_post_image(
     post_id: int, request: Request, db: DbDep, chat_model: ChatModelPref
 ):
-    """Port of the dual-purpose `posts/[id]/image/+server.ts`: a multipart upload with a `file`
-    field sets the post's image directly; anything else queues an AI-generated one. See
-    `PostService.upload_post_image()` / `.generate_post_image()`."""
+    """Dual-purpose: a multipart upload with a `file` field sets the post's image directly;
+    anything else queues an AI-generated one. See `PostService.upload_post_image()` /
+    `.generate_post_image()`."""
     content_type = request.headers.get("content-type", "")
     service = _service(db)
 
@@ -83,33 +83,30 @@ async def generate_or_upload_post_image(
 
 @router.get("/{post_id}", response_model=PostBundleResponse)
 async def get_post(post_id: int, creator: CurrentCreator, db: DbDep):
-    """Port of `posts/[id]/+page.server.ts`'s load — the whole individual post page in one call."""
+    """The whole individual post page bundle in one call."""
     return await _service(db).get_bundle(post_id, creator)
 
 
 @router.patch("/{post_id}", response_model=PostResponse)
 async def update_post(post_id: int, data: PostUpdate, db: DbDep):
-    """Port of `posts/[id]/+server.ts`'s PATCH."""
     fields = data.model_dump(exclude_unset=True)
     return await _service(db).update_post(post_id, fields)
 
 
 @router.delete("/{post_id}", status_code=204)
 async def delete_post(post_id: int, db: DbDep):
-    """Port of `posts/[id]/+server.ts`'s DELETE."""
     await _service(db).delete_post(post_id)
 
 
 @router.post("/{post_id}/translate", response_model=TranslateResponse)
 async def translate_post(post_id: int, db: DbDep, chat_model: ChatModelPref):
-    """Port of `posts/[id]/translate/+server.ts`."""
     body_en = await _service(db).translate_post(post_id, chat_model)
     return TranslateResponse(body_en=body_en)
 
 
 @router.post("/{post_id}/media")
 async def upload_post_media(post_id: int, request: Request, db: DbDep):
-    """Port of `posts/[id]/media/+server.ts` — audio/video upload, attached to the post."""
+    """Audio/video upload, attached to the post."""
     content_type = request.headers.get("content-type", "")
     if "multipart/form-data" not in content_type:
         raise HTTPException(status_code=400, detail="Expected multipart/form-data")

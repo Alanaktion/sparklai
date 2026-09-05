@@ -1,8 +1,6 @@
-// Frontend-owned response types for the FastAPI backend. Replaces the Drizzle-inferred `*Type`
-// aliases that used to live in `$lib/server/db/schema.ts` (deleted in BACKEND_MIGRATION.md's
-// cleanup pass, along with the rest of `src/lib/server/**`) — these mirror the corresponding
-// Pydantic response schemas' fields (`backend/src/app/*/schemas.py`), not the raw DB columns, so
-// e.g. binary `data` columns never appear here: the API never serializes those into JSON.
+// Frontend-owned response types for the FastAPI backend. These mirror the corresponding Pydantic
+// response schemas' fields (`backend/src/app/*/schemas.py`), not the raw DB columns, so e.g.
+// binary `data` columns never appear here: the API never serializes those into JSON.
 
 export type Location = {
 	city: string;

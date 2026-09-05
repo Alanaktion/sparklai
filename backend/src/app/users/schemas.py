@@ -69,8 +69,8 @@ class RelationshipItem(BaseSchema):
 
 
 class UserProfileResponse(BaseSchema):
-    """Bundle matching the old `users/[id]/+layout.server.ts` load — one call for the whole
-    profile page shell (user, ownership, posts, gallery images, relationships)."""
+    """One call for the whole profile page shell (user, ownership, posts, gallery images,
+    relationships)."""
 
     id: str
     user: UserResponse

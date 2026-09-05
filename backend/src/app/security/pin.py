@@ -1,6 +1,6 @@
-"""PBKDF2 PIN hashing, ported 1:1 from `src/lib/server/auth.ts` so existing `creators.password_hash`
-values keep verifying: same iteration count, digest, key length, and `hex(salt):hex(hash)` format.
-This is a straight port, not a hash-scheme upgrade — don't change the parameters below."""
+"""PBKDF2 PIN hashing. Existing `creators.password_hash` values depend on this exact iteration
+count, digest, key length, and `hex(salt):hex(hash)` format — don't change the parameters below
+without a migration plan for stored hashes."""
 
 import hashlib
 import hmac

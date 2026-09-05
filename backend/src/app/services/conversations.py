@@ -1,6 +1,6 @@
-"""Port of `src/lib/chat/conversations.ts`. Pure functions operating on anything with `role`/`body`
-attributes (in practice, `db.models.Chat` rows) — used by `app/chats/service.py` to separate a
-persisted chat history into prior conversation summaries plus the current, live segment."""
+"""Pure functions operating on anything with `role`/`body` attributes (in practice,
+`db.models.Chat` rows) — used by `app/chats/service.py` to separate a persisted chat history into
+prior conversation summaries plus the current, live segment."""
 
 from collections.abc import Sequence
 from typing import Protocol
