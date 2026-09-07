@@ -9,10 +9,19 @@ SQLite-formatted strings defaulting to `CURRENT_TIMESTAMP`, and mapping them to 
 `DateTime` type risks a parsing mismatch against existing rows.
 """
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.models import Base
+
+# Every `created_at`/`updated_at` column below is DB-side `DEFAULT CURRENT_TIMESTAMP` per the
+# Alembic migration (alembic/versions/0001_baseline.py) — repeated here via `server_default` so
+# SQLAlchemy's unit-of-work knows to actually omit the column from the INSERT and let SQLite fill
+# it in. Without this, the ORM has no idea a server-side default exists, so any row created
+# without explicitly passing e.g. `created_at=...` gets an explicit NULL written instead of the
+# timestamp the DDL promises — which is exactly why freshly-created posts/comments/etc. were
+# showing "Invalid Date" instead of missing rows just silently reusing the DDL default.
+_NOW = text("CURRENT_TIMESTAMP")
 
 
 class Creator(Base):
@@ -29,7 +38,7 @@ class Creator(Base):
     relationship_status: Mapped[str | None] = mapped_column(Text)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     users: Mapped[list["User"]] = relationship(back_populates="creator")
 
@@ -100,7 +109,7 @@ class Post(Base):
     media_id: Mapped[int | None] = mapped_column(ForeignKey("media.id", ondelete="SET NULL"))
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_en: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     user: Mapped["User"] = relationship(back_populates="posts")
     image: Mapped["Image | None"] = relationship(lazy="selectin")
@@ -115,7 +124,7 @@ class Comment(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_en: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     user: Mapped["User | None"] = relationship(lazy="selectin")
 
@@ -129,7 +138,7 @@ class Chat(Base):
     role: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_en: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     image: Mapped["Image | None"] = relationship(lazy="selectin")
 
@@ -154,8 +163,8 @@ class ImageGenerationJob(Base):
     provider_job_id: Mapped[str | None] = mapped_column(Text)
     provider_metadata: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[str | None] = mapped_column(Text)
-    updated_at: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
+    updated_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
     started_at: Mapped[str | None] = mapped_column(Text)
     completed_at: Mapped[str | None] = mapped_column(Text)
 
@@ -172,6 +181,6 @@ class Relationship(Base):
     )
     relationship_type: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     related_user: Mapped["User"] = relationship(foreign_keys=[related_user_id], lazy="selectin")

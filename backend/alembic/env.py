@@ -16,7 +16,14 @@ config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers defaults to True, which — since alembic.ini's [loggers] only lists
+    # root/sqlalchemy/alembic — silently disables every other logger already registered in this
+    # process (app.main, app.db.migrate, uvicorn, uvicorn.error, uvicorn.access, ...) the moment
+    # migrations run. Migrations run from FastAPI's startup lifespan on every boot (see
+    # app/main.py), so in practice this was permanently muting uvicorn's access logs *and* its
+    # unhandled-exception tracebacks (logged via the uvicorn.error logger) for the rest of the
+    # process's life — the exact reason a 500 would show nothing at all in `docker logs`.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

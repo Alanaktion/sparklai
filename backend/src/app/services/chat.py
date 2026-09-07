@@ -7,6 +7,7 @@ other to mutate.
 """
 
 import json
+import re
 from typing import Literal, TypedDict
 
 from openai import AsyncOpenAI
@@ -44,12 +45,34 @@ def _normalize_model(value: str | None) -> str:
     return trimmed
 
 
+def _message_text(message) -> str:
+    """Some OpenAI-compatible backends (LM Studio, vLLM) route a reasoning/"thinking" model's
+    entire answer through a non-standard `reasoning_content` field and leave `content` empty —
+    even for a structured `response_format` request where the schema was actually satisfied.
+    Falling back to it here (rather than only in the final printed text) is what makes
+    `schema_completion`'s `json.loads()` below see real JSON instead of an empty string."""
+    content = message.content
+    if content:
+        return content
+    return getattr(message, "reasoning_content", None) or ""
+
+
+# Raw ASCII control characters (other than tab/newline/CR, which are legitimate in prose) have no
+# business appearing in generated text. Seen in practice: a local inference backend garbling an
+# accented character into a couple of stray control bytes under strict JSON-schema-constrained
+# decoding (e.g. "BL\x06H\x05AJ" instead of "BLÅHAJ") — a backend-side sampler artifact we can't
+# fix at the source, but shouldn't let leak into the DB/UI as literal control characters either
+# (renders as "Invalid Date"-style mojibake, or worse, in various contexts).
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
 def _normalize_llm_output(value):
     if isinstance(value, str):
         marker = "</think>"
         if marker in value:
             return _normalize_llm_output(value[value.index(marker) + len(marker) :])
-        return value.replace("\\\\n", "\n").replace("\\n", "\n").replace('\\"', '"')
+        cleaned = value.replace("\\\\n", "\n").replace("\\n", "\n").replace('\\"', '"')
+        return _CONTROL_CHARS_RE.sub("", cleaned)
     if isinstance(value, list):
         return [_normalize_llm_output(item) for item in value]
     if isinstance(value, dict):
@@ -95,7 +118,16 @@ async def schema_completion(
             "json_schema": {"name": schema_name, "strict": True, "schema": schema},
         },
     )
-    parsed = json.loads(response.choices[0].message.content)
+    raw_text = _message_text(response.choices[0].message)
+    if "</think>" in raw_text:
+        raw_text = raw_text[raw_text.index("</think>") + len("</think>") :].strip()
+    try:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"Chat model {active_model!r} returned no parseable JSON for the {schema_name!r} "
+            "schema (empty content, and no usable reasoning_content fallback)"
+        ) from exc
     return _normalize_llm_output(parsed)
 
 
@@ -114,7 +146,7 @@ async def completion(
         messages=all_messages,
         temperature=_TEMPERATURE,
     )
-    return _normalize_llm_output(response.choices[0].message.content)
+    return _normalize_llm_output(_message_text(response.choices[0].message))
 
 
 _TRANSLATE_SYSTEM = (
