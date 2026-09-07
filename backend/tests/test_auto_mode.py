@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import CreatorAutoModeSettings, UserAutoModeSettings
 from app.services import chat
-from app.services.auto_mode import engine
+from app.services.auto_mode import engine, scoring
 
 CARD = {
     "spec": "chara_card_v2",
@@ -302,3 +302,49 @@ async def test_activity_log_scoped_to_own_creator(
     assert len(items) == 1
     assert items[0]["kind"] == "post"
     assert items[0]["user_name"] == "User A"
+
+
+def test_recency_weight_decays_with_rank():
+    assert scoring.recency_weight(0) == 1.0
+    assert scoring.recency_weight(1) == pytest.approx(0.85)
+    assert scoring.recency_weight(5) < scoring.recency_weight(1) < scoring.recency_weight(0)
+
+
+def test_combine_relevance_into_probability_applies_recency():
+    fresh = scoring.combine_relevance_into_probability(0.5, 1.0, recency=1.0)
+    stale = scoring.combine_relevance_into_probability(0.5, 1.0, recency=0.1)
+    assert stale == pytest.approx(0.05)
+    assert stale < fresh
+
+
+async def test_run_creator_tick_comments_prefer_more_recent_posts(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+):
+    """With a comment budget of 1 and both posts' rolls forced to "fire", the newer post should
+    win the budget — its recency-adjusted probability sorts higher than the older post's, even
+    though both share the same commenter/author/frequency/relationship inputs."""
+    creator_id = await _login_new_creator(client)
+    author_id = await _create_ai_user(client, "Author")
+    commenter_id = await _create_ai_user(client, "Commenter")
+
+    monkeypatch.setattr(chat, "schema_completion", _fake_post_schema_completion)
+    older = await client.post(f"/api/users/{author_id}/posts", json={})
+    newer = await client.post(f"/api/users/{author_id}/posts", json={})
+    older_post_id = older.json()["post"]["id"]
+    newer_post_id = newer.json()["post"]["id"]
+
+    await _enable_creator_directly(db_session, creator_id, max_comments_per_tick=1)
+    await _enable_user_posting(
+        db_session, commenter_id, auto_comment_enabled=True, comment_frequency_per_day=10
+    )
+
+    monkeypatch.setattr(engine.random, "random", lambda: 0.0)  # every roll "fires"
+    monkeypatch.setattr(chat, "completion", _fake_free_completion)
+
+    result = await engine.run_creator_tick(creator_id)
+    assert result["comments_created"] == 1
+
+    newer_bundle = await client.get(f"/api/posts/{newer_post_id}")
+    older_bundle = await client.get(f"/api/posts/{older_post_id}")
+    assert len(newer_bundle.json()["post"]["comments"]) == 1
+    assert len(older_bundle.json()["post"]["comments"]) == 0

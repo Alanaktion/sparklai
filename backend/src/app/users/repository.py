@@ -59,6 +59,44 @@ class UserRepository:
         )
         return result.scalars().all()
 
+    async def get_relationship_by_id(self, relationship_id: int) -> Relationship | None:
+        return await self._session.get(Relationship, relationship_id)
+
+    async def find_relationship(self, user_id: int, related_user_id: int) -> Relationship | None:
+        stmt = select(Relationship).where(
+            Relationship.user_id == user_id, Relationship.related_user_id == related_user_id
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().first()
+
+    async def create_relationship(
+        self,
+        *,
+        user_id: int,
+        related_user_id: int,
+        relationship_type: str | None,
+        description: str | None,
+    ) -> Relationship:
+        row = Relationship(
+            user_id=user_id,
+            related_user_id=related_user_id,
+            relationship_type=relationship_type,
+            description=description,
+        )
+        self._session.add(row)
+        await self._session.commit()
+        return row
+
+    async def update_relationship(self, row: Relationship, fields: dict) -> Relationship:
+        for key, value in fields.items():
+            setattr(row, key, value)
+        await self._session.commit()
+        return row
+
+    async def delete_relationship(self, row: Relationship) -> None:
+        await self._session.delete(row)
+        await self._session.commit()
+
     async def list_recent_posts(self, user_id: int, limit: int) -> Sequence[Post]:
         stmt = (
             select(Post).where(Post.user_id == user_id).order_by(Post.id.desc()).limit(limit)

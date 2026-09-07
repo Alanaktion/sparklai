@@ -13,6 +13,10 @@ _RELATIONSHIP_BOOST = 3.0
 _INTEREST_BOOST_PER_MATCH = 0.5
 _INTEREST_BOOST_CAP = 2.0
 _RELEVANCE_MULTIPLIER_CAP = 4.0
+# Each post one rank older (by id, within the recent-posts pool `engine.py` scans) is ~15% less
+# likely to draw a comment than the one just above it — a geometric decay rather than a hard
+# cutoff, so the pool's newest handful of posts dominate without older ones being flatly ignored.
+_RECENCY_DECAY = 0.85
 
 
 def tick_probability(rate_per_day: float, interval_seconds: int) -> float:
@@ -47,11 +51,23 @@ def commenter_relevance_score(
     return score
 
 
+def recency_weight(rank: int) -> float:
+    """`rank` is a post's 0-indexed position in the recent-posts pool (0 = newest, per
+    `AutoModeRepository.list_recent_posts()`'s `ORDER BY id DESC`). Post id order is used as the
+    recency signal directly, rather than parsing `created_at` (a plain `Text` column, not a real
+    `DateTime` — see `db/models.py`'s docstring) — id order is exact and free of parsing edge
+    cases. Returns a multiplier in `(0, 1]` that decays geometrically, so the tick algorithm
+    favors the newest posts in the pool much more heavily than older ones, instead of treating
+    every post in the pool as equally worth commenting on."""
+    return _RECENCY_DECAY**rank
+
+
 def combine_relevance_into_probability(
-    base_probability: float, relevance: float, scale: float = 1.0
+    base_probability: float, relevance: float, recency: float = 1.0, scale: float = 1.0
 ) -> float:
-    """Relevance multiplies the frequency-derived base probability rather than replacing it, so
-    `comment_frequency_per_day` stays the dominant lever and relevance only pushes toward "more
-    likely to comment on things related to them"."""
+    """Relevance and recency both multiply the frequency-derived base probability rather than
+    replacing it, so `comment_frequency_per_day` stays the dominant lever — relevance pushes
+    toward "more likely to comment on things related to them", recency pushes toward "more likely
+    to comment on something recent than something stale"."""
     multiplier = min(relevance * scale, _RELEVANCE_MULTIPLIER_CAP)
-    return max(0.0, min(1.0, base_probability * multiplier))
+    return max(0.0, min(1.0, base_probability * multiplier * recency))

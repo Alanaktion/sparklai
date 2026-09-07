@@ -2,13 +2,14 @@ import re
 
 from fastapi import UploadFile
 
-from app.db.models import Creator, Image, ImageGenerationJob, User
-from app.exceptions import AppException, BadRequestError, NotFoundError
+from app.db.models import Creator, Image, ImageGenerationJob, Relationship, User
+from app.exceptions import AppException, BadRequestError, ConflictError, NotFoundError
 from app.posts.repository import PostRepository
 from app.services import chat, image_utils
 from app.services.dream import DREAM_SYSTEM, MAX_CHATS, MAX_COMMENTS, MAX_POSTS, build_dream_prompt
 from app.services.import_character_card import CharacterCardV2, parse_character_card
 from app.users.repository import UserRepository
+from app.users.schemas import RelationshipCreate
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
 
@@ -34,6 +35,21 @@ def _normalize_generated_prompt(raw: str) -> str:
         seen.add(key)
         unique.append(part)
     return ", ".join(unique[:12]) if unique else raw.strip()
+
+
+def _relationship_item(rel: Relationship) -> dict:
+    """Shapes a `Relationship` row (with `.related_user` eager-loaded via `lazy=\"selectin\"`)
+    into the payload both `get_profile()`'s relationships list and the create/update endpoints
+    below return."""
+    return {
+        "relationship_id": rel.id,
+        "id": rel.related_user.id,
+        "name": rel.related_user.name,
+        "pronouns": rel.related_user.pronouns,
+        "image_id": rel.related_user.image_id,
+        "relationship_type": rel.relationship_type,
+        "description": rel.description,
+    }
 
 
 def _build_user_profile_text(user: User) -> str:
@@ -151,18 +167,86 @@ class UserService:
             "isOwner": is_owner,
             "posts": posts,
             "images": images,
-            "relationships": [
-                {
-                    "id": rel.related_user.id,
-                    "name": rel.related_user.name,
-                    "pronouns": rel.related_user.pronouns,
-                    "image_id": rel.related_user.image_id,
-                    "relationship_type": rel.relationship_type,
-                    "description": rel.description,
-                }
-                for rel in relationships
-            ],
+            "relationships": [_relationship_item(rel) for rel in relationships],
         }
+
+    async def create_relationship(self, user: User, data: RelationshipCreate) -> dict:
+        """`user` is the owning character (already ownership-checked by the router, same as
+        `update_user`/`delete_user`). By default (`data.mutual`) also creates or updates the
+        reverse row, so both characters treat each other as connected — otherwise the auto-mode
+        relevance heuristic and the post/comment prompt-builders would only ever see this one
+        direction."""
+        if data.related_user_id == user.id:
+            raise BadRequestError("A character can't have a relationship with themselves")
+
+        related_user = await self.get_by_id_or_raise(data.related_user_id)
+        if related_user.creator_id != user.creator_id:
+            raise BadRequestError("You can only link characters you own")
+
+        if await self._repository.find_relationship(user.id, data.related_user_id):
+            raise ConflictError("A relationship with this character already exists")
+
+        row = await self._repository.create_relationship(
+            user_id=user.id,
+            related_user_id=data.related_user_id,
+            relationship_type=data.relationship_type,
+            description=data.description,
+        )
+
+        if data.mutual:
+            # Defaults to mirroring the forward label/description (right for symmetric
+            # relationships); an explicit `reverse_*` value describes it from the other
+            # character's perspective instead (e.g. "parent" on their side of a "child" row).
+            reverse_type = (
+                data.reverse_relationship_type
+                if data.reverse_relationship_type is not None
+                else data.relationship_type
+            )
+            reverse_description = (
+                data.reverse_description
+                if data.reverse_description is not None
+                else data.description
+            )
+            reverse = await self._repository.find_relationship(data.related_user_id, user.id)
+            if reverse:
+                await self._repository.update_relationship(
+                    reverse,
+                    {"relationship_type": reverse_type, "description": reverse_description},
+                )
+            else:
+                await self._repository.create_relationship(
+                    user_id=data.related_user_id,
+                    related_user_id=user.id,
+                    relationship_type=reverse_type,
+                    description=reverse_description,
+                )
+
+        # `row` was just constructed/committed, never loaded via a query, so `.related_user`
+        # (`lazy="selectin"`) isn't populated on it yet — re-fetch before shaping the response.
+        fresh = await self._repository.get_relationship_by_id(row.id)
+        return _relationship_item(fresh)
+
+    async def update_relationship(self, user_id: int, relationship_id: int, fields: dict) -> dict:
+        row = await self._repository.get_relationship_by_id(relationship_id)
+        if not row or row.user_id != user_id:
+            raise NotFoundError("Relationship", relationship_id)
+        if fields:
+            row = await self._repository.update_relationship(row, fields)
+        return _relationship_item(row)
+
+    async def delete_relationship(
+        self, user_id: int, relationship_id: int, *, mutual: bool = True
+    ) -> None:
+        row = await self._repository.get_relationship_by_id(relationship_id)
+        if not row or row.user_id != user_id:
+            raise NotFoundError("Relationship", relationship_id)
+
+        if mutual:
+            reverse = await self._repository.find_relationship(row.related_user_id, user_id)
+            if reverse:
+                await self._repository.delete_relationship(reverse)
+
+        await self._repository.delete_relationship(row)
 
     async def update_user(self, user_id: int, fields: dict) -> User:
         """`fields` is already `UserUpdate.model_dump(exclude_unset=True)` from the router."""

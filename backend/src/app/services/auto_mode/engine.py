@@ -122,7 +122,7 @@ async def run_creator_tick(creator_id: int, model: str | None = None) -> dict:
             if not user_settings or not user_settings.auto_comment_enabled:
                 continue
             already_commented = await repo.list_post_ids_commented_by_user(user.id)
-            for post in recent_posts:
+            for rank, post in enumerate(recent_posts):
                 if post.id in already_commented:
                     continue
                 author = users_by_id.get(post.user_id) or await repo.get_user(post.user_id)
@@ -130,11 +130,12 @@ async def run_creator_tick(creator_id: int, model: str | None = None) -> dict:
                     continue
                 relationship = await repo.get_relationship(user.id, post.user_id)
                 relevance = scoring.commenter_relevance_score(user, post, author, relationship)
+                recency = scoring.recency_weight(rank)
                 base_probability = scoring.tick_probability(
                     user_settings.comment_frequency_per_day, interval
                 )
                 probability = scoring.combine_relevance_into_probability(
-                    base_probability, relevance
+                    base_probability, relevance, recency
                 )
                 if random.random() < probability:
                     comment_candidates.append((user, post, probability))

@@ -60,10 +60,43 @@ class ImageSummary(BaseSchema):
 
 
 class RelationshipItem(BaseSchema):
+    """One directional relationship row, from the owning user's (`{user_id}` in the URL)
+    perspective, with the related user's display info denormalized in. Used both in
+    `UserProfileResponse.relationships` and as the response model for the relationship
+    create/update endpoints below.
+
+    `relationship_id` is the `Relationship` row's own PK (for targeting PATCH/DELETE); `id` is the
+    *related* user's id (for linking to their profile) — kept as `id` rather than renamed, since
+    the frontend already keys off it for that link."""
+
+    relationship_id: int
     id: int
     name: str
     pronouns: str
     image_id: int | None = None
+    relationship_type: str | None = None
+    description: str | None = None
+
+
+class RelationshipCreate(BaseSchema):
+    """Creates a relationship from the owning user (`{user_id}` in the URL) to
+    `related_user_id` — both must belong to the same creator's roster. `mutual` (default `True`)
+    also creates/updates the reverse row, so both characters treat each other as connected.
+
+    The reverse row's label defaults to mirroring `relationship_type`/`description` exactly —
+    right for symmetric relationships ("best friend", "sibling"). For asymmetric ones (a "child"
+    on one side is a "parent" on the other), set `reverse_relationship_type`/`reverse_description`
+    to describe the relationship from the *other* character's perspective instead."""
+
+    related_user_id: int
+    relationship_type: str | None = None
+    description: str | None = None
+    mutual: bool = True
+    reverse_relationship_type: str | None = None
+    reverse_description: str | None = None
+
+
+class RelationshipUpdate(BaseSchema):
     relationship_type: str | None = None
     description: str | None = None
 

@@ -15,6 +15,9 @@ from app.users.schemas import (
     DreamResponse,
     ImageUploadResponse,
     PostGenerateRequest,
+    RelationshipCreate,
+    RelationshipItem,
+    RelationshipUpdate,
     UserCreate,
     UserProfileResponse,
     UserResponse,
@@ -69,6 +72,51 @@ async def delete_user(user_id: int, creator: RequireCreator, db: DbDep):
     if user.creator_id != creator.id:
         raise ForbiddenError("You do not own this AI user")
     await service.delete_user(user_id)
+
+
+@router.post("/{user_id}/relationships", response_model=RelationshipItem, status_code=201)
+async def create_relationship(
+    user_id: int, data: RelationshipCreate, creator: RequireCreator, db: DbDep
+):
+    service = _service(db)
+    user = await service.get_by_id_or_raise(user_id)
+    if user.creator_id != creator.id:
+        raise ForbiddenError("You do not own this AI user")
+    return await service.create_relationship(user, data)
+
+
+@router.patch("/{user_id}/relationships/{relationship_id}", response_model=RelationshipItem)
+async def update_relationship(
+    user_id: int,
+    relationship_id: int,
+    data: RelationshipUpdate,
+    creator: RequireCreator,
+    db: DbDep,
+):
+    service = _service(db)
+    user = await service.get_by_id_or_raise(user_id)
+    if user.creator_id != creator.id:
+        raise ForbiddenError("You do not own this AI user")
+    return await service.update_relationship(
+        user_id, relationship_id, data.model_dump(exclude_unset=True)
+    )
+
+
+@router.delete("/{user_id}/relationships/{relationship_id}", status_code=204)
+async def delete_relationship(
+    user_id: int,
+    relationship_id: int,
+    creator: RequireCreator,
+    db: DbDep,
+    mutual: bool = True,
+):
+    """`mutual` (default `True`) also removes the reverse row created alongside this one — see
+    `UserService.create_relationship()`."""
+    service = _service(db)
+    user = await service.get_by_id_or_raise(user_id)
+    if user.creator_id != creator.id:
+        raise ForbiddenError("You do not own this AI user")
+    await service.delete_relationship(user_id, relationship_id, mutual=mutual)
 
 
 @router.post("/{user_id}/posts")
