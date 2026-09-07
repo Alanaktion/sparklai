@@ -9,7 +9,7 @@ SQLite-formatted strings defaulting to `CURRENT_TIMESTAMP`, and mapping them to 
 `DateTime` type risks a parsing mismatch against existing rows.
 """
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, Text, text
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.models import Base
@@ -109,6 +109,9 @@ class Post(Base):
     media_id: Mapped[int | None] = mapped_column(ForeignKey("media.id", ondelete="SET NULL"))
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_en: Mapped[str | None] = mapped_column(Text)
+    # Set by `app.services.auto_mode.engine` when the post was authored unattended, rather than via
+    # a human-triggered "generate" click — lets the auto-mode activity log tell them apart.
+    is_auto_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     user: Mapped["User"] = relationship(back_populates="posts")
@@ -124,6 +127,8 @@ class Comment(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     body: Mapped[str] = mapped_column(Text, nullable=False)
     body_en: Mapped[str | None] = mapped_column(Text)
+    # See `Post.is_auto_generated` above.
+    is_auto_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     user: Mapped["User | None"] = relationship(lazy="selectin")
@@ -184,3 +189,40 @@ class Relationship(Base):
     created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
 
     related_user: Mapped["User"] = relationship(foreign_keys=[related_user_id], lazy="selectin")
+
+
+class CreatorAutoModeSettings(Base):
+    """One row per creator, created lazily on first read/write (see
+    `app.auto_mode.repository`) — a missing row is equivalent to "disabled, defaults"."""
+
+    __tablename__ = "creator_auto_mode_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    creator_id: Mapped[int] = mapped_column(
+        ForeignKey("creators.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tick_interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    max_posts_per_tick: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    max_comments_per_tick: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
+    updated_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
+
+
+class UserAutoModeSettings(Base):
+    """One row per user, created lazily on first read/write. `*_frequency_per_day` is an expected
+    rate (e.g. `0.5` = about once every two days), fed into the Poisson-thinning probability in
+    `app.services.auto_mode.scoring.tick_probability`."""
+
+    __tablename__ = "user_auto_mode_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    auto_post_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    auto_comment_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    post_frequency_per_day: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    comment_frequency_per_day: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
+    created_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)
+    updated_at: Mapped[str | None] = mapped_column(Text, server_default=_NOW)

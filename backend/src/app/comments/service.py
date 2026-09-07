@@ -56,7 +56,11 @@ class CommentService:
         return body_en
 
     async def generate_comment_for_post(
-        self, post: Post, commenter: User, model: str | None = None
+        self,
+        post: Post,
+        commenter: User,
+        model: str | None = None,
+        is_auto_generated: bool = False,
     ) -> Comment:
         author = await self.get_user_or_raise(post.user_id)
         is_own_post = commenter.id == author.id
@@ -104,5 +108,10 @@ class CommentService:
 
         response = await chat.completion(None, history, model=model)
 
-        comment = await self._repository.create(post_id=post.id, user_id=commenter.id, body=response)
+        comment = await self._repository.create(
+            post_id=post.id,
+            user_id=commenter.id,
+            body=response,
+            is_auto_generated=is_auto_generated,
+        )
         return await self._repository.get_with_user(comment.id)

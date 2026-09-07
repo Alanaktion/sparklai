@@ -55,8 +55,8 @@ class PostRepository:
         )
         return result.scalars().all()
 
-    async def create(self, *, user_id: int, body: str) -> Post:
-        post = Post(user_id=user_id, body=body)
+    async def create(self, *, user_id: int, body: str, is_auto_generated: bool = False) -> Post:
+        post = Post(user_id=user_id, body=body, is_auto_generated=is_auto_generated)
         self._session.add(post)
         await self._session.commit()
         await self._session.refresh(post)

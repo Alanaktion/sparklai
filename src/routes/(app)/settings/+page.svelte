@@ -320,12 +320,20 @@
 				{/if}
 
 				<div class="flex items-center justify-between pt-2">
-					<a
-						href={resolve('/')}
-						class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-					>
-						Back to Home
-					</a>
+					<div class="flex items-center gap-4">
+						<a
+							href={resolve('/')}
+							class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+						>
+							Back to Home
+						</a>
+						<a
+							href={resolve('/settings/auto-mode')}
+							class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+						>
+							Auto Mode
+						</a>
+					</div>
 					<button
 						type="submit"
 						disabled={submittingForm}

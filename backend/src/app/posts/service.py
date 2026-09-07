@@ -125,20 +125,27 @@ class PostService:
         return (list(rows[:limit]) if has_more else list(rows)), has_more
 
     async def generate_random_post(
-        self, prompt: str | None = None, model: str | None = None
+        self, prompt: str | None = None, model: str | None = None, is_auto_generated: bool = False
     ) -> dict:
         """`POST /api/posts` — picks a random active user as author, then generates a post for
         them."""
         author = await self._repository.get_random_active_user()
         if not author:
             raise NotFoundError("No Users Found")
-        return await self.generate_post_for_user(author, prompt, model)
+        return await self.generate_post_for_user(
+            author, prompt, model, is_auto_generated=is_auto_generated
+        )
 
     async def generate_post_for_user(
-        self, author: User, prompt: str | None = None, model: str | None = None
+        self,
+        author: User,
+        prompt: str | None = None,
+        model: str | None = None,
+        is_auto_generated: bool = False,
     ) -> dict:
         """The actual generation logic, given an author (used directly by
-        `POST /api/users/{id}/posts`, and via `generate_random_post` for `POST /api/posts`)."""
+        `POST /api/users/{id}/posts`, via `generate_random_post` for `POST /api/posts`, and by
+        `app.services.auto_mode.engine`'s scheduler with `is_auto_generated=True`)."""
         now = datetime.now().strftime("%A, %B %-d, %Y, %-I:%M %p")
         content = _build_post_prompt(author, now)
 
@@ -176,7 +183,9 @@ class PostService:
 
         response = await chat.schema_completion("post", None, history, model=model)
 
-        post = await self._repository.create(user_id=author.id, body=response["post_text"])
+        post = await self._repository.create(
+            user_id=author.id, body=response["post_text"], is_auto_generated=is_auto_generated
+        )
 
         image_job = None
         image_generation = response.get("image_generation")

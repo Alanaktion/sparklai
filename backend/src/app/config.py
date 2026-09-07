@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     sd_comfy_poll_interval_ms: int = 1500
     sd_comfy_timeout_ms: int = 180000
 
+    # Auto mode (see app/services/auto_mode/): safety net capping how many post/comment LLM calls
+    # can run concurrently across *all* creators' background loops at once, regardless of how many
+    # creators have auto-mode enabled or how short their individual check intervals are.
+    auto_mode_max_concurrent_llm_calls: int = 2
+
     # Static SPA build output, mounted by main.py in production
     static_dir: str = "../build"
 

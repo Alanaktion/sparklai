@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.auto_mode.router import router as auto_mode_router
 from app.chats.router import conversations_router
 from app.chats.router import router as chats_router
 from app.comments.router import router as comments_router
@@ -13,6 +14,7 @@ from app.users.router import import_router as import_character_router
 from app.users.router import router as users_router
 
 api_router = APIRouter()
+api_router.include_router(auto_mode_router)
 api_router.include_router(creators_router)
 api_router.include_router(users_router)
 api_router.include_router(posts_router)

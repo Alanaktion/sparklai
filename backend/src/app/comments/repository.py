@@ -48,8 +48,17 @@ class CommentRepository:
         result = await self._session.execute(stmt)
         return result.all()
 
-    async def create(self, *, post_id: int, user_id: int | None, body: str) -> Comment:
-        comment = Comment(post_id=post_id, user_id=user_id, body=body)
+    async def create(
+        self,
+        *,
+        post_id: int,
+        user_id: int | None,
+        body: str,
+        is_auto_generated: bool = False,
+    ) -> Comment:
+        comment = Comment(
+            post_id=post_id, user_id=user_id, body=body, is_auto_generated=is_auto_generated
+        )
         self._session.add(comment)
         await self._session.commit()
         await self._session.refresh(comment)
