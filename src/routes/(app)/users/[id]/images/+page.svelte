@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { resolve } from '$app/paths';
 	import Dialog from '$lib/components/base/dialog.svelte';
 	import Image from '$lib/components/Image.svelte';
 	import {
@@ -89,7 +88,7 @@
 			label: 'Profile image',
 			phase: prompt.trim() === '' ? 'prompt' : 'image'
 		});
-		fetch(resolve(`/users/${data.id}/image`), {
+		fetch(`/api/users/${data.id}/image`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
