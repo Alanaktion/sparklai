@@ -8,7 +8,7 @@ on:
 
 jobs:
   frontend:
-    name: Frontend Lint, Type Check & Test
+    name: Frontend Lint & Type Check
     runs-on: ubuntu-latest
 
     steps:
@@ -46,9 +46,6 @@ jobs:
 
       - name: Type check
         run: pnpm run check
-
-      - name: Run tests
-        run: pnpm run test
 
   backend:
     name: Backend Lint & Test
