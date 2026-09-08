@@ -6,6 +6,7 @@ posts and who comments is decided entirely by these cheap, deterministic-given-a
 """
 
 import math
+import random
 
 from app.db.models import Post, Relationship, User
 
@@ -17,6 +18,9 @@ _RELEVANCE_MULTIPLIER_CAP = 4.0
 # likely to draw a comment than the one just above it — a geometric decay rather than a hard
 # cutoff, so the pool's newest handful of posts dominate without older ones being flatly ignored.
 _RECENCY_DECAY = 0.85
+# Real threads don't grow forever - cap how many auto-generated comments any one post can collect.
+_MIN_COMMENTS_PER_POST = 2
+_MAX_COMMENTS_PER_POST = 5
 
 
 def tick_probability(rate_per_day: float, interval_seconds: int) -> float:
@@ -60,6 +64,14 @@ def recency_weight(rank: int) -> float:
     favors the newest posts in the pool much more heavily than older ones, instead of treating
     every post in the pool as equally worth commenting on."""
     return _RECENCY_DECAY**rank
+
+
+def max_comments_for_post(post: Post) -> int:
+    """How many auto-generated comments a single post is allowed to accumulate in total, across
+    every tick. Seeded by the post's own id rather than the shared `random` module, so the cap is
+    stable for a given post no matter how many times/ticks it's re-evaluated, instead of drifting
+    up or down each time."""
+    return random.Random(post.id).randint(_MIN_COMMENTS_PER_POST, _MAX_COMMENTS_PER_POST)
 
 
 def combine_relevance_into_probability(

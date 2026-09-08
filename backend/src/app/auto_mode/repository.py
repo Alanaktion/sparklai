@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -111,6 +111,20 @@ class AutoModeRepository:
         stmt = select(Comment.post_id).where(Comment.user_id == user_id)
         result = await self._session.execute(stmt)
         return set(result.scalars().all())
+
+    async def count_comments_by_post(self, post_ids: Sequence[int]) -> dict[int, int]:
+        """Total existing comment count per post, for `scoring.max_comments_for_post()` to cap
+        against. Missing keys (a post with zero comments) are the caller's responsibility, same as
+        the `dict.get(..., 0)` callers already do elsewhere in `engine.py`."""
+        if not post_ids:
+            return {}
+        stmt = (
+            select(Comment.post_id, func.count())
+            .where(Comment.post_id.in_(post_ids))
+            .group_by(Comment.post_id)
+        )
+        result = await self._session.execute(stmt)
+        return dict(result.all())
 
     async def get_relationship(self, user_id: int, related_user_id: int) -> Relationship | None:
         stmt = select(Relationship).where(

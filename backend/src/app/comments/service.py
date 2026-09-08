@@ -85,9 +85,11 @@ class CommentService:
             f"{relationship_context}"
             "Write a new comment. Do not include any roleplay or metatext, just write the actual "
             "response. If you don't know the language the original post is in, you can use your "
-            "preferred language. Most comments are short, but if you feel the need to write a "
-            "longer comment to be authentic to the character and the post, you can do that as "
-            "well."
+            "preferred language. Real social media comments are short and casual - usually a "
+            "single short sentence or sentence fragment, not a full paragraph. Skip greetings, "
+            "hedging, and formal phrasing; react the way someone would while quickly scrolling "
+            "their feed, typos and abbreviations are fine. Only go longer than that if the "
+            "character's personality truly demands it."
         )
 
         history: list[LlamaMessage] = [

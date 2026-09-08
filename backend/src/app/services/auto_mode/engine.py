@@ -117,13 +117,22 @@ async def run_creator_tick(creator_id: int, model: str | None = None) -> dict:
 
         # --- Comments ---
         recent_posts = await repo.list_recent_posts()
+        comment_counts = await repo.count_comments_by_post([post.id for post in recent_posts])
+        # Per-post cap (2-5, stable per post - see `scoring.max_comments_for_post()`) so a single
+        # post's thread doesn't grow unboundedly across ticks; posts already at/over their cap are
+        # skipped up front so they don't even enter the relevance-scoring below.
+        comment_limits = {}
+        for post in recent_posts:
+            limit = scoring.max_comments_for_post(post)
+            if comment_counts.get(post.id, 0) < limit:
+                comment_limits[post.id] = limit
         comment_candidates: list[tuple[User, Post, float]] = []
         for user, user_settings in rows:
             if not user_settings or not user_settings.auto_comment_enabled:
                 continue
             already_commented = await repo.list_post_ids_commented_by_user(user.id)
             for rank, post in enumerate(recent_posts):
-                if post.id in already_commented:
+                if post.id in already_commented or post.id not in comment_limits:
                     continue
                 author = users_by_id.get(post.user_id) or await repo.get_user(post.user_id)
                 if author is None:
@@ -143,11 +152,18 @@ async def run_creator_tick(creator_id: int, model: str | None = None) -> dict:
 
         comment_service = CommentService(CommentRepository(session))
         comments_created = 0
-        for user, post, _ in comment_candidates[: creator_settings.max_comments_per_tick]:
+        for user, post, _ in comment_candidates:
+            if comments_created >= creator_settings.max_comments_per_tick:
+                break
+            # Re-checked against a running count (rather than just the pre-loop snapshot) since
+            # multiple candidates for the same post can both be selected within this one tick.
+            if comment_counts.get(post.id, 0) >= comment_limits[post.id]:
+                continue
             async with _llm_semaphore:
                 await comment_service.generate_comment_for_post(
                     post, user, model=model, is_auto_generated=True
                 )
+            comment_counts[post.id] = comment_counts.get(post.id, 0) + 1
             comments_created += 1
 
         return {"posts_created": posts_created, "comments_created": comments_created}
