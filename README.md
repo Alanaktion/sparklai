@@ -84,6 +84,14 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | GET | `/api/me` | The authenticated user |
 | GET | `/api/settings` | Per-user prompt defaults |
 | PATCH | `/api/settings` | Update prompt defaults |
+| POST | `/api/characters` | Create from a V1 or V2 card (JSON body) |
+| POST | `/api/characters/upload` | Import a PNG card or JSON file (multipart `file`) |
+| GET | `/api/characters` | List your characters (`q`, `limit`, `offset`) |
+| GET | `/api/characters/{id}` | Character detail, including the canonical card |
+| PATCH | `/api/characters/{id}` | Replace the card (`{"card": {...}}`) |
+| DELETE | `/api/characters/{id}` | Delete the character and its avatar |
+| GET | `/api/characters/{id}/avatar` | The character's avatar PNG |
+| GET | `/api/characters/{id}/export` | Export as `?format=v1`, `v2`, or `png` |
 | GET | `/api/health` | Liveness |
 | GET | `/api/health/ready` | Readiness (checks the database) |
 
@@ -91,6 +99,34 @@ Emails are stored lowercased, so logins are case-insensitive. Passwords must be
 8+ characters and at most 72 bytes (bcrypt's limit).
 
 In Swagger UI, use the **Authorize** button to exercise authenticated routes.
+
+## Character cards
+
+Cards are accepted as either **V1** (flat, six fields) or **V2** (`spec`,
+`spec_version`, `data`). Import always produces the canonical V2 form; the
+`source` column records whether the card arrived as `v1` or `v2`, and
+`GET .../export?format=v1` un-nests it again on request.
+
+Fidelity rules, straight from the spec:
+
+- The whole canonical card JSON is stored verbatim and is the source of truth;
+  `name` and `spec_version` are denormalized purely for listing and sorting.
+- Unknown keys survive a round trip — both `extensions` (card, book, and entry
+  level) and unrecognised top-level keys. Unknown top-level keys from a V1 card
+  ride along on the V2 card so a V1 export stays lossless.
+- `character_book` entries support every documented field, including
+  `selective`/`secondary_keys`, `constant`, `position`, `insertion_order`,
+  `priority`, and `case_sensitive`.
+
+Validation is strict about *types* and about the `spec`, but lenient about field
+*presence*, because real-world cards routinely omit fields the spec calls
+mandatory. Unsupported specs (`chara_card_v3`) and `spec_version` values other
+than `2.0` are rejected with a 422 and a clear message.
+
+PNG cards embed their JSON base64-encoded in a `tEXt` chunk. Import reads the
+`chara` chunk, falling back to `ccv3`; export writes `chara`. Only that chunk is
+touched, so other PNG metadata is preserved byte-for-byte. Exporting a character
+that has no avatar uses a 1×1 transparent placeholder image.
 
 ## Common tasks
 
@@ -136,12 +172,13 @@ frontend/                    SvelteKit SPA (Svelte 5 + TypeScript)
   vite.config.ts             Static SPA adapter + /api dev proxy
 src/sparklchat/
   api/                       HTTP routers (`/api` prefix), auth deps, health checks
-  models/                    SQLModel table models + request/response schemas
-  services/                  Business logic (security, settings, ...)
+  models/                    SQLModel tables, card models, request/response schemas
+  services/                  Card parsing, PNG tEXt I/O, security, avatars
   cli.py                     `sparklchat` console entry point
   config.py                  Settings, package paths, frontend build location
   db.py                      Async engine, session dependency, schema helpers
   main.py                    App factory, API routing, SPA serving
+data/                        Local uploads (avatars); gitignored
 tests/                       pytest suite
 ```
 

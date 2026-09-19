@@ -13,6 +13,9 @@ wheels/
 *.db
 *.sqlite3
 
+# Uploaded avatars and other local data
+data/
+
 # Logs
 logs
 *.log

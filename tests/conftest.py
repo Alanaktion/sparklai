@@ -13,11 +13,20 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from sparklchat.config import Settings
+from sparklchat.config import Settings, get_settings
 from sparklchat.db import create_db_and_tables, get_session
 from sparklchat.main import create_app
 
 PASSWORD = "correct horse battery staple"
+
+
+@pytest.fixture(autouse=True)
+def isolated_uploads(tmp_path, monkeypatch) -> None:
+    """Keep uploaded avatars out of the real project tree."""
+    monkeypatch.setenv("AVATAR_DIR", str(tmp_path / "avatars"))
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def _override_session(app: FastAPI, engine: AsyncEngine) -> None:
@@ -100,3 +109,67 @@ async def auth_headers(client: AsyncClient, registered_user: dict, password: str
     )
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.fixture
+def v1_card() -> dict:
+    """A V1 card, including a key the spec does not define."""
+    return {
+        "name": "Haruhi",
+        "description": "A cheerful but blunt student.",
+        "personality": "Energetic and demanding.",
+        "scenario": "The club room after school.",
+        "first_mes": "Hi!",
+        "mes_example": "<START>\n{{user}}: hi\n{{char}}: hello",
+        "custom_v1_key": {"keep": "me"},
+    }
+
+
+@pytest.fixture
+def v2_card() -> dict:
+    """A V2 card exercising extensions at card, book, and entry level."""
+    return {
+        "spec": "chara_card_v2",
+        "spec_version": "2.0",
+        "data": {
+            "name": "Haruhi",
+            "description": "A cheerful but blunt student.",
+            "personality": "Energetic and demanding.",
+            "scenario": "The club room after school.",
+            "first_mes": "Hi!",
+            "mes_example": "",
+            "creator_notes": "Made for tests.",
+            "system_prompt": "You are {{char}}.",
+            "post_history_instructions": "",
+            "alternate_greetings": ["Oh, it's you."],
+            "character_book": {
+                "name": "Club",
+                "scan_depth": 4,
+                "token_budget": 512,
+                "recursive_scanning": False,
+                "extensions": {"book_ext": {"keep": True}},
+                "entries": [
+                    {
+                        "keys": ["brigade"],
+                        "secondary_keys": ["club"],
+                        "content": "The SOS Brigade.",
+                        "enabled": True,
+                        "insertion_order": 10,
+                        "case_sensitive": False,
+                        "selective": True,
+                        "constant": False,
+                        "position": "before_char",
+                        "priority": 5,
+                        "id": 1,
+                        "comment": "club lore",
+                        "name": "Brigade",
+                        "extensions": {"entry_ext": [1, 2, 3]},
+                    }
+                ],
+            },
+            "tags": ["Anime", "school"],
+            "creator": "tests",
+            "character_version": "1.1",
+            "extensions": {"card_ext": {"nested": "value"}},
+        },
+    }

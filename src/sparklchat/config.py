@@ -9,6 +9,8 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = PACKAGE_DIR.parent.parent
 # Where `npm run build` in `frontend/` puts the static SPA.
 FRONTEND_DIST_DIR = PROJECT_ROOT / "frontend" / "build"
+# Where uploaded character avatars are written.
+AVATAR_DIR = PROJECT_ROOT / "data" / "avatars"
 
 
 class Settings(BaseSettings):
@@ -32,6 +34,9 @@ class Settings(BaseSettings):
     # Built Svelte app served by FastAPI. When this directory does not exist the
     # app serves the API alone and logs a hint.
     frontend_dist_dir: Path = FRONTEND_DIST_DIR
+
+    # Directory holding uploaded character avatars.
+    avatar_dir: Path = AVATAR_DIR
 
 
 @lru_cache
