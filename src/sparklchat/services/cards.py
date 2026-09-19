@@ -13,6 +13,7 @@ from sparklchat.models.character import (
     CharacterSummary,
     CharacterTag,
 )
+from sparklchat.models.hooks import hooks_from_card_json
 
 CardFormat = Literal["v1", "v2"]
 
@@ -161,6 +162,7 @@ def character_detail(character: Character, viewer_id: int | None = None) -> Char
     return CharacterDetail(
         **character_summary(character, viewer_id).model_dump(),
         card=character.card_json,
+        hooks=hooks_from_card_json(character.card_json),
     )
 
 

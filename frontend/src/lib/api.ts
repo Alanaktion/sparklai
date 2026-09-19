@@ -248,7 +248,30 @@ export type CharacterCard = {
 	data?: CharacterCardData;
 };
 
-export type CharacterDetail = CharacterSummary & { card: CharacterCard };
+/** Voice hooks a card declares under `extensions.sparklchat`. */
+export type SpeechOutput = {
+	enabled: boolean;
+	voice: string | null;
+	lang: string | null;
+	rate: number | null;
+	pitch: number | null;
+};
+
+export type SpeechInput = {
+	enabled: boolean;
+	lang: string | null;
+	continuous: boolean;
+};
+
+export type CharacterHooks = {
+	tts: SpeechOutput;
+	stt: SpeechInput;
+};
+
+export type CharacterDetail = CharacterSummary & {
+	card: CharacterCard;
+	hooks: CharacterHooks;
+};
 
 export type CharacterSort = 'name' | 'created' | 'updated' | 'character_version';
 

@@ -11,6 +11,7 @@ from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 from sparklchat.models.base import utcnow
+from sparklchat.models.hooks import CharacterHooks
 
 
 class Character(SQLModel, table=True):
@@ -67,6 +68,8 @@ class CharacterSummary(SQLModel):
 
 class CharacterDetail(CharacterSummary):
     card: dict[str, Any]
+    # Client-side voice hooks declared in the card's `extensions.sparklchat`.
+    hooks: CharacterHooks = Field(default_factory=CharacterHooks)
 
 
 class CharacterUpdate(SQLModel):

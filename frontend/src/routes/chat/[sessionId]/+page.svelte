@@ -26,6 +26,15 @@
 	import MessageBubble from '$lib/components/MessageBubble.svelte';
 	import RichText from '$lib/components/RichText.svelte';
 	import { errorMessage } from '$lib/errors';
+	import {
+		canListen,
+		canSpeak,
+		recognitionConstructor,
+		segmentsFrom,
+		speak,
+		stopSpeaking,
+		type SpeechRecognitionLike
+	} from '$lib/speech';
 
 	let session = $state<SessionDetail | null>(null);
 	let character = $state<CharacterDetail | null>(null);
@@ -39,6 +48,11 @@
 	let exporting = $state<ChatExportFormat | null>(null);
 	let composer = $state('');
 	let speakerId = $state<number | null>(null);
+	let readAloud = $state(false);
+	let listening = $state(false);
+	let hearing = $state('');
+	let recognizer: SpeechRecognitionLike | null = null;
+	let heardSegments = 0;
 	let controller: AbortController | null = null;
 	let scroller = $state<HTMLDivElement | null>(null);
 
@@ -55,12 +69,22 @@
 		cast.find((member) => member.id === speakerId) ?? cast.find((member) => member.is_primary) ?? null
 	);
 
+	// Voice features are opt-in per card and only shown when the browser can do them.
+	const ttsEnabled = $derived(Boolean(character?.hooks?.tts?.enabled) && canSpeak());
+	const sttEnabled = $derived(Boolean(character?.hooks?.stt?.enabled) && canListen());
+
 	$effect(() => {
 		void load(sessionId);
 	});
 
 	// Abort an in-flight stream when leaving the page.
-	$effect(() => () => controller?.abort());
+	$effect(
+		() => () => {
+			controller?.abort();
+			stopListening();
+			stopSpeaking();
+		}
+	);
 
 	async function load(id: number) {
 		const token = auth.token;
@@ -142,6 +166,7 @@
 			onMessage: (message) => {
 				streamText = '';
 				upsert(message);
+				if (readAloud && message.role === 'assistant') speakReply(message.content);
 				void scrollToBottom();
 			},
 			onError: (detail) => {
@@ -306,6 +331,63 @@
 		return member?.name ?? character?.name ?? 'Character';
 	}
 
+	function speakReply(text: string) {
+		const tts = character?.hooks?.tts;
+		speak(text, {
+			voice: tts?.voice ?? null,
+			lang: tts?.lang ?? null,
+			rate: tts?.rate ?? null,
+			pitch: tts?.pitch ?? null
+		});
+	}
+
+	function stopListening() {
+		recognizer?.stop();
+		recognizer = null;
+		listening = false;
+		hearing = '';
+		heardSegments = 0;
+	}
+
+	function toggleListening() {
+		if (listening) {
+			stopListening();
+			return;
+		}
+		const Ctor = recognitionConstructor();
+		if (!Ctor) return;
+
+		const stt = character?.hooks?.stt;
+		const instance = new Ctor();
+		instance.lang = stt?.lang || 'en-US';
+		instance.continuous = Boolean(stt?.continuous);
+		instance.interimResults = true;
+		instance.onresult = (event) => {
+			const segments = segmentsFrom(event);
+			const final = segments.filter((segment) => segment.isFinal);
+			const fresh = final.slice(heardSegments);
+			if (fresh.length > 0) {
+				const addition = fresh
+					.map((segment) => segment.transcript.trim())
+					.filter(Boolean)
+					.join(' ');
+				if (addition) composer = composer ? `${composer} ${addition}` : addition;
+				heardSegments = final.length;
+			}
+			hearing = segments
+				.filter((segment) => !segment.isFinal)
+				.map((segment) => segment.transcript)
+				.join('');
+		};
+		instance.onerror = stopListening;
+		instance.onend = stopListening;
+
+		recognizer = instance;
+		heardSegments = 0;
+		listening = true;
+		instance.start();
+	}
+
 	function submitComposer(event: SubmitEvent) {
 		event.preventDefault();
 		void send();
@@ -390,6 +472,12 @@
 					</select>
 				</label>
 			{/if}
+			{#if ttsEnabled}
+				<label class="check">
+					<input type="checkbox" bind:checked={readAloud} />
+					<span>Read replies</span>
+				</label>
+			{/if}
 			<div class="export">
 				<span class="muted">Export</span>
 				<button
@@ -442,6 +530,10 @@
 		<p class="composer-error error" role="alert">{streamError}</p>
 	{/if}
 
+	{#if hearing}
+		<p class="hearing muted" role="status">{hearing}</p>
+	{/if}
+
 	<form class="composer" onsubmit={submitComposer}>
 		<textarea
 			bind:value={composer}
@@ -451,6 +543,17 @@
 			aria-label="Message"
 			disabled={loading || !session}
 		></textarea>
+		{#if sttEnabled}
+			<button
+				type="button"
+				class:listening
+				onclick={toggleListening}
+				disabled={streaming || !session}
+				title={listening ? 'Stop dictating' : 'Dictate'}
+			>
+				{listening ? 'Stop' : 'Dictate'}
+			</button>
+		{/if}
 		{#if streaming}
 			<button type="button" class="danger" onclick={stop}>Stop</button>
 		{:else}
@@ -497,6 +600,19 @@
 
 	.spacer {
 		flex: 1;
+	}
+
+	.hearing {
+		margin: 0;
+		padding: 0.4rem 1rem;
+		font-size: 0.85rem;
+		font-style: italic;
+	}
+
+	.composer .listening {
+		background: var(--danger);
+		border-color: var(--danger);
+		color: var(--accent-contrast);
 	}
 
 	.controls {
