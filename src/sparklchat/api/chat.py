@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncIterable
+from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -24,6 +25,7 @@ from sparklchat.models.chat import (
     MessagePublic,
     MessageUpdate,
     RegenerateResult,
+    SessionCharacter,
     SessionCreate,
     SessionDetail,
     SessionSummary,
@@ -34,17 +36,22 @@ from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettings
 from sparklchat.services.chat import (
     build_session_prompt,
+    cast_by_id,
+    cast_public,
     create_greeting,
     message_public,
     prompt_context,
     record_swipe,
     replace_active_content,
     resolve_provider,
+    session_cast,
+    speaker_map,
     swipe_message,
     title_from_message,
 )
 from sparklchat.services.crypto import EncryptionError
 from sparklchat.services.downloads import attachment_headers, download_filename
+from sparklchat.services.prompts import CastMember
 from sparklchat.services.providers import (
     BaseClient,
     ProviderError,
@@ -97,11 +104,14 @@ def _summary(session: ChatSession) -> SessionSummary:
     )
 
 
-def _detail(session: ChatSession, messages: list[Message]) -> SessionDetail:
+def _detail(
+    session: ChatSession, characters: list[Character], messages: list[Message]
+) -> SessionDetail:
     return SessionDetail(
         **_summary(session).model_dump(),
         system_prompt_override=session.system_prompt_override,
         post_history_override=session.post_history_override,
+        characters=cast_public(characters, session.character_id),
         messages=[message_public(message) for message in messages],
     )
 
@@ -117,36 +127,80 @@ def _client_for(provider: Provider) -> BaseClient:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
-async def _generation_context(
-    db: SessionDep, session_id: int, user_id: int
-) -> tuple[ChatSession, TavernCardV2, UserSettings, Provider, BaseClient]:
+@dataclass(slots=True)
+class _Generation:
     """Everything needed to build a prompt and call the provider."""
+
+    session: ChatSession
+    characters: list[Character]
+    acting: Character
+    card: TavernCardV2
+    members: list[CastMember]
+    speakers: dict[int, str]
+    settings: UserSettings
+    client: BaseClient
+
+
+def _pick_speaker(
+    characters: list[Character], session: ChatSession, speaker_id: int | None
+) -> Character:
+    """The character who should reply: the requested one, else the primary."""
+    if not characters:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Character not found")
+    if speaker_id is None:
+        return next(
+            (member for member in characters if member.id == session.character_id),
+            characters[0],
+        )
+    for member in characters:
+        if member.id == speaker_id:
+            return member
+    raise HTTPException(
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "speaker_id must be one of this session's characters",
+    )
+
+
+async def _generation_context(
+    db: SessionDep, session_id: int, user_id: int, speaker_id: int | None = None
+) -> _Generation:
     session = await _owned_session(db, session_id, user_id)
-    character = await readable_character(db, session.character_id, user_id)
-    card = TavernCardV2.model_validate(character.card_json)
+    characters = await session_cast(db, session)
+    acting = _pick_speaker(characters, session, speaker_id)
+    members_by_id = cast_by_id(characters)
+    member = members_by_id.get(acting.id or -1)
+    if member is None:  # pragma: no cover - the cast always contains the acting member
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Character not found")
     settings = await get_or_create_settings(db, user_id)
 
     provider = await resolve_provider(db, session, user_id)
     if provider is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, _NO_PROVIDER)
 
-    return session, card, settings, provider, _client_for(provider)
+    speakers = speaker_map(characters) if len(characters) > 1 else {}
+    return _Generation(
+        session=session,
+        characters=characters,
+        acting=acting,
+        card=member.card,
+        members=list(members_by_id.values()),
+        speakers=speakers,
+        settings=settings,
+        client=_client_for(provider),
+    )
 
 
-def _prompt(
-    card: TavernCardV2,
-    session: ChatSession,
-    settings: UserSettings,
-    messages: list[Message],
-):
+def _prompt(generation: _Generation, messages: list[Message]):
     settings_values = get_settings()
     return build_session_prompt(
-        card=card,
-        session=session,
+        card=generation.card,
+        session=generation.session,
         messages=messages,
-        settings=settings,
+        settings=generation.settings,
         context_window=settings_values.context_window,
         context_reserve=settings_values.context_reserve,
+        cast=generation.members,
+        speakers=generation.speakers or None,
     )
 
 
@@ -175,12 +229,15 @@ async def _append_user_message(
     return message
 
 
-async def _append_assistant_message(db: SessionDep, session: ChatSession, content: str) -> Message:
+async def _append_assistant_message(
+    db: SessionDep, session: ChatSession, content: str, speaker_id: int | None = None
+) -> Message:
     message = Message(
         session_id=session.id,
         role="assistant",
         content=content,
         token_count=count_tokens(content),
+        speaker_id=speaker_id,
     )
     db.add(message)
     session.updated_at = utcnow()
@@ -217,10 +274,20 @@ async def create_session(
     db: SessionDep,
     current_user: CurrentUserDep,
 ) -> SessionDetail:
-    """Start a session and seed it with the character's greeting."""
+    """Start a session and seed it with the primary character's greeting.
+
+    `character_ids` adds group members; the path character stays primary and the
+    greeting still comes from it.
+    """
     character = await readable_character(db, character_id, current_user.id)
     if payload.provider_id is not None:
         await _owned_provider(db, payload.provider_id, current_user.id)
+
+    characters = [character]
+    for member_id in payload.character_ids:
+        if member_id == character_id or any(item.id == member_id for item in characters):
+            continue
+        characters.append(await readable_character(db, member_id, current_user.id))
 
     card = TavernCardV2.model_validate(character.card_json)
     settings = await get_or_create_settings(db, current_user.id)
@@ -235,9 +302,13 @@ async def create_session(
     await db.commit()
     await db.refresh(session)
 
+    for position, member in enumerate(characters):
+        db.add(SessionCharacter(session_id=session.id, character_id=member.id, position=position))
+    await db.commit()
+
     greeting = await create_greeting(db, session, card, prompt_context(card, settings))
     messages = [greeting] if greeting is not None else []
-    return _detail(session, messages)
+    return _detail(session, characters, messages)
 
 
 @router.get("/{session_id}")
@@ -245,7 +316,8 @@ async def get_session(
     session_id: int, db: SessionDep, current_user: CurrentUserDep
 ) -> SessionDetail:
     session = await _owned_session(db, session_id, current_user.id)
-    return _detail(session, await _load_messages(db, session.id))
+    characters = await session_cast(db, session)
+    return _detail(session, characters, await _load_messages(db, session.id))
 
 
 @router.patch("/{session_id}")
@@ -277,7 +349,8 @@ async def update_session(
     db.add(session)
     await db.commit()
     await db.refresh(session)
-    return _detail(session, await _load_messages(db, session.id))
+    characters = await session_cast(db, session)
+    return _detail(session, characters, await _load_messages(db, session.id))
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -302,17 +375,20 @@ async def send_message(
     db: SessionDep,
     current_user: CurrentUserDep,
 ) -> MessagePair:
-    session, card, settings, _, client = await _generation_context(db, session_id, current_user.id)
-    character = await readable_character(db, session.character_id, current_user.id)
-    user_message = await _append_user_message(db, session, character, payload.content)
+    generation = await _generation_context(db, session_id, current_user.id, payload.speaker_id)
+    user_message = await _append_user_message(
+        db, generation.session, generation.acting, payload.content
+    )
 
-    prompt = _prompt(card, session, settings, await _load_messages(db, session.id))
+    prompt = _prompt(generation, await _load_messages(db, generation.session.id))
     try:
-        reply = await client.complete(prompt)
+        reply = await generation.client.complete(prompt)
     except ProviderError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
 
-    assistant_message = await _append_assistant_message(db, session, reply)
+    assistant_message = await _append_assistant_message(
+        db, generation.session, reply, generation.acting.id
+    )
     return MessagePair(
         user=message_public(user_message),
         assistant=message_public(assistant_message),
@@ -326,44 +402,60 @@ async def stream_message(
     db: SessionDep,
     current_user: CurrentUserDep,
 ) -> AsyncIterable[ServerSentEvent]:
-    session, card, settings, _, client = await _generation_context(db, session_id, current_user.id)
-    character = await readable_character(db, session.character_id, current_user.id)
-    user_message = await _append_user_message(db, session, character, payload.content)
+    generation = await _generation_context(db, session_id, current_user.id, payload.speaker_id)
+    user_message = await _append_user_message(
+        db, generation.session, generation.acting, payload.content
+    )
     yield _event("user", {"message": message_public(user_message).model_dump(mode="json")})
 
-    prompt = _prompt(card, session, settings, await _load_messages(db, session.id))
+    prompt = _prompt(generation, await _load_messages(db, generation.session.id))
     collected: list[str] = []
     try:
-        async for delta in client.stream(prompt):
+        async for delta in generation.client.stream(prompt):
             collected.append(delta)
             yield _event("delta", {"delta": delta})
     except ProviderError as exc:
         if collected:
             # Keep whatever arrived so the user does not lose it.
-            partial = await _append_assistant_message(db, session, "".join(collected))
+            partial = await _append_assistant_message(
+                db, generation.session, "".join(collected), generation.acting.id
+            )
             yield _event("message", {"message": message_public(partial).model_dump(mode="json")})
         yield _event("error", {"detail": str(exc)})
         yield _event("done", {})
         return
 
-    assistant_message = await _append_assistant_message(db, session, "".join(collected))
+    assistant_message = await _append_assistant_message(
+        db, generation.session, "".join(collected), generation.acting.id
+    )
     yield _event("message", {"message": message_public(assistant_message).model_dump(mode="json")})
     yield _event("done", {})
 
 
-async def _regenerate_prompt(
-    db: SessionDep, session: ChatSession, card: TavernCardV2, settings: UserSettings
-) -> tuple[list[Message], Message]:
-    """Return the prompt messages and the assistant message being replaced."""
-    messages = await _load_messages(db, session.id)
+def _last_assistant(messages: list[Message]) -> Message:
     target = next((message for message in reversed(messages) if message.role == "assistant"), None)
     if target is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "There is no assistant message to regenerate",
         )
+    return target
+
+
+async def _regenerate_context(
+    db: SessionDep, session_id: int, user_id: int
+) -> tuple[_Generation, list[Message], Message]:
+    """The generation context, the prompt history, and the message to replace.
+
+    The character being regenerated is the one that spoke the target message, so a
+    group reply is retried in the same voice.
+    """
+    session = await _owned_session(db, session_id, user_id)
+    messages = await _load_messages(db, session.id)
+    target = _last_assistant(messages)
+    generation = await _generation_context(db, session_id, user_id, target.speaker_id)
     context = [message for message in messages if message.id != target.id]
-    return _prompt(card, session, settings, context), target
+    return generation, context, target
 
 
 async def _store_swipe(
@@ -382,13 +474,12 @@ async def _store_swipe(
 async def regenerate(
     session_id: int, db: SessionDep, current_user: CurrentUserDep
 ) -> RegenerateResult:
-    session, card, settings, _, client = await _generation_context(db, session_id, current_user.id)
-    prompt, target = await _regenerate_prompt(db, session, card, settings)
+    generation, context, target = await _regenerate_context(db, session_id, current_user.id)
     try:
-        reply = await client.complete(prompt)
+        reply = await generation.client.complete(_prompt(generation, context))
     except ProviderError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
-    message = await _store_swipe(db, session, target, reply)
+    message = await _store_swipe(db, generation.session, target, reply)
     return RegenerateResult(assistant=message_public(message))
 
 
@@ -396,12 +487,12 @@ async def regenerate(
 async def stream_regenerate(
     session_id: int, db: SessionDep, current_user: CurrentUserDep
 ) -> AsyncIterable[ServerSentEvent]:
-    session, card, settings, _, client = await _generation_context(db, session_id, current_user.id)
-    prompt, target = await _regenerate_prompt(db, session, card, settings)
+    generation, context, target = await _regenerate_context(db, session_id, current_user.id)
+    prompt = _prompt(generation, context)
 
     collected: list[str] = []
     try:
-        async for delta in client.stream(prompt):
+        async for delta in generation.client.stream(prompt):
             collected.append(delta)
             yield _event("delta", {"delta": delta})
     except ProviderError as exc:
@@ -409,7 +500,7 @@ async def stream_regenerate(
         yield _event("done", {})
         return
 
-    message = await _store_swipe(db, session, target, "".join(collected))
+    message = await _store_swipe(db, generation.session, target, "".join(collected))
     yield _event("message", {"message": message_public(message).model_dump(mode="json")})
     yield _event("done", {})
 
@@ -423,18 +514,24 @@ async def export_session(
 ) -> Response:
     """Download a transcript as JSON or Markdown."""
     session = await _owned_session(db, session_id, current_user.id)
-    character = await readable_character(db, session.character_id, current_user.id)
+    characters = await session_cast(db, session)
+    primary = await readable_character(db, session.character_id, current_user.id)
     messages = await _load_messages(db, session.id)
 
     settings = await db.get(UserSettings, current_user.id)
     user_name = ((settings.display_name if settings else "") or "User").strip() or "User"
-    character_name = (character.name or "").strip() or "Character"
-    title = session.title or character_name
+    primary_name = (primary.name or "").strip() or "Character"
+    title = session.title or primary_name
+    names = speaker_map(characters)
 
     if export_format == "json":
         payload = {
             "session": _summary(session).model_dump(mode="json"),
-            "character": {"id": character.id, "name": character_name},
+            "character": {"id": primary.id, "name": primary_name},
+            "characters": [
+                member.model_dump(mode="json")
+                for member in cast_public(characters, session.character_id)
+            ],
             "messages": [message_public(message).model_dump(mode="json") for message in messages],
         }
         return Response(
@@ -448,7 +545,7 @@ async def export_session(
         if message.role == "user":
             speaker = user_name
         elif message.role == "assistant":
-            speaker = character_name
+            speaker = names.get(message.speaker_id or -1) or primary_name
         else:
             speaker = "System"
         lines.append(f"**{speaker}:** {message.content}")

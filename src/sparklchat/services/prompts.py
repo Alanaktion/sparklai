@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sparklchat.models.card import CharacterBook, TavernCardV2
-from sparklchat.services.lorebook import select_stacked_entries
+from sparklchat.services.lorebook import merge_matched, select_entries, select_stacked_entries
 from sparklchat.services.providers import ChatMessage
 from sparklchat.services.tokens import count_tokens
 
@@ -38,6 +38,14 @@ class HistoryTurn:
     role: str
     content: str
     is_greeting: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class CastMember:
+    """One character in a (possibly single-character) session cast."""
+
+    name: str
+    card: TavernCardV2
 
 
 def substitute_macros(text: str, context: PromptContext) -> str:
@@ -96,6 +104,7 @@ def build_prompt(
     use_character_book: bool = True,
     world_book: CharacterBook | None = None,
     use_world_book: bool = True,
+    cast: Sequence[CastMember] | None = None,
     context_window: int = 8192,
     context_reserve: int = DEFAULT_CONTEXT_RESERVE,
 ) -> list[ChatMessage]:
@@ -119,16 +128,17 @@ def build_prompt(
         context,
     )
 
-    sections = [system_text, _character_block(card, context)]
+    sections = [system_text, _character_section(card, cast, context)]
 
-    if _has_book(card.data.character_book, use_character_book, world_book, use_world_book):
-        matched = select_stacked_entries(
-            card.data.character_book,
-            world_book,
-            [turn.content for turn in history],
-            use_character_book=use_character_book,
-            use_world_book=use_world_book,
-        )
+    matched = _matched_entries(
+        card,
+        list(cast or []),
+        world_book,
+        [turn.content for turn in history],
+        use_character_book=use_character_book,
+        use_world_book=use_world_book,
+    )
+    if matched is not None:
         before = _contents(matched.before_char, context)
         after = _contents(matched.after_char, context)
         if before:
@@ -159,15 +169,73 @@ def build_prompt(
     return messages
 
 
-def _has_book(
-    character_book: CharacterBook | None,
-    use_character_book: bool,
+GROUP_DIRECTIVE = (
+    "This is a group scene with several characters. Write only {character}'s next "
+    "reply, in their voice, and never write another character's lines."
+)
+
+
+def _character_section(
+    card: TavernCardV2, cast: Sequence[CastMember] | None, context: PromptContext
+) -> str:
+    """The character definition block: one character, or the whole group."""
+    members = list(cast or [])
+    if len(members) <= 1:
+        return _character_block(card, context)
+    blocks = [_member_block(member, context) for member in members]
+    blocks.append(GROUP_DIRECTIVE.format(character=context.character_name))
+    return "\n\n".join(blocks)
+
+
+def _member_block(member: CastMember, context: PromptContext) -> str:
+    member_context = PromptContext(character_name=member.name, user_name=context.user_name)
+    data = member.card.data
+    lines = [f"Character: {member.name}"]
+    if (data.description or "").strip():
+        lines.append(substitute_macros(data.description.strip(), member_context))
+    if (data.personality or "").strip():
+        lines.append(f"Personality: {substitute_macros(data.personality.strip(), member_context)}")
+    if (data.scenario or "").strip():
+        lines.append(f"Scenario: {substitute_macros(data.scenario.strip(), member_context)}")
+    return "\n".join(lines)
+
+
+def _matched_entries(
+    card: TavernCardV2,
+    cast: Sequence[CastMember],
     world_book: CharacterBook | None,
+    history: Sequence[str],
+    *,
+    use_character_book: bool,
     use_world_book: bool,
-) -> bool:
-    return (use_character_book and character_book is not None) or (
-        use_world_book and world_book is not None
-    )
+):
+    """Lorebook entries to inject, or None when no book is in play.
+
+    A single character stacks its book over the world book (§4.4). In a group, the
+    acting character's book wins, then the other members' in cast order, then the
+    world book. Substitutions use the acting character's context.
+    """
+    if len(cast) <= 1:
+        if not use_character_book and not (use_world_book and world_book is not None):
+            return None
+        return select_stacked_entries(
+            card.data.character_book,
+            world_book,
+            history,
+            use_character_book=use_character_book,
+            use_world_book=use_world_book,
+        )
+
+    groups = []
+    if use_character_book:
+        groups.append(select_entries(card.data.character_book, history))
+        for member in cast:
+            if member.card is card:
+                continue
+            groups.append(select_entries(member.card.data.character_book, history))
+    if use_world_book:
+        groups.append(select_entries(world_book, history))
+    return merge_matched(groups)
 
 
 def _character_block(card: TavernCardV2, context: PromptContext) -> str:

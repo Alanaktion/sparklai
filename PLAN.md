@@ -24,8 +24,9 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - `character_book` is stored inline in `characters.card_json`; no separate `character_books`/`lorebook_entries` tables (per §2.2's "or stored inline").
 - Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
 - The user-level world book is a single `CharacterBook`-shaped JSON blob on `user_settings` (no separate tables), stored verbatim so unknown keys round-trip.
-- Characters can be published (`is_public`) to a shared library that any signed-in user can read, export, and chat with; group chats and TTS/STT hooks (M8) remain unimplemented.
-- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Every box outside M8's optional group chats and TTS/STT hooks is now checked.
+- Characters can be published (`is_public`) to a shared library that any signed-in user can read, export, and chat with.
+- Group chats live on a `session_characters` cast table; the primary character still owns the greeting and title, and `messages.speaker_id` records who said each assistant line. Regeneration retries in the original speaker's voice. The only remaining M8 item is TTS/STT hooks.
+- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Every box outside M8's optional TTS/STT hooks is now checked.
 
 ---
 
@@ -283,7 +284,7 @@ PATCH  /settings
 
 ### M8 — Optional
 - [x] Multi-user sharing / public characters.
-- [ ] Group chats (multiple characters).
+- [x] Group chats (multiple characters).
 - [ ] TTS/STT hooks via `extensions`.
 
 ---

@@ -7,10 +7,12 @@
 		deleteSession,
 		downloadCharacterCard,
 		getCharacter,
+		listCharacters,
 		listSessions,
 		updateCharacter,
 		type CharacterDetail,
 		type CharacterExportFormat,
+		type CharacterSummary,
 		type SessionSummary
 	} from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
@@ -25,6 +27,10 @@
 	let exporting = $state<CharacterExportFormat | null>(null);
 	let togglingVisibility = $state(false);
 	let error = $state<string | null>(null);
+
+	let others = $state<CharacterSummary[]>([]);
+	let groupSelection = $state<number[]>([]);
+	let startingGroup = $state(false);
 
 	const characterId = $derived(Number(page.params.id));
 
@@ -56,6 +62,7 @@
 		} catch {
 			sessions = [];
 		}
+		void loadOthers(id);
 		loading = false;
 	}
 
@@ -100,6 +107,44 @@
 			error = errorMessage(cause);
 		} finally {
 			togglingVisibility = false;
+		}
+	}
+
+	async function loadOthers(id: number) {
+		const token = auth.token;
+		if (!token) return;
+		try {
+			const [mine, shared] = await Promise.all([
+				listCharacters(token, { limit: 200 }),
+				listCharacters(token, { limit: 200, scope: 'public' })
+			]);
+			const seen = new Set<number>();
+			const merged: CharacterSummary[] = [];
+			for (const item of [...mine, ...shared]) {
+				if (item.id === id || seen.has(item.id)) continue;
+				seen.add(item.id);
+				merged.push(item);
+			}
+			others = merged.sort((a, b) => a.name.localeCompare(b.name));
+		} catch {
+			others = [];
+		}
+	}
+
+	async function startGroup() {
+		const token = auth.token;
+		if (!token || !character || groupSelection.length === 0) return;
+		startingGroup = true;
+		error = null;
+		try {
+			const created = await createSession(token, character.id, {
+				character_ids: groupSelection
+			});
+			await goto(`/chat/${created.id}`);
+		} catch (cause) {
+			error = errorMessage(cause);
+		} finally {
+			startingGroup = false;
 		}
 	}
 
@@ -165,6 +210,43 @@
 						</button>
 					{/if}
 				</div>
+
+				{#if others.length > 0}
+					<details class="group">
+						<summary>New group chat</summary>
+						<p class="muted">
+							Pick the other characters in the scene. {character.name} stays the primary
+							character.
+						</p>
+						<ul class="members">
+							{#each others as other (other.id)}
+								<li>
+									<label>
+										<input
+											type="checkbox"
+											checked={groupSelection.includes(other.id)}
+											onchange={(event) => {
+												const checked = (event.currentTarget as HTMLInputElement).checked;
+												groupSelection = checked
+													? [...groupSelection, other.id]
+													: groupSelection.filter((value) => value !== other.id);
+											}}
+										/>
+										<span>{other.name}</span>
+										{#if !other.is_mine}<span class="muted">public</span>{/if}
+									</label>
+								</li>
+							{/each}
+						</ul>
+						<button
+							class="primary"
+							onclick={startGroup}
+							disabled={startingGroup || groupSelection.length === 0}
+						>
+							{startingGroup ? 'Starting…' : 'Start group chat'}
+						</button>
+					</details>
+				{/if}
 				<div class="export">
 					<span class="muted">Export</span>
 					<button onclick={() => exportCard('v2')} disabled={exporting !== null}>
@@ -253,6 +335,43 @@
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
+		flex-wrap: wrap;
+	}
+
+	.group {
+		max-width: 34rem;
+		padding: 0.75rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+	}
+
+	.group summary {
+		cursor: pointer;
+	}
+
+	.group p {
+		margin: 0.5rem 0;
+		font-size: 0.85rem;
+	}
+
+	.members {
+		display: grid;
+		gap: 0.3rem;
+		margin: 0 0 0.75rem;
+		padding: 0;
+		list-style: none;
+	}
+
+	.members label {
+		display: flex;
+		gap: 0.4rem;
+		align-items: center;
+		font-size: 0.9rem;
+	}
+
+	.members .muted {
+		font-size: 0.75rem;
 	}
 
 	.export {

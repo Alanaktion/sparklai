@@ -100,32 +100,51 @@ def select_stacked_entries(
     selected character entry is dropped. Both books are on by default, and either
     can be switched off per session.
     """
-    matched = (
-        select_entries(
-            character_book,
-            history,
-            default_scan_depth=default_scan_depth,
-            default_token_budget=default_token_budget,
-        )
-        if use_character_book
-        else MatchedEntries()
+    return merge_matched(
+        [
+            select_entries(
+                character_book,
+                history,
+                default_scan_depth=default_scan_depth,
+                default_token_budget=default_token_budget,
+            )
+            if use_character_book
+            else MatchedEntries(),
+            select_entries(
+                world_book,
+                history,
+                default_scan_depth=default_scan_depth,
+                default_token_budget=default_token_budget,
+            )
+            if use_world_book
+            else MatchedEntries(),
+        ]
     )
-    if not use_world_book or world_book is None:
-        return matched
 
-    world = select_entries(
-        world_book,
-        history,
-        default_scan_depth=default_scan_depth,
-        default_token_budget=default_token_budget,
-    )
-    character_keys = _normalized_keys(matched.all)
-    extra = [entry for entry in world.all if not _normalized_keys([entry]) & character_keys]
-    if not extra:
-        return matched
 
-    # Character entries come first, so a stable sort keeps them ahead on ties.
-    ordered = sorted([*matched.all, *extra], key=lambda entry: entry.insertion_order)
+def merge_matched(groups: Sequence[MatchedEntries]) -> MatchedEntries:
+    """Combine matched entries, resolving key collisions in favour of earlier groups.
+
+    Used to stack books: the acting character's book first, then the other cast
+    members', then the user's world book. Entries are re-sorted by
+    `insertion_order`, with earlier groups winning ties.
+    """
+    groups = [group for group in groups if group.all]
+    if not groups:
+        return MatchedEntries()
+
+    seen = _normalized_keys(groups[0].all)
+    merged = list(groups[0].all)
+    for group in groups[1:]:
+        for entry in group.all:
+            keys = _normalized_keys([entry])
+            # Constant entries have no keys, so they never collide.
+            if keys.intersection(seen):
+                continue
+            seen |= keys
+            merged.append(entry)
+
+    ordered = sorted(merged, key=lambda entry: entry.insertion_order)
     return MatchedEntries(
         before_char=[e for e in ordered if e.position != "after_char"],
         after_char=[e for e in ordered if e.position == "after_char"],

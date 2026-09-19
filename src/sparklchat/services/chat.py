@@ -1,14 +1,23 @@
 """Session and message helpers: greetings, swipes, titles, prompt context."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from sparklchat.models.card import CharacterBook, TavernCardV2
-from sparklchat.models.chat import ChatSession, Message, MessagePublic
+from sparklchat.models.character import Character
+from sparklchat.models.chat import (
+    ChatSession,
+    Message,
+    MessagePublic,
+    SessionCharacter,
+    SessionCharacterPublic,
+)
 from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettings
 from sparklchat.services.prompts import (
+    CastMember,
     HistoryTurn,
     PromptContext,
     build_prompt,
@@ -18,6 +27,72 @@ from sparklchat.services.providers import ChatMessage
 from sparklchat.services.tokens import count_tokens
 
 TITLE_MAX_LENGTH = 60
+
+
+def card_of(character: Character) -> TavernCardV2:
+    return TavernCardV2.model_validate(character.card_json)
+
+
+def character_name(character: Character) -> str:
+    return (character.name or "").strip() or "Character"
+
+
+async def session_cast(db: AsyncSession, session: ChatSession) -> list[Character]:
+    """The session's members, primary first.
+
+    Falls back to the primary character when the session predates the
+    `session_characters` table.
+    """
+    rows = (
+        await db.exec(
+            select(SessionCharacter)
+            .where(SessionCharacter.session_id == session.id)
+            .order_by(SessionCharacter.position)
+        )
+    ).all()
+    ids = [row.character_id for row in rows]
+    characters: dict[int, Character] = {}
+    if ids:
+        found = (await db.exec(select(Character).where(Character.id.in_(ids)))).all()
+        characters = {character.id: character for character in found if character.id is not None}
+
+    ordered = [characters[character_id] for character_id in ids if character_id in characters]
+    if ordered:
+        return ordered
+
+    primary = await db.get(Character, session.character_id)
+    return [primary] if primary is not None else []
+
+
+def cast_public(characters: Sequence[Character], primary_id: int) -> list[SessionCharacterPublic]:
+    return [
+        SessionCharacterPublic(
+            id=character.id or 0,
+            name=character_name(character),
+            has_avatar=bool(character.avatar_path),
+            is_primary=character.id == primary_id,
+        )
+        for character in characters
+    ]
+
+
+def cast_members(characters: Sequence[Character]) -> list[CastMember]:
+    return list(cast_by_id(characters).values())
+
+
+def cast_by_id(characters: Sequence[Character]) -> dict[int, CastMember]:
+    """Cast members keyed by character id, so the acting member can reuse the
+    same `CastMember` (and therefore the same card object) as the cast list."""
+    return {
+        character.id: CastMember(name=character_name(character), card=card_of(character))
+        for character in characters
+        if character.id is not None
+    }
+
+
+def speaker_map(characters: Sequence[Character]) -> dict[int, str]:
+    """Character id -> name, for labelling assistant turns in a group chat."""
+    return {character.id: character_name(character) for character in characters if character.id}
 
 
 def prompt_context(card: TavernCardV2, settings: UserSettings | None) -> PromptContext:
@@ -45,6 +120,7 @@ def message_public(message: Message) -> MessagePublic:
         is_greeting=message.is_greeting,
         swipe_index=message.swipe_index,
         swipe_count=max(1, len(swipe_list(message))),
+        speaker_id=message.speaker_id,
     )
 
 
@@ -68,6 +144,7 @@ async def create_greeting(
         content=variants[0],
         is_greeting=True,
         swipe_index=0,
+        speaker_id=session.character_id,
         meta={"swipes": variants},
         token_count=count_tokens(variants[0]),
     )
@@ -113,12 +190,28 @@ def replace_active_content(message: Message, content: str) -> None:
         message.meta = {**(message.meta or {}), "swipes": swipes}
 
 
-def history_turns(messages: Sequence[Message]) -> list[HistoryTurn]:
-    return [
-        HistoryTurn(role=message.role, content=message.content, is_greeting=message.is_greeting)
-        for message in messages
-        if message.role in {"user", "assistant"} and message.content.strip()
-    ]
+def history_turns(
+    messages: Sequence[Message], speakers: Mapping[int, str] | None = None
+) -> list[HistoryTurn]:
+    """Chat turns for the prompt.
+
+    When `speakers` is given (a group chat) each assistant turn is prefixed with
+    the speaking character's name, so the model can tell the cast apart.
+    """
+    label = bool(speakers)
+    turns: list[HistoryTurn] = []
+    for message in messages:
+        if message.role not in {"user", "assistant"} or not message.content.strip():
+            continue
+        content = message.content
+        if label and message.role == "assistant":
+            name = (speakers or {}).get(message.speaker_id or -1)
+            if name:
+                content = f"{name}: {content}"
+        turns.append(
+            HistoryTurn(role=message.role, content=content, is_greeting=message.is_greeting)
+        )
+    return turns
 
 
 def settings_world_book(settings: UserSettings | None) -> CharacterBook | None:
@@ -137,10 +230,12 @@ def build_session_prompt(
     settings: UserSettings | None,
     context_window: int,
     context_reserve: int,
+    cast: Sequence[CastMember] | None = None,
+    speakers: Mapping[int, str] | None = None,
 ) -> list[ChatMessage]:
     return build_prompt(
         card,
-        history_turns(messages),
+        history_turns(messages, speakers),
         context=prompt_context(card, settings),
         default_system_prompt=settings.default_system_prompt if settings else "",
         default_post_history=settings.default_ujb if settings else "",
@@ -149,6 +244,7 @@ def build_session_prompt(
         use_character_book=session.use_character_book,
         world_book=settings_world_book(settings),
         use_world_book=session.use_world_book,
+        cast=cast,
         context_window=context_window,
         context_reserve=context_reserve,
     )

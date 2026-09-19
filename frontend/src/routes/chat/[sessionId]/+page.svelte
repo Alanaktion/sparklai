@@ -38,6 +38,7 @@
 	let streaming = $state(false);
 	let exporting = $state<ChatExportFormat | null>(null);
 	let composer = $state('');
+	let speakerId = $state<number | null>(null);
 	let controller: AbortController | null = null;
 	let scroller = $state<HTMLDivElement | null>(null);
 
@@ -45,6 +46,13 @@
 
 	const lastAssistantId = $derived(
 		messages.findLast((message) => message.role === 'assistant')?.id ?? null
+	);
+
+	const cast = $derived(session?.characters ?? []);
+	const isGroup = $derived(cast.length > 1);
+	// Who replies next: the chosen cast member, else the primary.
+	const actingSpeaker = $derived(
+		cast.find((member) => member.id === speakerId) ?? cast.find((member) => member.is_primary) ?? null
 	);
 
 	$effect(() => {
@@ -70,6 +78,9 @@
 			const loaded = await getSession(token, id);
 			session = loaded;
 			messages = loaded.messages;
+			if (!loaded.characters.some((member) => member.id === speakerId)) {
+				speakerId = loaded.characters.find((member) => member.is_primary)?.id ?? null;
+			}
 		} catch (cause) {
 			error = errorMessage(cause);
 			loading = false;
@@ -155,7 +166,14 @@
 		controller = new AbortController();
 
 		try {
-			await streamMessage(token, session.id, content, streamHandlers(), controller.signal);
+			await streamMessage(
+				token,
+				session.id,
+				content,
+				streamHandlers(),
+				controller.signal,
+				isGroup ? actingSpeaker?.id : null
+			);
 		} catch (cause) {
 			if (!isAbort(cause)) streamError = errorMessage(cause);
 		} finally {
@@ -284,7 +302,8 @@
 	function speakerOf(message: Message): string {
 		if (message.role === 'user') return 'You';
 		if (message.role === 'system') return 'System';
-		return character?.name ?? 'Character';
+		const member = cast.find((item) => item.id === message.speaker_id);
+		return member?.name ?? character?.name ?? 'Character';
 	}
 
 	function submitComposer(event: SubmitEvent) {
@@ -356,6 +375,21 @@
 				/>
 				<span>World book</span>
 			</label>
+			{#if isGroup}
+				<label>
+					<span>Speaker</span>
+					<select
+						value={speakerId ?? ''}
+						onchange={(event) =>
+							(speakerId = Number((event.currentTarget as HTMLSelectElement).value))}
+						disabled={streaming || !session}
+					>
+						{#each cast as member (member.id)}
+							<option value={member.id}>{member.name}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
 			<div class="export">
 				<span class="muted">Export</span>
 				<button
@@ -398,7 +432,7 @@
 
 		{#if streamText}
 			<article class="pending">
-				<p class="pending-speaker">{character?.name ?? 'Character'}</p>
+				<p class="pending-speaker">{actingSpeaker?.name ?? character?.name ?? 'Character'}</p>
 				<div class="pending-content"><RichText text={streamText} /></div>
 			</article>
 		{/if}

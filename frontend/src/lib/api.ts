@@ -405,6 +405,8 @@ export type Message = {
 	is_greeting: boolean;
 	swipe_index: number;
 	swipe_count: number;
+	/** Which character spoke an assistant line; null for user/system turns. */
+	speaker_id: number | null;
 };
 
 export type SessionSummary = {
@@ -421,7 +423,16 @@ export type SessionSummary = {
 export type SessionDetail = SessionSummary & {
 	system_prompt_override: string | null;
 	post_history_override: string | null;
+	/** The session's cast, primary first. */
+	characters: SessionCharacterRef[];
 	messages: Message[];
+};
+
+export type SessionCharacterRef = {
+	id: number;
+	name: string;
+	has_avatar: boolean;
+	is_primary: boolean;
 };
 
 export type SessionUpdate = {
@@ -444,7 +455,7 @@ export function listSessions(token: string, characterId: number): Promise<Sessio
 export function createSession(
 	token: string,
 	characterId: number,
-	body: { title?: string; provider_id?: number | null } = {}
+	body: { title?: string; provider_id?: number | null; character_ids?: number[] } = {}
 ): Promise<SessionDetail> {
 	return apiFetch<SessionDetail>(
 		`/characters/${characterId}/sessions`,
@@ -648,12 +659,13 @@ export function streamMessage(
 	sessionId: number,
 	content: string,
 	handlers: ChatStreamHandlers,
-	signal?: AbortSignal
+	signal?: AbortSignal,
+	speakerId?: number | null
 ): Promise<void> {
 	return openEventStream(
 		`/sessions/${sessionId}/messages/stream`,
 		token,
-		{ content },
+		{ content, speaker_id: speakerId ?? null },
 		signal,
 		(event) => dispatchChatEvent(event, handlers)
 	);
