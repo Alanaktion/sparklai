@@ -7,6 +7,7 @@
 	import { setUnauthorizedHandler } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import favicon from '$lib/assets/favicon.svg';
+	import { themeStore } from '$lib/theme.svelte';
 	import '../app.css';
 
 	let { children }: { children: Snippet } = $props();
@@ -14,6 +15,7 @@
 	// The app is client-rendered (see +layout.ts), so touching localStorage at
 	// module init is safe.
 	void auth.load();
+	themeStore.load();
 
 	const publicRoutes = new Set(['/', '/login']);
 

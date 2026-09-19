@@ -4,6 +4,7 @@
 
 	import {
 		deleteMessage,
+		downloadChatTranscript,
 		editMessage,
 		getCharacter,
 		getSession,
@@ -12,6 +13,7 @@
 		streamRegenerate,
 		swipeMessage,
 		updateSession,
+		type ChatExportFormat,
 		type ChatStreamHandlers,
 		type CharacterDetail,
 		type Message,
@@ -34,6 +36,7 @@
 	let streamError = $state<string | null>(null);
 	let streamText = $state('');
 	let streaming = $state(false);
+	let exporting = $state<ChatExportFormat | null>(null);
 	let composer = $state('');
 	let controller: AbortController | null = null;
 	let scroller = $state<HTMLDivElement | null>(null);
@@ -253,6 +256,20 @@
 		}
 	}
 
+	async function exportTranscript(format: ChatExportFormat) {
+		const token = auth.token;
+		if (!token || !session) return;
+		exporting = format;
+		streamError = null;
+		try {
+			await downloadChatTranscript(token, session.id, format);
+		} catch (cause) {
+			streamError = errorMessage(cause);
+		} finally {
+			exporting = null;
+		}
+	}
+
 	function speakerOf(message: Message): string {
 		if (message.role === 'user') return 'You';
 		if (message.role === 'system') return 'System';
@@ -319,6 +336,21 @@
 				/>
 				<span>Character book</span>
 			</label>
+			<div class="export">
+				<span class="muted">Export</span>
+				<button
+					onclick={() => exportTranscript('json')}
+					disabled={exporting !== null || !session}
+				>
+					{exporting === 'json' ? 'JSON…' : 'JSON'}
+				</button>
+				<button
+					onclick={() => exportTranscript('markdown')}
+					disabled={exporting !== null || !session}
+				>
+					{exporting === 'markdown' ? 'Markdown…' : 'Markdown'}
+				</button>
+			</div>
 		</div>
 	</header>
 
@@ -430,6 +462,21 @@
 
 	.controls select {
 		width: auto;
+	}
+
+	.export {
+		display: flex;
+		gap: 0.4rem;
+		align-items: center;
+	}
+
+	.export span {
+		font-size: 0.8rem;
+	}
+
+	.export button {
+		padding: 0.3rem 0.6rem;
+		font-size: 0.85rem;
 	}
 
 	.transcript {

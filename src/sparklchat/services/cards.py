@@ -3,9 +3,16 @@
 from typing import Any, Literal
 
 from pydantic import ValidationError
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from sparklchat.models.card import CharacterCardData, TavernCardV1, TavernCardV2
-from sparklchat.models.character import Character, CharacterDetail, CharacterSummary
+from sparklchat.models.character import (
+    Character,
+    CharacterDetail,
+    CharacterSummary,
+    CharacterTag,
+)
 
 CardFormat = Literal["v1", "v2"]
 
@@ -110,12 +117,42 @@ def character_summary(character: Character) -> CharacterSummary:
         spec_version=character.spec_version,
         source=character.source,
         tags=[str(tag) for tag in data.get("tags") or []],
-        creator=str(data.get("creator") or ""),
-        character_version=str(data.get("character_version") or ""),
+        creator=character.creator,
+        character_version=character.character_version,
         has_avatar=bool(character.avatar_path),
         created_at=character.created_at,
         updated_at=character.updated_at,
     )
+
+
+def normalize_tag(tag: str) -> str:
+    """Tags are matched case-insensitively, so they are stored folded."""
+    return tag.strip().lower()[:100]
+
+
+async def apply_card_metadata(db: AsyncSession, character: Character, card: TavernCardV2) -> None:
+    """Refresh the denormalized columns and tag rows from a card.
+
+    Flushes after setting the columns: that populates the NOT NULL `name` before
+    the row is inserted, and gives a brand-new character an id for its tag rows.
+    """
+    character.name = card.data.name
+    character.spec_version = card.spec_version
+    character.creator = card.data.creator
+    character.character_version = card.data.character_version
+
+    db.add(character)
+    await db.flush()
+
+    existing = (
+        await db.exec(select(CharacterTag).where(CharacterTag.character_id == character.id))
+    ).all()
+    for row in existing:
+        await db.delete(row)
+
+    for tag in dict.fromkeys(normalize_tag(tag) for tag in card.data.tags):
+        if tag:
+            db.add(CharacterTag(character_id=character.id, tag=tag))
 
 
 def character_detail(character: Character) -> CharacterDetail:

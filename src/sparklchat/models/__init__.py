@@ -17,6 +17,7 @@ from sparklchat.models.character import (
     Character,
     CharacterDetail,
     CharacterSummary,
+    CharacterTag,
     CharacterUpdate,
 )
 from sparklchat.models.chat import (
@@ -53,6 +54,7 @@ __all__ = [
     "CharacterCardData",
     "CharacterDetail",
     "CharacterSummary",
+    "CharacterTag",
     "CharacterUpdate",
     "ChatSession",
     "Message",

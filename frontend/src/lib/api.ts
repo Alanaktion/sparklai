@@ -225,16 +225,29 @@ export type CharacterCard = {
 
 export type CharacterDetail = CharacterSummary & { card: CharacterCard };
 
+export type CharacterFilters = {
+	q?: string;
+	/** Matches any of these tags, ignoring case. */
+	tags?: string[];
+	creator?: string;
+	characterVersion?: string;
+	limit?: number;
+	offset?: number;
+};
+
 export function listCharacters(
 	token: string,
-	query: string = '',
-	limit = 100,
-	offset = 0
+	filters: CharacterFilters = {}
 ): Promise<CharacterSummary[]> {
 	const params = new URLSearchParams();
-	if (query) params.set('q', query);
-	params.set('limit', String(limit));
-	params.set('offset', String(offset));
+	if (filters.q) params.set('q', filters.q);
+	for (const tag of filters.tags ?? []) {
+		if (tag.trim()) params.append('tags', tag.trim());
+	}
+	if (filters.creator) params.set('creator', filters.creator);
+	if (filters.characterVersion) params.set('character_version', filters.characterVersion);
+	params.set('limit', String(filters.limit ?? 100));
+	params.set('offset', String(filters.offset ?? 0));
 	return apiFetch<CharacterSummary[]>(`/characters?${params.toString()}`, {
 		headers: bearer(token)
 	});
@@ -265,6 +278,59 @@ export function updateCharacter(token: string, id: number, card: unknown): Promi
 
 export function deleteCharacter(token: string, id: number): Promise<void> {
 	return apiFetch<void>(`/characters/${id}`, { method: 'DELETE', headers: bearer(token) });
+}
+
+export type CharacterExportFormat = 'v1' | 'v2' | 'png';
+export type ChatExportFormat = 'json' | 'markdown';
+
+/**
+ * Both export endpoints require the bearer token, so they cannot be plain links.
+ * Fetch the bytes, then hand the browser a blob URL to save.
+ */
+export async function downloadCharacterCard(
+	token: string,
+	id: number,
+	format: CharacterExportFormat
+): Promise<void> {
+	return downloadFile(
+		`/characters/${id}/export?format=${format}`,
+		token,
+		`character.${format === 'png' ? 'png' : 'json'}`
+	);
+}
+
+export async function downloadChatTranscript(
+	token: string,
+	sessionId: number,
+	format: ChatExportFormat
+): Promise<void> {
+	return downloadFile(
+		`/sessions/${sessionId}/export?format=${format}`,
+		token,
+		`transcript.${format === 'json' ? 'json' : 'md'}`
+	);
+}
+
+async function downloadFile(path: string, token: string, fallbackName: string): Promise<void> {
+	const response = await fetch(`${API_BASE}${path}`, { headers: bearer(token) });
+	if (!response.ok) {
+		reportUnauthorized(response.status);
+		throw new ApiError(response.status, await errorDetail(response));
+	}
+
+	const blob = await response.blob();
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement('a');
+	anchor.href = url;
+	anchor.download = filenameFrom(response.headers.get('content-disposition')) ?? fallbackName;
+	document.body.appendChild(anchor);
+	anchor.click();
+	anchor.remove();
+	URL.revokeObjectURL(url);
+}
+
+function filenameFrom(disposition: string | null): string | null {
+	return disposition?.match(/filename="([^"]+)"/)?.[1] ?? null;
 }
 
 export function fetchAvatar(token: string, id: number): Promise<Blob> {

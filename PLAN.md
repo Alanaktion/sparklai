@@ -24,7 +24,7 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - `character_book` is stored inline in `characters.card_json`; no separate `character_books`/`lorebook_entries` tables (per §2.2's "or stored inline").
 - Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
 - World books (§4.4) are not implemented; only the character book is injected, toggled per session.
-- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: tag filters, chat export, world books, and theme switching.
+- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: world books (§4.4) and sorting the character list by `character_version`.
 
 ---
 
@@ -74,7 +74,7 @@ Every field from the spec must be handled:
 - [x] `post_history_instructions` — replaces UJB/jailbreak when non-empty; support `{{original}}`.
 - [x] `alternate_greetings: string[]` — **swipes** on first message. UI must show a swipe control on the greeting; each swipe starts a fresh branch or replaces the greeting in the current session (see §6.4).
 - [x] `character_book` — full support (see §4).
-- [ ] `tags: string[]` — case-insensitive filter/search, never sent to model.
+- [x] `tags: string[]` — case-insensitive filter/search, never sent to model.
 - [x] `creator` — display only.
 - [ ] `character_version` — display + sort.
 - [x] `extensions: {}` — preserved, namespaced on write, never destroyed.
@@ -168,7 +168,7 @@ Checklist:
 - [x] Create from scratch in a form covering **every** V2 field.
 - [x] Edit existing character (all fields, including `extensions` and book entries).
 - [x] Export as V2 JSON, V1 JSON, or PNG.
-- [ ] List/search/filter by `tags` (case-insensitive), `creator`, `character_version`.
+- [x] List/search/filter by `tags` (case-insensitive), `creator`, `character_version`.
 - [x] Delete character (cascade sessions or block if in use — configurable).
 - [x] Character detail page showing `creator_notes` (per spec: "at least one paragraph SHOULD be displayed").
 
@@ -182,13 +182,13 @@ Checklist:
 - [x] Edit / delete messages.
 - [x] Message roles: `system`, `user`, `assistant`.
 - [x] Stop generation mid-stream.
-- [ ] Export chat as JSON / Markdown.
+- [x] Export chat as JSON / Markdown.
 
 ### 6.5 UI
 - [x] Sidebar: characters list, sessions per character.
 - [x] Chat pane: message bubbles, swipe arrows, edit, regenerate.
 - [x] Character editor: tabs for Identity / Prompting / Lorebook / Extensions / Raw JSON.
-- [ ] Settings: providers, default system prompt, default UJB, theme.
+- [x] Settings: providers, default system prompt, default UJB, theme.
 - [x] Character book editor: table of entries with all fields, enable/disable toggle, drag-to-reorder `insertion_order`.
 
 ---
@@ -276,8 +276,8 @@ PATCH  /settings
 
 ### M7 — Polish
 - [x] Import/export (V1 JSON, V2 JSON, PNG).
-- [ ] Tag filtering/search.
-- [ ] Chat export.
+- [x] Tag filtering/search.
+- [x] Chat export.
 - [x] Tests: card round-trip, lorebook, prompt assembly, API.
 
 ### M8 — Optional

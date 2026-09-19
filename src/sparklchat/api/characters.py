@@ -1,7 +1,6 @@
 """Character CRUD, card import/export, and avatars."""
 
 import json
-import re
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, File, HTTPException, Query, UploadFile, status
@@ -16,17 +15,21 @@ from sparklchat.models.character import (
     Character,
     CharacterDetail,
     CharacterSummary,
+    CharacterTag,
     CharacterUpdate,
 )
 from sparklchat.services.avatars import avatar_file, delete_avatar, save_avatar
 from sparklchat.services.cards import (
     CardError,
+    apply_card_metadata,
     character_detail,
     character_summary,
     dump_v1,
     dump_v2,
+    normalize_tag,
     parse_card,
 )
+from sparklchat.services.downloads import attachment_headers, download_filename
 from sparklchat.services.png import (
     PngError,
     blank_png,
@@ -59,12 +62,21 @@ def _parse(payload: dict[str, Any]) -> tuple[TavernCardV2, str]:
 def _build(card: TavernCardV2, source: str, user_id: int, avatar_path: str | None) -> Character:
     return Character(
         user_id=user_id,
-        name=card.data.name,
-        spec_version=card.spec_version,
         source=source,
         card_json=dump_v2(card),
         avatar_path=avatar_path,
     )
+
+
+async def _save_new(
+    db: SessionDep, card: TavernCardV2, source: str, user_id: int, avatar_path: str | None
+) -> Character:
+    character = _build(card, source, user_id, avatar_path)
+    db.add(character)
+    await apply_card_metadata(db, character, card)
+    await db.commit()
+    await db.refresh(character)
+    return character
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -75,11 +87,7 @@ async def create_character(
 ) -> CharacterDetail:
     """Create a character from a V1 or V2 card body."""
     card, source = _parse(payload)
-    character = _build(card, source, current_user.id, avatar_path=None)
-    db.add(character)
-    await db.commit()
-    await db.refresh(character)
-    return character_detail(character)
+    return character_detail(await _save_new(db, card, source, current_user.id, None))
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
@@ -107,12 +115,13 @@ async def upload_character(
         ) from exc
 
     card, source = _parse(raw)
-    character = _build(
-        card, source, current_user.id, avatar_path=save_avatar(avatar) if avatar else None
+    character = await _save_new(
+        db,
+        card,
+        source,
+        current_user.id,
+        save_avatar(avatar) if avatar else None,
     )
-    db.add(character)
-    await db.commit()
-    await db.refresh(character)
     return character_detail(character)
 
 
@@ -121,12 +130,33 @@ async def list_characters(
     db: SessionDep,
     current_user: CurrentUserDep,
     q: Annotated[str | None, Query(max_length=200)] = None,
+    tags: Annotated[list[str] | None, Query()] = None,
+    creator: Annotated[str | None, Query(max_length=200)] = None,
+    character_version: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[CharacterSummary]:
+    """List the user's characters, optionally filtered.
+
+    `q` matches the name; `tags` matches any of the given tags, ignoring case.
+    """
     statement = select(Character).where(Character.user_id == current_user.id)
     if q:
         statement = statement.where(Character.name.ilike(f"%{q}%"))
+    if creator:
+        statement = statement.where(Character.creator.ilike(f"%{creator}%"))
+    if character_version:
+        statement = statement.where(Character.character_version == character_version)
+
+    normalized = [normalize_tag(tag) for tag in tags or []]
+    normalized = [tag for tag in dict.fromkeys(normalized) if tag]
+    if normalized:
+        statement = statement.where(
+            Character.id.in_(
+                select(CharacterTag.character_id).where(CharacterTag.tag.in_(normalized))
+            )
+        )
+
     statement = statement.order_by(Character.name).offset(offset).limit(limit)
     return [character_summary(row) for row in (await db.exec(statement)).all()]
 
@@ -151,9 +181,8 @@ async def update_character(
 
     card, source = _parse(payload.card)
     character.card_json = dump_v2(card)
-    character.name = card.data.name
-    character.spec_version = card.spec_version
     character.source = source
+    await apply_card_metadata(db, character, card)
     character.updated_at = utcnow()
     db.add(character)
     await db.commit()
@@ -163,7 +192,7 @@ async def update_character(
 
 @router.delete("/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_character(character_id: int, db: SessionDep, current_user: CurrentUserDep) -> None:
-    # Chat sessions will need a policy here once they exist (block or cascade).
+    # Sessions, messages, and tag rows all cascade from the character row.
     character = await _owned(db, character_id, current_user.id)
     delete_avatar(character.avatar_path)
     await db.delete(character)
@@ -198,14 +227,14 @@ async def export_character(
         return Response(
             png,
             media_type="image/png",
-            headers=_attachment(_filename(character.name, "png")),
+            headers=attachment_headers(download_filename(character.name, "png")),
         )
 
     if export_format == "v1":
         card = TavernCardV2.model_validate(character.card_json)
-        return _json_download(dump_v1(card), _filename(character.name, "json"))
+        return _json_download(dump_v1(card), download_filename(character.name, "json"))
 
-    return _json_download(character.card_json, _filename(character.name, "json"))
+    return _json_download(character.card_json, download_filename(character.name, "json"))
 
 
 def _avatar_bytes(character: Character) -> bytes | None:
@@ -219,14 +248,5 @@ def _json_download(payload: dict[str, Any], filename: str) -> Response:
     return Response(
         content=json.dumps(payload, ensure_ascii=False, indent=2),
         media_type="application/json",
-        headers=_attachment(filename),
+        headers=attachment_headers(filename),
     )
-
-
-def _attachment(filename: str) -> dict[str, str]:
-    return {"Content-Disposition": f'attachment; filename="{filename}"'}
-
-
-def _filename(name: str, extension: str) -> str:
-    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-") or "character"
-    return f"{slug[:64]}.{extension}"

@@ -25,10 +25,26 @@ class Character(SQLModel, table=True):
     spec_version: str = "2.0"
     # Which format the card arrived in: "v1" or "v2".
     source: str = "v2"
+    # Denormalized from the card so listing and filtering can stay in SQL.
+    creator: str = Field(default="", max_length=200, index=True)
+    character_version: str = Field(default="", max_length=100)
     card_json: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
     avatar_path: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class CharacterTag(SQLModel, table=True):
+    """Lowercased tags, for case-insensitive filtering.
+
+    The card's `data.tags` remains the source of truth (and keeps the original
+    casing); these rows are rebuilt from it whenever a card is written.
+    """
+
+    __tablename__ = "character_tags"
+
+    character_id: int = Field(foreign_key="characters.id", ondelete="CASCADE", primary_key=True)
+    tag: str = Field(primary_key=True, max_length=100, index=True)
 
 
 class CharacterSummary(SQLModel):

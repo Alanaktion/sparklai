@@ -5,9 +5,11 @@
 	import {
 		createSession,
 		deleteSession,
+		downloadCharacterCard,
 		getCharacter,
 		listSessions,
 		type CharacterDetail,
+		type CharacterExportFormat,
 		type SessionSummary
 	} from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
@@ -19,6 +21,7 @@
 	let sessions = $state<SessionSummary[]>([]);
 	let loading = $state(true);
 	let starting = $state(false);
+	let exporting = $state<CharacterExportFormat | null>(null);
 	let error = $state<string | null>(null);
 
 	const characterId = $derived(Number(page.params.id));
@@ -81,6 +84,20 @@
 			error = errorMessage(cause);
 		}
 	}
+
+	async function exportCard(format: CharacterExportFormat) {
+		const token = auth.token;
+		if (!token || !character) return;
+		exporting = format;
+		error = null;
+		try {
+			await downloadCharacterCard(token, character.id, format);
+		} catch (cause) {
+			error = errorMessage(cause);
+		} finally {
+			exporting = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -119,6 +136,18 @@
 						{starting ? 'Starting…' : 'Start new chat'}
 					</button>
 					<a class="edit" href={`/characters/${character.id}/edit`}>Edit</a>
+				</div>
+				<div class="export">
+					<span class="muted">Export</span>
+					<button onclick={() => exportCard('v2')} disabled={exporting !== null}>
+						{exporting === 'v2' ? 'V2…' : 'V2 JSON'}
+					</button>
+					<button onclick={() => exportCard('v1')} disabled={exporting !== null}>
+						{exporting === 'v1' ? 'V1…' : 'V1 JSON'}
+					</button>
+					<button onclick={() => exportCard('png')} disabled={exporting !== null}>
+						{exporting === 'png' ? 'PNG…' : 'PNG'}
+					</button>
 				</div>
 			</div>
 		</header>
@@ -186,6 +215,22 @@
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
+	}
+
+	.export {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		align-items: center;
+	}
+
+	.export span {
+		font-size: 0.8rem;
+	}
+
+	.export button {
+		padding: 0.3rem 0.6rem;
+		font-size: 0.85rem;
 	}
 
 	.edit {

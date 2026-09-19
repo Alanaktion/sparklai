@@ -12,6 +12,7 @@
 	import { auth } from '$lib/auth.svelte';
 	import ProviderEditor from '$lib/components/ProviderEditor.svelte';
 	import { errorMessage } from '$lib/errors';
+	import { themeStore } from '$lib/theme.svelte';
 
 	let settings = $state<UserSettings | null>(null);
 	let providers = $state<Provider[]>([]);
@@ -134,6 +135,13 @@
 			error = errorMessage(cause);
 		}
 	}
+
+	function changeTheme(event: Event) {
+		const value = (event.currentTarget as HTMLSelectElement).value;
+		if (value === 'dark' || value === 'light' || value === 'system') {
+			themeStore.setTheme(value);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -142,6 +150,18 @@
 
 <main class="page">
 	<h1>Settings</h1>
+
+	<section class="section">
+		<h2>Appearance</h2>
+		<label class="theme">
+			<span>Theme</span>
+			<select value={themeStore.theme} onchange={changeTheme}>
+				<option value="dark">Dark</option>
+				<option value="light">Light</option>
+				<option value="system">System</option>
+			</select>
+		</label>
+	</section>
 
 	{#if error}
 		<p class="error" role="alert">{error}</p>
@@ -271,6 +291,13 @@
 		color: var(--muted);
 	}
 
+	.theme {
+		display: grid;
+		gap: 0.25rem;
+		max-width: 40rem;
+		font-size: 0.88rem;
+	}
+
 	.basics {
 		display: grid;
 		gap: 0.75rem;
@@ -344,6 +371,6 @@
 	}
 
 	.ok {
-		color: #2da44e;
+		color: var(--success);
 	}
 </style>

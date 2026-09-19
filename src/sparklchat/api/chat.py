@@ -1,8 +1,11 @@
 """Chat sessions, messages, streamed generation, regeneration, and swipes."""
 
+import json
 from collections.abc import AsyncIterable
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlmodel import select
 
@@ -40,6 +43,7 @@ from sparklchat.services.chat import (
     title_from_message,
 )
 from sparklchat.services.crypto import EncryptionError
+from sparklchat.services.downloads import attachment_headers, download_filename
 from sparklchat.services.providers import (
     BaseClient,
     ProviderError,
@@ -412,6 +416,53 @@ async def stream_regenerate(
     message = await _store_swipe(db, session, target, "".join(collected))
     yield _event("message", {"message": message_public(message).model_dump(mode="json")})
     yield _event("done", {})
+
+
+@router.get("/{session_id}/export")
+async def export_session(
+    session_id: int,
+    db: SessionDep,
+    current_user: CurrentUserDep,
+    export_format: Annotated[Literal["json", "markdown"], Query(alias="format")] = "markdown",
+) -> Response:
+    """Download a transcript as JSON or Markdown."""
+    session = await _owned_session(db, session_id, current_user.id)
+    character = await _owned_character(db, session.character_id, current_user.id)
+    messages = await _load_messages(db, session.id)
+
+    settings = await db.get(UserSettings, current_user.id)
+    user_name = ((settings.display_name if settings else "") or "User").strip() or "User"
+    character_name = (character.name or "").strip() or "Character"
+    title = session.title or character_name
+
+    if export_format == "json":
+        payload = {
+            "session": _summary(session).model_dump(mode="json"),
+            "character": {"id": character.id, "name": character_name},
+            "messages": [message_public(message).model_dump(mode="json") for message in messages],
+        }
+        return Response(
+            content=json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers=attachment_headers(download_filename(title, "json")),
+        )
+
+    lines = [f"# {title}", ""]
+    for message in messages:
+        if message.role == "user":
+            speaker = user_name
+        elif message.role == "assistant":
+            speaker = character_name
+        else:
+            speaker = "System"
+        lines.append(f"**{speaker}:** {message.content}")
+        lines.append("")
+
+    return Response(
+        content="\n".join(lines),
+        media_type="text/markdown",
+        headers=attachment_headers(download_filename(title, "md")),
+    )
 
 
 async def _owned_message(db: SessionDep, session_id: int, message_id: int) -> Message:

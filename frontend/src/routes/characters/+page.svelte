@@ -17,24 +17,48 @@
 	let uploading = $state(false);
 	let error = $state<string | null>(null);
 	let search = $state('');
+	let tagInput = $state('');
+	let creatorInput = $state('');
+	let versionInput = $state('');
+
+	type Filters = { q: string; tag: string; creator: string; version: string };
 
 	const query = $derived(page.url.searchParams.get('q') ?? '');
+	const tagQuery = $derived(page.url.searchParams.get('tag') ?? '');
+	const creatorQuery = $derived(page.url.searchParams.get('creator') ?? '');
+	const versionQuery = $derived(page.url.searchParams.get('version') ?? '');
+	const hasFilters = $derived(Boolean(query || tagQuery || creatorQuery || versionQuery));
 	let requestId = 0;
 
 	$effect(() => {
-		const active = query;
-		search = active;
-		void load(active);
+		search = query;
+		tagInput = tagQuery;
+		creatorInput = creatorQuery;
+		versionInput = versionQuery;
+		void load({ q: query, tag: tagQuery, creator: creatorQuery, version: versionQuery });
 	});
 
-	async function load(q: string) {
+	function parseTags(value: string): string[] {
+		return value
+			.split(',')
+			.map((tag) => tag.trim())
+			.filter(Boolean);
+	}
+
+	async function load(filters: Filters) {
 		const token = auth.token;
 		if (!token) return;
 		const id = ++requestId;
 		loading = true;
 		error = null;
+		const tags = parseTags(filters.tag);
 		try {
-			const result = await listCharacters(token, q);
+			const result = await listCharacters(token, {
+				q: filters.q || undefined,
+				tags: tags.length ? tags : undefined,
+				creator: filters.creator || undefined,
+				characterVersion: filters.version || undefined
+			});
 			if (id === requestId) characters = result;
 		} catch (cause) {
 			if (id === requestId) error = errorMessage(cause);
@@ -43,10 +67,23 @@
 		}
 	}
 
-	function submitSearch(event: SubmitEvent) {
+	function currentFilters(): Filters {
+		return { q: query, tag: tagQuery, creator: creatorQuery, version: versionQuery };
+	}
+
+	function applyFilters(event: SubmitEvent) {
 		event.preventDefault();
-		const trimmed = search.trim();
-		void goto(trimmed ? `/characters?q=${encodeURIComponent(trimmed)}` : '/characters');
+		const params = new URLSearchParams();
+		const q = search.trim();
+		if (q) params.set('q', q);
+		const tag = tagInput.trim();
+		if (tag) params.set('tag', tag);
+		const creator = creatorInput.trim();
+		if (creator) params.set('creator', creator);
+		const version = versionInput.trim();
+		if (version) params.set('version', version);
+		const qs = params.toString();
+		void goto(qs ? `/characters?${qs}` : '/characters');
 	}
 
 	async function onFileChange(event: Event) {
@@ -62,7 +99,7 @@
 		error = null;
 		try {
 			await uploadCharacter(token, file);
-			await load(query);
+			await load(currentFilters());
 		} catch (cause) {
 			error = errorMessage(cause);
 		} finally {
@@ -106,17 +143,42 @@
 		</div>
 	</div>
 
-	<form class="search" onsubmit={submitSearch}>
-		<input
-			type="search"
-			bind:value={search}
-			placeholder="Search by name…"
-			aria-label="Search characters by name"
-		/>
-		<button type="submit">Search</button>
-		{#if query}
-			<a class="clear" href="/characters">Clear</a>
-		{/if}
+	<form class="filters" onsubmit={applyFilters}>
+		<label class="field">
+			<span>Name</span>
+			<input
+				type="search"
+				bind:value={search}
+				placeholder="Search by name…"
+				aria-label="Search characters by name"
+			/>
+		</label>
+		<label class="field">
+			<span>Tags</span>
+			<input
+				bind:value={tagInput}
+				placeholder="fantasy, romance"
+				aria-label="Filter by tags, comma separated"
+			/>
+		</label>
+		<label class="field">
+			<span>Creator</span>
+			<input bind:value={creatorInput} placeholder="Creator name" aria-label="Filter by creator" />
+		</label>
+		<label class="field">
+			<span>Character version</span>
+			<input
+				bind:value={versionInput}
+				placeholder="e.g. 1.2"
+				aria-label="Filter by character version"
+			/>
+		</label>
+		<div class="filter-actions">
+			<button type="submit">Apply</button>
+			{#if hasFilters}
+				<a class="clear" href="/characters">Clear</a>
+			{/if}
+		</div>
 	</form>
 
 	{#if error}
@@ -127,7 +189,7 @@
 		<p class="muted">Loading characters…</p>
 	{:else if characters.length === 0}
 		<p class="muted">
-			{query ? 'No characters match that search.' : 'No characters yet — import a card to start.'}
+			{hasFilters ? 'No characters match those filters.' : 'No characters yet — import a card to start.'}
 		</p>
 	{:else}
 		<ul class="grid">
@@ -197,15 +259,25 @@
 		max-width: 18rem;
 	}
 
-	.search {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
+	.filters {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+		gap: 0.75rem 1rem;
+		align-items: end;
 		margin: 1.25rem 0;
 	}
 
-	.search input {
-		max-width: 22rem;
+	.field {
+		display: grid;
+		gap: 0.25rem;
+		font-size: 0.8rem;
+		color: var(--muted);
+	}
+
+	.filter-actions {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
 	}
 
 	.clear {
