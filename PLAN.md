@@ -23,7 +23,8 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - Front end is a separate SvelteKit SPA (`frontend/`, static adapter) served by FastAPI; no Jinja2/HTMX.
 - `character_book` is stored inline in `characters.card_json`; no separate `character_books`/`lorebook_entries` tables (per §2.2's "or stored inline").
 - Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
-- Boxes below describe **API/service capability**; UI wording in §6 (forms, buttons, panels) stays unticked until the Svelte app covers it.
+- World books (§4.4) are not implemented; only the character book is injected, toggled per session.
+- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: the character/lorebook editors, tag filters, chat export, world books, and theme switching.
 
 ---
 
@@ -65,16 +66,16 @@ Every field from the spec must be handled:
 
 ### 3.2 Top-level V2 fields
 - [x] `spec`, `spec_version` — read/write, validated.
-- [ ] `data.name`, `description`, `personality`, `scenario`, `first_mes`, `mes_example` — used in prompt assembly.
+- [x] `data.name`, `description`, `personality`, `scenario`, `first_mes`, `mes_example` — used in prompt assembly.
 
 ### 3.3 V2 additions
-- [ ] `creator_notes` — **never** injected into prompt; shown in a dedicated "About" panel on character page (spec: *SHOULD be very discoverable*).
-- [ ] `system_prompt` — replaces global system prompt when non-empty; support `{{original}}` placeholder substitution.
-- [ ] `post_history_instructions` — replaces UJB/jailbreak when non-empty; support `{{original}}`.
-- [ ] `alternate_greetings: string[]` — **swipes** on first message. UI must show a swipe control on the greeting; each swipe starts a fresh branch or replaces the greeting in the current session (see §6.4).
-- [ ] `character_book` — full support (see §4).
+- [x] `creator_notes` — **never** injected into prompt; shown in a dedicated "About" panel on character page (spec: *SHOULD be very discoverable*).
+- [x] `system_prompt` — replaces global system prompt when non-empty; support `{{original}}` placeholder substitution.
+- [x] `post_history_instructions` — replaces UJB/jailbreak when non-empty; support `{{original}}`.
+- [x] `alternate_greetings: string[]` — **swipes** on first message. UI must show a swipe control on the greeting; each swipe starts a fresh branch or replaces the greeting in the current session (see §6.4).
+- [x] `character_book` — full support (see §4).
 - [ ] `tags: string[]` — case-insensitive filter/search, never sent to model.
-- [ ] `creator` — display only.
+- [x] `creator` — display only.
 - [ ] `character_version` — display + sort.
 - [x] `extensions: {}` — preserved, namespaced on write, never destroyed.
 
@@ -88,26 +89,26 @@ Every field from the spec must be handled:
 Implement the full `CharacterBook` typing.
 
 ### 4.1 Fields
-- [ ] `name?`, `description?` — display only.
-- [ ] `scan_depth?` — how many recent messages to scan for keys (default: 4–8).
-- [ ] `token_budget?` — max tokens for lorebook content per request.
-- [ ] `recursive_scanning?: bool` — allow matched entry content to trigger other entries. Implement with a bounded iteration (e.g. max 3 passes) to avoid infinite loops.
-- [ ] `extensions: {}` — preserved.
-- [ ] `entries: []`.
+- [x] `name?`, `description?` — display only.
+- [x] `scan_depth?` — how many recent messages to scan for keys (default: 4–8).
+- [x] `token_budget?` — max tokens for lorebook content per request.
+- [x] `recursive_scanning?: bool` — allow matched entry content to trigger other entries. Implement with a bounded iteration (e.g. max 3 passes) to avoid infinite loops.
+- [x] `extensions: {}` — preserved.
+- [x] `entries: []`.
 
 ### 4.2 Entry fields
-- [ ] `keys: string[]` — primary trigger keys.
-- [ ] `secondary_keys?: string[]` — used only when `selective == true`.
-- [ ] `selective?: bool` — if true, require match from **both** `keys` and `secondary_keys`.
-- [ ] `constant?: bool` — always inserted within budget.
-- [ ] `content: string` — injected text.
-- [ ] `enabled: bool`.
-- [ ] `insertion_order: number` — **lower = inserted higher** (earlier in prompt). Sort ascending.
-- [ ] `case_sensitive?: bool` — default false.
-- [ ] `priority?: number` — lower = discarded first when `token_budget` exceeded.
-- [ ] `position?: 'before_char' | 'after_char'` — placement relative to character definitions.
-- [ ] `id?`, `comment?`, `name?` — not used for prompt engineering; preserved and shown in editor.
-- [ ] `extensions: {}` — preserved per entry.
+- [x] `keys: string[]` — primary trigger keys.
+- [x] `secondary_keys?: string[]` — used only when `selective == true`.
+- [x] `selective?: bool` — if true, require match from **both** `keys` and `secondary_keys`.
+- [x] `constant?: bool` — always inserted within budget.
+- [x] `content: string` — injected text.
+- [x] `enabled: bool`.
+- [x] `insertion_order: number` — **lower = inserted higher** (earlier in prompt). Sort ascending.
+- [x] `case_sensitive?: bool` — default false.
+- [x] `priority?: number` — lower = discarded first when `token_budget` exceeded.
+- [x] `position?: 'before_char' | 'after_char'` — placement relative to character definitions.
+- [x] `id?`, `comment?`, `name?` — not used for prompt engineering; preserved and shown in editor.
+- [x] `extensions: {}` — preserved per entry.
 
 ### 4.3 Matching algorithm (prompt-time)
 1. Scan last `scan_depth` messages for each enabled entry's `keys` (respecting `case_sensitive`).
@@ -121,7 +122,7 @@ Implement the full `CharacterBook` typing.
 ### 4.4 World book stacking
 - [ ] Support a user-level "World Info" book.
 - [ ] Character book **takes full precedence** over world book (spec: *SHOULD*). Resolve key collisions in favor of character book.
-- [ ] Character book is **on by default**; user can toggle per session.
+- [x] Character book is **on by default**; user can toggle per session.
 
 ---
 
@@ -140,10 +141,10 @@ Order (typical, matching SillyTavern conventions):
 7. **Post-history instructions** — character `post_history_instructions` (with `{{original}}`) if non-empty, else user's UJB/jailbreak, else fallback.
 
 Checklist:
-- [ ] Token counting via `tiktoken` (or per-provider tokenizer) with a configurable reserve.
-- [ ] Context-window truncation: drop oldest non-greeting messages first.
-- [ ] `{{original}}` substitution helper used in both `system_prompt` and `post_history_instructions`.
-- [ ] `creator_notes`, `tags`, `creator`, `character_version`, and `comment`/`id`/`name` book-entry fields are **never** sent to the model.
+- [x] Token counting via `tiktoken` (or per-provider tokenizer) with a configurable reserve.
+- [x] Context-window truncation: drop oldest non-greeting messages first.
+- [x] `{{original}}` substitution helper used in both `system_prompt` and `post_history_instructions`.
+- [x] `creator_notes`, `tags`, `creator`, `character_version`, and `comment`/`id`/`name` book-entry fields are **never** sent to the model.
 
 ---
 
@@ -158,8 +159,8 @@ Checklist:
 - [x] CRUD for providers: `name`, `type` (OpenAI-compatible / Anthropic / Ollama / KoboldCpp / custom), `base_url`, `api_key`, `model`, `temperature`, `max_tokens`, `top_p`, extra JSON.
 - [x] Encrypt API keys at rest (Fernet with a server key).
 - [x] "Test connection" endpoint.
-- [ ] Set a default provider; override per session.
-- [ ] Streaming responses (SSE) in the chat UI.
+- [x] Set a default provider; override per session.
+- [x] Streaming responses (SSE) in the chat UI.
 
 ### 6.3 Character management
 - [x] Upload PNG card (extract embedded JSON + avatar).
@@ -168,24 +169,24 @@ Checklist:
 - [ ] Edit existing character (all fields, including `extensions` and book entries).
 - [x] Export as V2 JSON, V1 JSON, or PNG.
 - [ ] List/search/filter by `tags` (case-insensitive), `creator`, `character_version`.
-- [ ] Delete character (cascade sessions or block if in use — configurable).
-- [ ] Character detail page showing `creator_notes` (per spec: "at least one paragraph SHOULD be displayed").
+- [x] Delete character (cascade sessions or block if in use — configurable).
+- [x] Character detail page showing `creator_notes` (per spec: "at least one paragraph SHOULD be displayed").
 
 ### 6.4 Chat sessions
-- [ ] Multiple sessions per character per user.
-- [ ] Session title (auto from first message, editable).
-- [ ] Per-session provider override.
+- [x] Multiple sessions per character per user.
+- [x] Session title (auto from first message, editable).
+- [x] Per-session provider override.
 - [ ] Per-session toggle for character book / world book.
-- [ ] **Greeting swipes:** on session start, show `first_mes` as greeting. A swipe control cycles through `alternate_greetings`. Changing the swipe **replaces** the greeting message (and optionally branches a new session — expose as a setting).
-- [ ] Message swipes (regenerate last AI reply, keep N alternatives, swipe between them). Stored in `messages.metadata` or a `message_swipes` table.
-- [ ] Edit / delete messages.
-- [ ] Message roles: `system`, `user`, `assistant`.
-- [ ] Stop generation mid-stream.
+- [x] **Greeting swipes:** on session start, show `first_mes` as greeting. A swipe control cycles through `alternate_greetings`. Changing the swipe **replaces** the greeting message (and optionally branches a new session — expose as a setting).
+- [x] Message swipes (regenerate last AI reply, keep N alternatives, swipe between them). Stored in `messages.metadata` or a `message_swipes` table.
+- [x] Edit / delete messages.
+- [x] Message roles: `system`, `user`, `assistant`.
+- [x] Stop generation mid-stream.
 - [ ] Export chat as JSON / Markdown.
 
 ### 6.5 UI
-- [ ] Sidebar: characters list, sessions per character.
-- [ ] Chat pane: message bubbles, swipe arrows, edit, regenerate.
+- [x] Sidebar: characters list, sessions per character.
+- [x] Chat pane: message bubbles, swipe arrows, edit, regenerate.
 - [ ] Character editor: tabs for Identity / Prompting / Lorebook / Extensions / Raw JSON.
 - [ ] Settings: providers, default system prompt, default UJB, theme.
 - [ ] Character book editor: table of entries with all fields, enable/disable toggle, drag-to-reorder `insertion_order`.
@@ -260,24 +261,24 @@ PATCH  /settings
 - [x] Streaming via SSE (provider clients + `POST /api/providers/{id}/complete/stream`).
 
 ### M5 — Prompt Builder
-- [ ] `{{original}}` substitution.
-- [ ] System prompt / post-history override logic.
-- [ ] Lorebook matching (§4.3) with token budget + priority + recursive scan.
-- [ ] before_char / after_char placement.
-- [ ] Unit tests for matching, budget, precedence, case sensitivity.
+- [x] `{{original}}` substitution.
+- [x] System prompt / post-history override logic.
+- [x] Lorebook matching (§4.3) with token budget + priority + recursive scan.
+- [x] before_char / after_char placement.
+- [x] Unit tests for matching, budget, precedence, case sensitivity.
 
 ### M6 — Chat
-- [ ] Session CRUD.
-- [ ] Message send/stream/regenerate.
-- [ ] Greeting swipes from `alternate_greetings`.
-- [ ] Message swipes.
-- [ ] Edit/delete messages.
+- [x] Session CRUD.
+- [x] Message send/stream/regenerate.
+- [x] Greeting swipes from `alternate_greetings`.
+- [x] Message swipes.
+- [x] Edit/delete messages.
 
 ### M7 — Polish
-- [ ] Import/export (V1 JSON, V2 JSON, PNG).
+- [x] Import/export (V1 JSON, V2 JSON, PNG).
 - [ ] Tag filtering/search.
 - [ ] Chat export.
-- [ ] Tests: card round-trip, lorebook, prompt assembly, API.
+- [x] Tests: card round-trip, lorebook, prompt assembly, API.
 
 ### M8 — Optional
 - [ ] Multi-user sharing / public characters.

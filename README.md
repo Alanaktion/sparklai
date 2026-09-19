@@ -100,6 +100,20 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | DELETE | `/api/characters/{id}` | Delete the character and its avatar |
 | GET | `/api/characters/{id}/avatar` | The character's avatar PNG |
 | GET | `/api/characters/{id}/export` | Export as `?format=v1`, `v2`, or `png` |
+| GET | `/api/characters/{id}/sessions` | Chat sessions for this character |
+| POST | `/api/characters/{id}/sessions` | Start a session (seeds the greeting) |
+| GET | `/api/sessions/{id}` | Session plus its messages |
+| PATCH | `/api/sessions/{id}` | Title, provider override, prompt overrides, book toggle |
+| DELETE | `/api/sessions/{id}` | Delete the session and its messages |
+| GET | `/api/sessions/{id}/messages` | Messages in order |
+| POST | `/api/sessions/{id}/messages` | Send a message (non-streaming) |
+| POST | `/api/sessions/{id}/messages/stream` | Send a message, streamed as SSE |
+| PATCH | `/api/sessions/{id}/messages/{mid}` | Edit a message |
+| DELETE | `/api/sessions/{id}/messages/{mid}` | Delete a message |
+| POST | `/api/sessions/{id}/messages/{mid}/swipe` | Cycle message alternatives |
+| POST | `/api/sessions/{id}/greeting/swipe` | Cycle the greeting alternatives |
+| POST | `/api/sessions/{id}/regenerate` | New alternative for the last reply |
+| POST | `/api/sessions/{id}/regenerate/stream` | The same, streamed |
 | GET | `/api/health` | Liveness |
 | GET | `/api/health/ready` | Readiness (checks the database) |
 
@@ -212,8 +226,9 @@ frontend/                    SvelteKit SPA (Svelte 5 + TypeScript)
   vite.config.ts             Static SPA adapter + /api dev proxy
 src/sparklchat/
   api/                       HTTP routers (`/api` prefix), auth deps, health checks
-  models/                    SQLModel tables, card models, provider schemas
-  services/                  Card parsing, PNG tEXt I/O, crypto, provider clients
+  models/                    SQLModel tables (users, providers, characters, chat)
+  services/                  Card parsing, PNG I/O, crypto, providers, prompts
+    providers/               OpenAI-compatible, Anthropic, and Ollama clients
   cli.py                     `sparklchat` console entry point
   config.py                  Settings, package paths, frontend build location
   db.py                      Async engine, session dependency, schema helpers
@@ -221,6 +236,45 @@ src/sparklchat/
 data/                        Local uploads (avatars); gitignored
 tests/                       pytest suite
 ```
+
+## Chat
+
+Starting a session seeds the character's `first_mes` as an assistant message, with
+`alternate_greetings` attached as swipes; macro placeholders are resolved once at
+that point, so the greeting reads naturally.
+
+Sending a message appends the user turn, assembles the prompt, and calls the
+provider — either in one shot or streamed as Server-Sent Events:
+
+```
+event: user     data {"message": Message}   the persisted user turn
+ event: delta    data {"delta": "..."}       incremental assistant text
+event: message  data {"message": Message}   the persisted assistant turn
+event: error    data {"detail": "..."}
+event: done     data {}
+```
+
+Regenerating appends a new alternative to the last assistant message and makes it
+active; the previous reply stays available via the swipe endpoints, which is also
+how message swipes and greeting swipes work. `messages.meta` holds the
+alternatives (the column is named `meta` because SQLAlchemy reserves `metadata`).
+
+The first user message becomes the session title unless one was set. Deleting a
+character cascades to its sessions and messages; deleting a provider clears it as
+the default and leaves its sessions to fall back to the new default.
+
+If the stream fails part-way, whatever arrived is saved before the `error` event
+so partial text is not lost.
+
+## The Svelte app
+
+The front end covers sign in/up, the character list (search, upload, delete),
+character detail with `creator_notes`, the chat view (streaming, swipes, edit,
+delete, regenerate, provider picker, character-book toggle), and settings
+(providers with a Test button, plus display name and default prompts).
+
+Avatars come from an authenticated endpoint, so the app fetches them with the
+bearer token and renders a blob URL rather than using `<img src>` directly.
 
 ## Configuration
 

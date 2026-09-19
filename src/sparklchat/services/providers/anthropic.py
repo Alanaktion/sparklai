@@ -23,9 +23,25 @@ class AnthropicClient(BaseClient):
     def _payload(self, messages: Sequence[ChatMessage], *, stream: bool) -> dict[str, Any]:
         # Anthropic takes the system prompt as a top-level field, not a message.
         system = [message.content for message in messages if message.role == "system"]
+        convo = [message for message in messages if message.role != "system"]
+
+        # Anthropic requires the conversation to start with a user turn, but a
+        # character greeting arrives as a leading assistant message. Fold those
+        # into the system prompt rather than sending an invalid request.
+        while convo and convo[0].role == "assistant":
+            system.append(convo.pop(0).content)
+
+        # Roles must alternate, so merge any adjacent same-role turns.
+        merged: list[dict[str, str]] = []
+        for message in convo:
+            if merged and merged[-1]["role"] == message.role:
+                merged[-1]["content"] = f"{merged[-1]['content']}\n\n{message.content}"
+            else:
+                merged.append(message.as_dict())
+
         payload: dict[str, Any] = {
             "model": self.config.model,
-            "messages": [message.as_dict() for message in messages if message.role != "system"],
+            "messages": merged,
             "max_tokens": self.config.max_tokens or DEFAULT_MAX_TOKENS,
             "stream": stream,
         }

@@ -10,11 +10,11 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from sparklchat.config import Settings, get_settings
-from sparklchat.db import create_db_and_tables, create_session, get_session
+from sparklchat.db import build_engine, create_db_and_tables, create_session, get_session
 from sparklchat.main import create_app
 
 PASSWORD = "correct horse battery staple"
@@ -22,8 +22,10 @@ PASSWORD = "correct horse battery staple"
 
 @pytest.fixture(autouse=True)
 def isolated_uploads(tmp_path, monkeypatch) -> None:
-    """Keep uploaded avatars out of the real project tree."""
+    """Keep uploads out of the real tree and token counting offline/deterministic."""
     monkeypatch.setenv("AVATAR_DIR", str(tmp_path / "avatars"))
+    # tiktoken downloads its BPE data on first use; tests stay offline.
+    monkeypatch.setenv("TOKENIZER", "heuristic")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -55,7 +57,7 @@ def app(tmp_path: Path) -> FastAPI:
 
 @pytest.fixture
 async def engine(tmp_path: Path) -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
+    engine = build_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
     await create_db_and_tables(engine)
     try:
         yield engine

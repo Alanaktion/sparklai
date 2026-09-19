@@ -25,19 +25,21 @@ def _enable_sqlite_foreign_keys(dbapi_connection: Any, _connection_record: Any) 
     cursor.close()
 
 
+def build_engine(url: str, *, echo: bool = False) -> AsyncEngine:
+    """Create an async engine with this app's connection settings."""
+    engine = create_async_engine(url, echo=echo, pool_pre_ping=True, future=True)
+    if engine.dialect.name == "sqlite":
+        # SQLite ignores foreign keys (and their cascades) unless enabled.
+        event.listen(engine.sync_engine, "connect", _enable_sqlite_foreign_keys)
+    return engine
+
+
 def get_engine() -> AsyncEngine:
     """Return the lazily-created, process-wide async engine."""
     global _engine
     if _engine is None:
         settings = get_settings()
-        _engine = create_async_engine(
-            settings.database_url,
-            echo=settings.debug,
-            pool_pre_ping=True,
-            future=True,
-        )
-        if _engine.dialect.name == "sqlite":
-            event.listen(_engine.sync_engine, "connect", _enable_sqlite_foreign_keys)
+        _engine = build_engine(settings.database_url, echo=settings.debug)
     return _engine
 
 

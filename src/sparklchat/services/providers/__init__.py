@@ -3,6 +3,7 @@
 import httpx
 
 from sparklchat.models.provider import Provider, default_base_url
+from sparklchat.services.crypto import decrypt
 from sparklchat.services.providers.anthropic import AnthropicClient
 from sparklchat.services.providers.base import (
     BaseClient,
@@ -27,9 +28,17 @@ __all__ = [
     "ChatMessage",
     "ProviderConfig",
     "ProviderError",
+    "api_key_for",
     "build_client",
     "config_for",
 ]
+
+
+def api_key_for(provider: Provider) -> str | None:
+    """Decrypt the provider's stored key, if it has one."""
+    if not provider.api_key_encrypted:
+        return None
+    return decrypt(provider.api_key_encrypted)
 
 
 def build_client(

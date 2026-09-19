@@ -28,6 +28,9 @@ async def update_settings(
     for field in ("default_system_prompt", "default_ujb"):
         if field in updates and updates[field] is None:
             updates[field] = ""
+    # `display_name` is required, so an explicit null just leaves it alone.
+    if updates.get("display_name") is None:
+        updates.pop("display_name", None)
 
     provider_id = updates.get("default_provider_id")
     if provider_id is not None:

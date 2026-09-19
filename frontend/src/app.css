@@ -1,0 +1,119 @@
+/* Global theme and element defaults. Component-specific styles live in the
+   components' own <style> blocks; only tokens and shared primitives are here. */
+:root {
+	color-scheme: light dark;
+	--bg: #f5f6f8;
+	--surface: #ffffff;
+	--surface-2: #eceef2;
+	--border: #d6dae1;
+	--text: #1b1f24;
+	--muted: #656d76;
+	--accent: #5558cf;
+	--accent-contrast: #ffffff;
+	--danger: #c0392b;
+	--radius: 10px;
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #13151a;
+		--surface: #1b1e24;
+		--surface-2: #24282f;
+		--border: #333944;
+		--text: #e6e8ec;
+		--muted: #98a1ac;
+		--accent: #7f82f2;
+		--danger: #ff7b72;
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	background: var(--bg);
+	color: var(--text);
+}
+
+h1,
+h2,
+h3 {
+	line-height: 1.25;
+}
+
+a {
+	color: var(--accent);
+}
+
+input,
+textarea,
+select,
+button {
+	font: inherit;
+	color: inherit;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+	width: 100%;
+	padding: 0.45rem 0.6rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+	accent-color: var(--accent);
+}
+
+button {
+	padding: 0.45rem 0.8rem;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+	border-color: var(--accent);
+}
+
+button:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+button.primary {
+	color: var(--accent-contrast);
+	background: var(--accent);
+	border-color: var(--accent);
+}
+
+button.ghost {
+	background: transparent;
+	border-color: transparent;
+}
+
+button.danger {
+	color: var(--danger);
+}
+
+.page {
+	max-width: 62rem;
+	margin: 0 auto;
+	padding: 1.5rem;
+}
+
+.muted {
+	color: var(--muted);
+}
+
+.error {
+	color: var(--danger);
+}

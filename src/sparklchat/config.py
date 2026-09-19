@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # API keys. When unset, a key is derived from `secret_key`.
     encryption_key: str | None = None
 
+    # Prompt assembly.
+    # "auto" uses tiktoken when it is available and falls back to an estimate.
+    tokenizer: str = "auto"
+    context_window: int = 8192
+    context_reserve: int = 512
+
     # Built Svelte app served by FastAPI. When this directory does not exist the
     # app serves the API alone and logs a hint.
     frontend_dist_dir: Path = FRONTEND_DIST_DIR
