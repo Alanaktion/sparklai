@@ -61,9 +61,7 @@ async def test_export_defaults_to_markdown(
 ) -> None:
     session = await seed_transcript(client, engine, auth_headers, v2_card)
 
-    response = await client.get(
-        f"/api/sessions/{session['id']}/export", headers=auth_headers
-    )
+    response = await client.get(f"/api/sessions/{session['id']}/export", headers=auth_headers)
     assert response.status_code == 200, response.text
     assert response.headers["content-type"].startswith("text/markdown")
     assert response.headers["content-disposition"].startswith("attachment; filename=")
@@ -83,14 +81,10 @@ async def test_markdown_uses_the_users_display_name(
     engine: AsyncEngine,
     v2_card: dict,
 ) -> None:
-    await client.patch(
-        "/api/settings", json={"display_name": "Ash"}, headers=auth_headers
-    )
+    await client.patch("/api/settings", json={"display_name": "Ash"}, headers=auth_headers)
     session = await seed_transcript(client, engine, auth_headers, v2_card)
 
-    response = await client.get(
-        f"/api/sessions/{session['id']}/export", headers=auth_headers
-    )
+    response = await client.get(f"/api/sessions/{session['id']}/export", headers=auth_headers)
     assert f"**Ash:** {TITLE}" in response.text
 
 

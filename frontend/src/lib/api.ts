@@ -195,6 +195,10 @@ export type CharacterSummary = {
 	tags: string[];
 	creator: string;
 	character_version: string;
+	/** Published characters can be read and chatted with by any user. */
+	is_public: boolean;
+	/** Whether the signed-in user owns this character. */
+	is_mine: boolean;
 	has_avatar: boolean;
 	created_at: string;
 	updated_at: string;
@@ -231,6 +235,8 @@ export type CharacterFilters = {
 	tags?: string[];
 	creator?: string;
 	characterVersion?: string;
+	/** `mine` (default) lists your own characters; `public` lists the shared library. */
+	scope?: 'mine' | 'public';
 	limit?: number;
 	offset?: number;
 };
@@ -246,6 +252,7 @@ export function listCharacters(
 	}
 	if (filters.creator) params.set('creator', filters.creator);
 	if (filters.characterVersion) params.set('character_version', filters.characterVersion);
+	if (filters.scope) params.set('scope', filters.scope);
 	params.set('limit', String(filters.limit ?? 100));
 	params.set('offset', String(filters.offset ?? 0));
 	return apiFetch<CharacterSummary[]>(`/characters?${params.toString()}`, {
@@ -272,8 +279,23 @@ export function getCharacter(token: string, id: number): Promise<CharacterDetail
 	return apiFetch<CharacterDetail>(`/characters/${id}`, { headers: bearer(token) });
 }
 
-export function updateCharacter(token: string, id: number, card: unknown): Promise<CharacterDetail> {
-	return apiFetch<CharacterDetail>(`/characters/${id}`, jsonInit('PATCH', { card }, token));
+export type CharacterUpdate = {
+	/** Replaces the whole card when provided. */
+	card?: unknown;
+	/** Publishes or unpublishes the character. */
+	is_public?: boolean;
+};
+
+/**
+ * Patch a character. Provide `card` to replace the card, `is_public` to change
+ * visibility, or both.
+ */
+export function updateCharacter(
+	token: string,
+	id: number,
+	update: CharacterUpdate
+): Promise<CharacterDetail> {
+	return apiFetch<CharacterDetail>(`/characters/${id}`, jsonInit('PATCH', update, token));
 }
 
 export function deleteCharacter(token: string, id: number): Promise<void> {

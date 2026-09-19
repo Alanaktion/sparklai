@@ -24,6 +24,7 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - `character_book` is stored inline in `characters.card_json`; no separate `character_books`/`lorebook_entries` tables (per §2.2's "or stored inline").
 - Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
 - World books (§4.4) are not implemented; only the character book is injected, toggled per session.
+- Characters can be published (`is_public`) to a shared library that any signed-in user can read, export, and chat with; group chats and TTS/STT hooks (M8) remain unimplemented.
 - Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: world books (§4.4) and sorting the character list by `character_version`.
 
 ---
@@ -281,7 +282,7 @@ PATCH  /settings
 - [x] Tests: card round-trip, lorebook, prompt assembly, API.
 
 ### M8 — Optional
-- [ ] Multi-user sharing / public characters.
+- [x] Multi-user sharing / public characters.
 - [ ] Group chats (multiple characters).
 - [ ] TTS/STT hooks via `extensions`.
 

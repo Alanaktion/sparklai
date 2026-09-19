@@ -21,12 +21,18 @@
 	let creatorInput = $state('');
 	let versionInput = $state('');
 
-	type Filters = { q: string; tag: string; creator: string; version: string };
+	type Scope = 'mine' | 'public';
+	type Filters = { q: string; tag: string; creator: string; version: string; scope: Scope };
+
+	function parseScope(value: string | null): Scope {
+		return value === 'public' ? 'public' : 'mine';
+	}
 
 	const query = $derived(page.url.searchParams.get('q') ?? '');
 	const tagQuery = $derived(page.url.searchParams.get('tag') ?? '');
 	const creatorQuery = $derived(page.url.searchParams.get('creator') ?? '');
 	const versionQuery = $derived(page.url.searchParams.get('version') ?? '');
+	const scopeQuery = $derived(parseScope(page.url.searchParams.get('scope')));
 	const hasFilters = $derived(Boolean(query || tagQuery || creatorQuery || versionQuery));
 	let requestId = 0;
 
@@ -35,8 +41,22 @@
 		tagInput = tagQuery;
 		creatorInput = creatorQuery;
 		versionInput = versionQuery;
-		void load({ q: query, tag: tagQuery, creator: creatorQuery, version: versionQuery });
+		void load({
+			q: query,
+			tag: tagQuery,
+			creator: creatorQuery,
+			version: versionQuery,
+			scope: scopeQuery
+		});
 	});
+
+	function scopeHref(scope: Scope): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (scope === 'public') params.set('scope', 'public');
+		else params.delete('scope');
+		const qs = params.toString();
+		return qs ? `/characters?${qs}` : '/characters';
+	}
 
 	function parseTags(value: string): string[] {
 		return value
@@ -57,7 +77,8 @@
 				q: filters.q || undefined,
 				tags: tags.length ? tags : undefined,
 				creator: filters.creator || undefined,
-				characterVersion: filters.version || undefined
+				characterVersion: filters.version || undefined,
+				scope: filters.scope
 			});
 			if (id === requestId) characters = result;
 		} catch (cause) {
@@ -68,7 +89,13 @@
 	}
 
 	function currentFilters(): Filters {
-		return { q: query, tag: tagQuery, creator: creatorQuery, version: versionQuery };
+		return {
+			q: query,
+			tag: tagQuery,
+			creator: creatorQuery,
+			version: versionQuery,
+			scope: scopeQuery
+		};
 	}
 
 	function applyFilters(event: SubmitEvent) {
@@ -82,6 +109,7 @@
 		if (creator) params.set('creator', creator);
 		const version = versionInput.trim();
 		if (version) params.set('version', version);
+		if (scopeQuery === 'public') params.set('scope', 'public');
 		const qs = params.toString();
 		void goto(qs ? `/characters?${qs}` : '/characters');
 	}
@@ -143,6 +171,11 @@
 		</div>
 	</div>
 
+	<nav class="scopes" aria-label="Character library">
+		<a class:active={scopeQuery === 'mine'} href={scopeHref('mine')}>Mine</a>
+		<a class:active={scopeQuery === 'public'} href={scopeHref('public')}>Public library</a>
+	</nav>
+
 	<form class="filters" onsubmit={applyFilters}>
 		<label class="field">
 			<span>Name</span>
@@ -189,7 +222,13 @@
 		<p class="muted">Loading characters…</p>
 	{:else if characters.length === 0}
 		<p class="muted">
-			{hasFilters ? 'No characters match those filters.' : 'No characters yet — import a card to start.'}
+			{#if hasFilters}
+				No characters match those filters.
+			{:else if scopeQuery === 'public'}
+				No public characters yet — publish one of yours to share it.
+			{:else}
+				No characters yet — import a card to start.
+			{/if}
 		</p>
 	{:else}
 		<ul class="grid">
@@ -211,8 +250,13 @@
 								<span class="tags">{character.tags.slice(0, 4).join(' · ')}</span>
 							{/if}
 						</span>
+						{#if character.is_public}
+							<span class="badge">Public</span>
+						{/if}
 					</a>
-					<button class="danger" onclick={() => remove(character)}>Delete</button>
+					{#if character.is_mine}
+						<button class="danger" onclick={() => remove(character)}>Delete</button>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -257,6 +301,39 @@
 
 	.upload input {
 		max-width: 18rem;
+	}
+
+	.scopes {
+		display: flex;
+		gap: 0.5rem;
+		margin: 1rem 0 0;
+	}
+
+	.scopes a {
+		padding: 0.3rem 0.7rem;
+		font-size: 0.85rem;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		color: var(--muted);
+		text-decoration: none;
+	}
+
+	.scopes a.active {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-contrast);
+	}
+
+	.badge {
+		padding: 0.1rem 0.45rem;
+		font-size: 0.72rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		color: var(--muted);
 	}
 
 	.filters {

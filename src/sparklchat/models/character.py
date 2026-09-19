@@ -28,6 +28,8 @@ class Character(SQLModel, table=True):
     # Denormalized from the card so listing and filtering can stay in SQL.
     creator: str = Field(default="", max_length=200, index=True)
     character_version: str = Field(default="", max_length=100)
+    # Published characters can be read and chatted with by any user.
+    is_public: bool = Field(default=False, index=True)
     card_json: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
     avatar_path: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
@@ -55,6 +57,9 @@ class CharacterSummary(SQLModel):
     tags: list[str]
     creator: str
     character_version: str
+    is_public: bool
+    # Whether the requesting user owns this character.
+    is_mine: bool
     has_avatar: bool
     created_at: datetime
     updated_at: datetime
@@ -68,3 +73,4 @@ class CharacterUpdate(SQLModel):
     """PATCH payload. The card is replaced wholesale when provided."""
 
     card: dict[str, Any] | None = None
+    is_public: bool | None = None

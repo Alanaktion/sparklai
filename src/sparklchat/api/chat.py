@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlmodel import select
 
+from sparklchat.api.access import readable_character
 from sparklchat.api.deps import CurrentUserDep
 from sparklchat.config import get_settings
 from sparklchat.db import SessionDep
@@ -58,14 +59,6 @@ router = APIRouter(prefix="/sessions", tags=["chat"])
 character_router = APIRouter(prefix="/characters", tags=["chat"])
 
 _NO_PROVIDER = "No provider configured. Add one under Settings and make it your default."
-
-
-async def _owned_character(db: SessionDep, character_id: int, user_id: int) -> Character:
-    statement = select(Character).where(Character.id == character_id, Character.user_id == user_id)
-    character = (await db.exec(statement)).first()
-    if character is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Character not found")
-    return character
 
 
 async def _owned_session(db: SessionDep, session_id: int, user_id: int) -> ChatSession:
@@ -128,7 +121,7 @@ async def _generation_context(
 ) -> tuple[ChatSession, TavernCardV2, UserSettings, Provider, BaseClient]:
     """Everything needed to build a prompt and call the provider."""
     session = await _owned_session(db, session_id, user_id)
-    character = await _owned_character(db, session.character_id, user_id)
+    character = await readable_character(db, session.character_id, user_id)
     card = TavernCardV2.model_validate(character.card_json)
     settings = await get_or_create_settings(db, user_id)
 
@@ -204,7 +197,7 @@ def _event(name: str, payload: dict) -> ServerSentEvent:
 async def list_sessions(
     character_id: int, db: SessionDep, current_user: CurrentUserDep
 ) -> list[SessionSummary]:
-    await _owned_character(db, character_id, current_user.id)
+    await readable_character(db, character_id, current_user.id)
     statement = (
         select(ChatSession)
         .where(
@@ -224,7 +217,7 @@ async def create_session(
     current_user: CurrentUserDep,
 ) -> SessionDetail:
     """Start a session and seed it with the character's greeting."""
-    character = await _owned_character(db, character_id, current_user.id)
+    character = await readable_character(db, character_id, current_user.id)
     if payload.provider_id is not None:
         await _owned_provider(db, payload.provider_id, current_user.id)
 
@@ -307,7 +300,7 @@ async def send_message(
     current_user: CurrentUserDep,
 ) -> MessagePair:
     session, card, settings, _, client = await _generation_context(db, session_id, current_user.id)
-    character = await _owned_character(db, session.character_id, current_user.id)
+    character = await readable_character(db, session.character_id, current_user.id)
     user_message = await _append_user_message(db, session, character, payload.content)
 
     prompt = _prompt(card, session, settings, await _load_messages(db, session.id))
@@ -331,7 +324,7 @@ async def stream_message(
     current_user: CurrentUserDep,
 ) -> AsyncIterable[ServerSentEvent]:
     session, card, settings, _, client = await _generation_context(db, session_id, current_user.id)
-    character = await _owned_character(db, session.character_id, current_user.id)
+    character = await readable_character(db, session.character_id, current_user.id)
     user_message = await _append_user_message(db, session, character, payload.content)
     yield _event("user", {"message": message_public(user_message).model_dump(mode="json")})
 
@@ -427,7 +420,7 @@ async def export_session(
 ) -> Response:
     """Download a transcript as JSON or Markdown."""
     session = await _owned_session(db, session_id, current_user.id)
-    character = await _owned_character(db, session.character_id, current_user.id)
+    character = await readable_character(db, session.character_id, current_user.id)
     messages = await _load_messages(db, session.id)
 
     settings = await db.get(UserSettings, current_user.id)

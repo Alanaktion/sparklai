@@ -7,6 +7,7 @@ from fastapi import APIRouter, Body, File, HTTPException, Query, UploadFile, sta
 from fastapi.responses import FileResponse, Response
 from sqlmodel import select
 
+from sparklchat.api.access import owned_character, readable_character
 from sparklchat.api.deps import CurrentUserDep
 from sparklchat.db import SessionDep
 from sparklchat.models.base import utcnow
@@ -44,14 +45,6 @@ ExportFormat = Literal["v1", "v2", "png"]
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
-async def _owned(db: SessionDep, character_id: int, user_id: int) -> Character:
-    statement = select(Character).where(Character.id == character_id, Character.user_id == user_id)
-    character = (await db.exec(statement)).first()
-    if character is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Character not found")
-    return character
-
-
 def _parse(payload: dict[str, Any]) -> tuple[TavernCardV2, str]:
     try:
         return parse_card(payload)
@@ -87,7 +80,8 @@ async def create_character(
 ) -> CharacterDetail:
     """Create a character from a V1 or V2 card body."""
     card, source = _parse(payload)
-    return character_detail(await _save_new(db, card, source, current_user.id, None))
+    character = await _save_new(db, card, source, current_user.id, None)
+    return character_detail(character, current_user.id)
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
@@ -122,7 +116,7 @@ async def upload_character(
         current_user.id,
         save_avatar(avatar) if avatar else None,
     )
-    return character_detail(character)
+    return character_detail(character, current_user.id)
 
 
 @router.get("")
@@ -133,14 +127,21 @@ async def list_characters(
     tags: Annotated[list[str] | None, Query()] = None,
     creator: Annotated[str | None, Query(max_length=200)] = None,
     character_version: Annotated[str | None, Query(max_length=100)] = None,
+    scope: Annotated[Literal["mine", "public"], Query()] = "mine",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[CharacterSummary]:
-    """List the user's characters, optionally filtered.
+    """List characters, optionally filtered.
 
-    `q` matches the name; `tags` matches any of the given tags, ignoring case.
+    `scope=mine` (the default) lists the user's own; `scope=public` lists every
+    published character. `q` matches the name, and `tags` matches any of the
+    given tags, ignoring case.
     """
-    statement = select(Character).where(Character.user_id == current_user.id)
+    if scope == "public":
+        statement = select(Character).where(Character.is_public.is_(True))
+    else:
+        statement = select(Character).where(Character.user_id == current_user.id)
+
     if q:
         statement = statement.where(Character.name.ilike(f"%{q}%"))
     if creator:
@@ -158,14 +159,15 @@ async def list_characters(
         )
 
     statement = statement.order_by(Character.name).offset(offset).limit(limit)
-    return [character_summary(row) for row in (await db.exec(statement)).all()]
+    return [character_summary(row, current_user.id) for row in (await db.exec(statement)).all()]
 
 
 @router.get("/{character_id}")
 async def get_character(
     character_id: int, db: SessionDep, current_user: CurrentUserDep
 ) -> CharacterDetail:
-    return character_detail(await _owned(db, character_id, current_user.id))
+    character = await readable_character(db, character_id, current_user.id)
+    return character_detail(character, current_user.id)
 
 
 @router.patch("/{character_id}")
@@ -175,25 +177,33 @@ async def update_character(
     db: SessionDep,
     current_user: CurrentUserDep,
 ) -> CharacterDetail:
-    character = await _owned(db, character_id, current_user.id)
-    if payload.card is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Provide a `card` to update")
+    character = await owned_character(db, character_id, current_user.id)
+    if payload.card is None and payload.is_public is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Provide a `card` or `is_public` to update",
+        )
 
-    card, source = _parse(payload.card)
-    character.card_json = dump_v2(card)
-    character.source = source
-    await apply_card_metadata(db, character, card)
+    if payload.card is not None:
+        card, source = _parse(payload.card)
+        character.card_json = dump_v2(card)
+        character.source = source
+        await apply_card_metadata(db, character, card)
+
+    if payload.is_public is not None:
+        character.is_public = payload.is_public
+
     character.updated_at = utcnow()
     db.add(character)
     await db.commit()
     await db.refresh(character)
-    return character_detail(character)
+    return character_detail(character, current_user.id)
 
 
 @router.delete("/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_character(character_id: int, db: SessionDep, current_user: CurrentUserDep) -> None:
     # Sessions, messages, and tag rows all cascade from the character row.
-    character = await _owned(db, character_id, current_user.id)
+    character = await owned_character(db, character_id, current_user.id)
     delete_avatar(character.avatar_path)
     await db.delete(character)
     await db.commit()
@@ -203,7 +213,7 @@ async def delete_character(character_id: int, db: SessionDep, current_user: Curr
 async def get_avatar(
     character_id: int, db: SessionDep, current_user: CurrentUserDep
 ) -> FileResponse:
-    character = await _owned(db, character_id, current_user.id)
+    character = await readable_character(db, character_id, current_user.id)
     if not character.avatar_path:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Character has no avatar")
     path = avatar_file(character.avatar_path)
@@ -219,7 +229,7 @@ async def export_character(
     current_user: CurrentUserDep,
     export_format: Annotated[ExportFormat, Query(alias="format")] = "v2",
 ) -> Response:
-    character = await _owned(db, character_id, current_user.id)
+    character = await readable_character(db, character_id, current_user.id)
 
     if export_format == "png":
         base = _avatar_bytes(character) or blank_png()

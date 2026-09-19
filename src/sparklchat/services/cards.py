@@ -108,7 +108,7 @@ def dump_v1(card: TavernCardV2) -> dict[str, Any]:
     return legacy
 
 
-def character_summary(character: Character) -> CharacterSummary:
+def character_summary(character: Character, viewer_id: int | None = None) -> CharacterSummary:
     """Build the listing view, reading denormalized fields out of the card."""
     data = character.card_json.get("data") or {}
     return CharacterSummary(
@@ -119,6 +119,8 @@ def character_summary(character: Character) -> CharacterSummary:
         tags=[str(tag) for tag in data.get("tags") or []],
         creator=character.creator,
         character_version=character.character_version,
+        is_public=character.is_public,
+        is_mine=character.user_id is not None and character.user_id == viewer_id,
         has_avatar=bool(character.avatar_path),
         created_at=character.created_at,
         updated_at=character.updated_at,
@@ -155,8 +157,11 @@ async def apply_card_metadata(db: AsyncSession, character: Character, card: Tave
             db.add(CharacterTag(character_id=character.id, tag=tag))
 
 
-def character_detail(character: Character) -> CharacterDetail:
-    return CharacterDetail(**character_summary(character).model_dump(), card=character.card_json)
+def character_detail(character: Character, viewer_id: int | None = None) -> CharacterDetail:
+    return CharacterDetail(
+        **character_summary(character, viewer_id).model_dump(),
+        card=character.card_json,
+    )
 
 
 def _is_version_2(value: Any) -> bool:

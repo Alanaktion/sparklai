@@ -110,7 +110,7 @@
 			const detail =
 				characterId === null
 					? await createCharacter(token, payload)
-					: await updateCharacter(token, characterId, payload);
+					: await updateCharacter(token, characterId, { card: payload });
 			saved = true;
 			onSaved(detail);
 		} catch (cause) {

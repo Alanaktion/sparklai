@@ -8,6 +8,7 @@
 		downloadCharacterCard,
 		getCharacter,
 		listSessions,
+		updateCharacter,
 		type CharacterDetail,
 		type CharacterExportFormat,
 		type SessionSummary
@@ -22,6 +23,7 @@
 	let loading = $state(true);
 	let starting = $state(false);
 	let exporting = $state<CharacterExportFormat | null>(null);
+	let togglingVisibility = $state(false);
 	let error = $state<string | null>(null);
 
 	const characterId = $derived(Number(page.params.id));
@@ -85,6 +87,22 @@
 		}
 	}
 
+	async function toggleVisibility() {
+		const token = auth.token;
+		if (!token || !character) return;
+		togglingVisibility = true;
+		error = null;
+		try {
+			character = await updateCharacter(token, character.id, {
+				is_public: !character.is_public
+			});
+		} catch (cause) {
+			error = errorMessage(cause);
+		} finally {
+			togglingVisibility = false;
+		}
+	}
+
 	async function exportCard(format: CharacterExportFormat) {
 		const token = auth.token;
 		if (!token || !character) return;
@@ -123,6 +141,7 @@
 					{#if character.creator}by {character.creator}{:else}Unknown creator{/if}
 					{#if character.character_version}· v{character.character_version}{/if}
 					· {character.spec_version}
+					{#if character.is_public}· <span class="badge">Public</span>{/if}
 				</p>
 				{#if character.tags.length > 0}
 					<ul class="tags">
@@ -135,7 +154,16 @@
 					<button class="primary" onclick={startChat} disabled={starting}>
 						{starting ? 'Starting…' : 'Start new chat'}
 					</button>
-					<a class="edit" href={`/characters/${character.id}/edit`}>Edit</a>
+					{#if character.is_mine}
+						<a class="edit" href={`/characters/${character.id}/edit`}>Edit</a>
+						<button onclick={toggleVisibility} disabled={togglingVisibility}>
+							{togglingVisibility
+								? 'Saving…'
+								: character.is_public
+									? 'Make private'
+									: 'Publish'}
+						</button>
+					{/if}
 				</div>
 				<div class="export">
 					<span class="muted">Export</span>
@@ -209,6 +237,16 @@
 	.byline {
 		margin: 0;
 		font-size: 0.9rem;
+	}
+
+	.badge {
+		padding: 0.1rem 0.45rem;
+		font-size: 0.72rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 999px;
 	}
 
 	.actions {
