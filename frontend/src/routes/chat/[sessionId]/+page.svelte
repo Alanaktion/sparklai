@@ -22,6 +22,7 @@
 	import { auth } from '$lib/auth.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import MessageBubble from '$lib/components/MessageBubble.svelte';
+	import RichText from '$lib/components/RichText.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	let session = $state<SessionDetail | null>(null);
@@ -346,7 +347,7 @@
 		{#if streamText}
 			<article class="pending">
 				<p class="pending-speaker">{character?.name ?? 'Character'}</p>
-				<p class="pending-content">{streamText}</p>
+				<div class="pending-content"><RichText text={streamText} /></div>
 			</article>
 		{/if}
 	</div>
@@ -458,8 +459,6 @@
 	}
 
 	.pending-content {
-		margin: 0;
-		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 	}
 

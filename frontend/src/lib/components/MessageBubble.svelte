@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Message, SwipeDirection } from '$lib/api';
+	import RichText from '$lib/components/RichText.svelte';
 
 	type Props = {
 		message: Message;
@@ -58,7 +59,7 @@
 			<button onclick={() => (editing = false)} disabled={busy}>Cancel</button>
 		</div>
 	{:else}
-		<p class="content">{message.content}</p>
+		<div class="content"><RichText text={message.content} /></div>
 		<div class="actions">
 			{#if message.swipe_count > 1}
 				<button aria-label="Previous variant" onclick={() => onSwipe('prev')} disabled={busy}>
@@ -106,8 +107,6 @@
 	}
 
 	.content {
-		margin: 0;
-		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 	}
 

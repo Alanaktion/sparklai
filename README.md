@@ -195,6 +195,7 @@ uv run alembic downgrade -1                                   # step back one
 
 cd frontend
 npm run check                            # svelte-check + TypeScript
+npm test                                 # vitest (markdown parser + renderer)
 npm run build                            # production SPA build
 ```
 
@@ -275,6 +276,31 @@ delete, regenerate, provider picker, character-book toggle), and settings
 
 Avatars come from an authenticated endpoint, so the app fetches them with the
 bearer token and renders a blob URL rather than using `<img src>` directly.
+
+### Message formatting
+
+Replies are rendered through a small Markdown-like parser (`src/lib/markdown.ts`)
+covering the conventions roleplay text actually uses:
+
+| Syntax | Renders as |
+| --- | --- |
+| `*sighs*` | italics — the action convention |
+| `**Now**` | bold |
+| `***both***` | bold italics |
+| `_quietly_`, `__loudly__` | italics / bold (word boundaries only, so `snake_case` survives) |
+| `~~gone~~` | strikethrough |
+| `` `code` ``, fenced ```` ``` ```` blocks | monospace |
+| `> line` | blockquote |
+| `\*escaped\*` | literal characters |
+
+Single newlines are preserved rather than treated as paragraph breaks, since
+models break replies across lines far more often than they intend a new
+paragraph. Dialogue in straight quotes is left as-is rather than auto-styled,
+which would misfire on apostrophes and nested quotes.
+
+The parser returns data, not HTML, and the renderer emits text nodes, so message
+content can never inject markup — a test asserts that `<img onerror=…>` in a
+reply renders escaped.
 
 ## Configuration
 

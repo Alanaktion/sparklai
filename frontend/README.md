@@ -29,4 +29,5 @@ both the API and the app.
 
 ```bash
 npm run check               # svelte-check + TypeScript
+npm test                    # vitest (markdown parser + renderer)
 ```
