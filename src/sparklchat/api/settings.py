@@ -1,10 +1,14 @@
-"""Per-user prompt defaults."""
+"""Per-user prompt defaults and the user-level world book."""
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Body, HTTPException, status
+from pydantic import ValidationError
 from sqlmodel import select
 
 from sparklchat.api.deps import CurrentUserDep
 from sparklchat.db import SessionDep
+from sparklchat.models.card import CharacterBook
 from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettingsPublic, UserSettingsUpdate
 from sparklchat.services.user_settings import get_or_create_settings
@@ -52,3 +56,44 @@ async def update_settings(
     await db.commit()
     await db.refresh(settings)
     return settings
+
+
+@router.get("/world-book")
+async def read_world_book(db: SessionDep, current_user: CurrentUserDep) -> dict[str, Any] | None:
+    """The user's World Info book, or null when they have not written one."""
+    settings = await get_or_create_settings(db, current_user.id)
+    return settings.world_book
+
+
+@router.put("/world-book")
+async def replace_world_book(
+    payload: Annotated[dict[str, Any], Body()],
+    db: SessionDep,
+    current_user: CurrentUserDep,
+) -> dict[str, Any]:
+    """Replace the user's World Info book wholesale.
+
+    The body is validated as a `CharacterBook` but stored verbatim, so unknown
+    keys (book-level and entry-level `extensions`) survive a round trip.
+    """
+    try:
+        CharacterBook.model_validate(payload)
+    except ValidationError as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"Invalid world book: {exc}"
+        ) from exc
+
+    settings = await get_or_create_settings(db, current_user.id)
+    settings.world_book = payload
+    db.add(settings)
+    await db.commit()
+    await db.refresh(settings)
+    return payload
+
+
+@router.delete("/world-book", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_world_book(db: SessionDep, current_user: CurrentUserDep) -> None:
+    settings = await get_or_create_settings(db, current_user.id)
+    settings.world_book = None
+    db.add(settings)
+    await db.commit()

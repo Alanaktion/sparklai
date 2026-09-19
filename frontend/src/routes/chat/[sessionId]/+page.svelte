@@ -256,6 +256,17 @@
 		}
 	}
 
+	async function toggleWorldBook(event: Event) {
+		const token = auth.token;
+		if (!token || !session) return;
+		const useWorldBook = (event.currentTarget as HTMLInputElement).checked;
+		try {
+			session = await updateSession(token, session.id, { use_world_book: useWorldBook });
+		} catch (cause) {
+			streamError = errorMessage(cause);
+		}
+	}
+
 	async function exportTranscript(format: ChatExportFormat) {
 		const token = auth.token;
 		if (!token || !session) return;
@@ -335,6 +346,15 @@
 					disabled={streaming || !session}
 				/>
 				<span>Character book</span>
+			</label>
+			<label class="check">
+				<input
+					type="checkbox"
+					checked={session?.use_world_book ?? false}
+					onchange={toggleWorldBook}
+					disabled={streaming || !session}
+				/>
+				<span>World book</span>
 			</label>
 			<div class="export">
 				<span class="muted">Export</span>

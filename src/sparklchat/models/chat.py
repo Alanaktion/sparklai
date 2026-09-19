@@ -29,6 +29,7 @@ class ChatSession(SQLModel, table=True):
     system_prompt_override: str | None = Field(default=None)
     post_history_override: str | None = Field(default=None)
     use_character_book: bool = Field(default=True)
+    use_world_book: bool = Field(default=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -75,6 +76,7 @@ class SessionSummary(SQLModel):
     title: str
     provider_id: int | None
     use_character_book: bool
+    use_world_book: bool
     created_at: datetime
     updated_at: datetime
 
@@ -96,6 +98,7 @@ class SessionUpdate(SQLModel):
     system_prompt_override: str | None = None
     post_history_override: str | None = None
     use_character_book: bool | None = None
+    use_world_book: bool | None = None
 
 
 class MessageCreate(SQLModel):

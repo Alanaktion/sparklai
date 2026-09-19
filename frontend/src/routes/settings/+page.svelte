@@ -1,8 +1,11 @@
 <script lang="ts">
 	import {
 		deleteProvider,
+		deleteWorldBook,
 		getSettings,
+		getWorldBook,
 		listProviders,
+		saveWorldBook,
 		testProvider,
 		updateSettings,
 		type Provider,
@@ -10,6 +13,8 @@
 		type UserSettings
 	} from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
+	import { bookFromDraft, bookFromJson, bookProblems, emptyBook, type DraftBook } from '$lib/cardDraft';
+	import CharacterBookEditor from '$lib/components/CharacterBookEditor.svelte';
 	import ProviderEditor from '$lib/components/ProviderEditor.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { themeStore } from '$lib/theme.svelte';
@@ -24,6 +29,12 @@
 	let systemPrompt = $state('');
 	let ujb = $state('');
 	let savingBasics = $state(false);
+
+	let worldBook = $state<DraftBook | null>(null);
+	let editingWorldBook = $state(false);
+	let savingWorldBook = $state(false);
+	let worldBookNotice = $state<string | null>(null);
+	const worldBookProblems = $derived(worldBook ? bookProblems(worldBook) : []);
 
 	let creating = $state(false);
 	let editingId = $state<number | null>(null);
@@ -40,15 +51,17 @@
 		loading = true;
 		error = null;
 		try {
-			const [loadedSettings, loadedProviders] = await Promise.all([
+			const [loadedSettings, loadedProviders, loadedWorldBook] = await Promise.all([
 				getSettings(token),
-				listProviders(token)
+				listProviders(token),
+				getWorldBook(token)
 			]);
 			settings = loadedSettings;
 			providers = loadedProviders;
 			displayName = loadedSettings.display_name;
 			systemPrompt = loadedSettings.default_system_prompt;
 			ujb = loadedSettings.default_ujb;
+			worldBook = loadedWorldBook ? bookFromJson(loadedWorldBook) : null;
 		} catch (cause) {
 			error = errorMessage(cause);
 		} finally {
@@ -104,6 +117,45 @@
 		creating = false;
 		editingId = null;
 		await reloadProviders();
+	}
+
+	function startWorldBook() {
+		if (!worldBook) worldBook = emptyBook();
+		editingWorldBook = true;
+		worldBookNotice = null;
+	}
+
+	async function saveWorldBookEdits() {
+		const token = auth.token;
+		if (!token || !worldBook) return;
+		savingWorldBook = true;
+		error = null;
+		worldBookNotice = null;
+		try {
+			const saved = await saveWorldBook(token, bookFromDraft($state.snapshot(worldBook)));
+			worldBook = bookFromJson(saved);
+			editingWorldBook = false;
+			worldBookNotice = 'Saved.';
+		} catch (cause) {
+			error = errorMessage(cause);
+		} finally {
+			savingWorldBook = false;
+		}
+	}
+
+	async function removeWorldBook() {
+		if (!confirm('Remove your World Info book? Sessions will stop injecting it.')) return;
+		const token = auth.token;
+		if (!token) return;
+		error = null;
+		worldBookNotice = null;
+		try {
+			await deleteWorldBook(token);
+			worldBook = null;
+			editingWorldBook = false;
+		} catch (cause) {
+			error = errorMessage(cause);
+		}
 	}
 
 	async function test(provider: Provider) {
@@ -203,6 +255,48 @@
 					{/if}
 				</div>
 			</form>
+		</section>
+
+		<section class="section">
+			<h2>World Info book</h2>
+			<p class="hint">
+				Injected into every session where it is enabled. The character book takes precedence
+				on key collisions.
+			</p>
+
+			{#if worldBookNotice}
+				<p class="saved" role="status">{worldBookNotice}</p>
+			{/if}
+
+			{#if !worldBook}
+				<p class="muted">No world book yet.</p>
+				<button class="primary" onclick={startWorldBook}>Add world book</button>
+			{:else}
+				<div class="actions">
+					<button onclick={() => (editingWorldBook = !editingWorldBook)}>
+						{editingWorldBook ? 'Close' : 'Edit world book'}
+					</button>
+					<button class="danger" onclick={removeWorldBook}>Delete</button>
+				</div>
+
+				{#if editingWorldBook}
+					{#if worldBookProblems.length > 0}
+						<ul class="problems" role="alert">
+							{#each worldBookProblems as problem (problem)}
+								<li>{problem}</li>
+							{/each}
+						</ul>
+					{/if}
+					<CharacterBookEditor book={worldBook} />
+					<button
+						class="primary"
+						onclick={saveWorldBookEdits}
+						disabled={savingWorldBook || worldBookProblems.length > 0}
+					>
+						{savingWorldBook ? 'Saving…' : 'Save world book'}
+					</button>
+				{/if}
+			{/if}
 		</section>
 
 		<section class="section">
@@ -308,6 +402,20 @@
 		display: grid;
 		gap: 0.25rem;
 		font-size: 0.88rem;
+	}
+
+	.hint {
+		margin: 0 0 0.75rem;
+		max-width: 40rem;
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
+
+	.problems {
+		margin: 0 0 0.75rem;
+		padding-left: 1.1rem;
+		font-size: 0.85rem;
+		color: var(--danger);
 	}
 
 	.actions {

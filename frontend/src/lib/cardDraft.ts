@@ -218,24 +218,32 @@ export function draftProblems(draft: Draft): string[] {
 	}
 
 	if (draft.book !== null) {
-		const book = draft.book;
-		problems.push(...numberProblems('Scan depth', book.scanDepth));
-		problems.push(...numberProblems('Token budget', book.tokenBudget));
-		problems.push(...jsonProblems('Character book extensions', book.extensions));
-
-		book.entries.forEach((entry, index) => {
-			const label = entry.name.trim() || `Entry ${index + 1}`;
-			problems.push(...numberProblems(`${label}: insertion order`, String(entry.insertionOrder)));
-			problems.push(...numberProblems(`${label}: priority`, entry.priority));
-			problems.push(...numberProblems(`${label}: id`, entry.id));
-			problems.push(...jsonProblems(`${label}: extensions`, entry.extensions));
-		});
+		problems.push(...bookProblems(draft.book));
 	}
 
 	return problems;
 }
 
-function bookFromJson(bookJson: JsonObject): DraftBook {
+/** Problems that would make a lorebook invalid, shared by cards and world books. */
+export function bookProblems(book: DraftBook): string[] {
+	const problems: string[] = [];
+
+	problems.push(...numberProblems('Scan depth', book.scanDepth));
+	problems.push(...numberProblems('Token budget', book.tokenBudget));
+	problems.push(...jsonProblems('Character book extensions', book.extensions));
+
+	book.entries.forEach((entry, index) => {
+		const label = entry.name.trim() || `Entry ${index + 1}`;
+		problems.push(...numberProblems(`${label}: insertion order`, String(entry.insertionOrder)));
+		problems.push(...numberProblems(`${label}: priority`, entry.priority));
+		problems.push(...numberProblems(`${label}: id`, entry.id));
+		problems.push(...jsonProblems(`${label}: extensions`, entry.extensions));
+	});
+
+	return problems;
+}
+
+export function bookFromJson(bookJson: JsonObject): DraftBook {
 	const entriesJson = Array.isArray(bookJson.entries) ? bookJson.entries : [];
 	return {
 		base: structuredClone(bookJson),
@@ -270,7 +278,7 @@ function entryFromJson(entry: JsonObject): DraftEntry {
 	};
 }
 
-function bookFromDraft(book: DraftBook): JsonObject {
+export function bookFromDraft(book: DraftBook): JsonObject {
 	const out = structuredClone(book.base);
 	setOptional(out, 'name', book.name);
 	setOptional(out, 'description', book.description);

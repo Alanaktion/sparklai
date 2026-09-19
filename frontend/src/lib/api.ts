@@ -107,6 +107,7 @@ export type UserSettings = {
 	default_system_prompt: string;
 	default_ujb: string;
 	default_provider_id: number | null;
+	world_book: Record<string, unknown> | null;
 };
 
 export type UserSettingsUpdate = {
@@ -122,6 +123,26 @@ export function getSettings(token: string): Promise<UserSettings> {
 
 export function updateSettings(token: string, patch: UserSettingsUpdate): Promise<UserSettings> {
 	return apiFetch<UserSettings>('/settings', jsonInit('PATCH', patch, token));
+}
+
+// --- World book -----------------------------------------------------------
+
+/** A user-level World Info book, shaped like a character book. */
+export function getWorldBook(token: string): Promise<Record<string, unknown> | null> {
+	return apiFetch<Record<string, unknown> | null>('/settings/world-book', {
+		headers: bearer(token)
+	});
+}
+
+export function saveWorldBook(
+	token: string,
+	book: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+	return apiFetch<Record<string, unknown>>('/settings/world-book', jsonInit('PUT', book, token));
+}
+
+export function deleteWorldBook(token: string): Promise<void> {
+	return apiFetch<void>('/settings/world-book', { method: 'DELETE', headers: bearer(token) });
 }
 
 // --- Providers ------------------------------------------------------------
@@ -388,6 +409,7 @@ export type SessionSummary = {
 	title: string;
 	provider_id: number | null;
 	use_character_book: boolean;
+	use_world_book: boolean;
 	created_at: string;
 	updated_at: string;
 };
@@ -404,6 +426,7 @@ export type SessionUpdate = {
 	system_prompt_override?: string | null;
 	post_history_override?: string | null;
 	use_character_book?: boolean;
+	use_world_book?: boolean;
 };
 
 export type SwipeDirection = 'next' | 'prev';

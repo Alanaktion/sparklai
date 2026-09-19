@@ -4,6 +4,9 @@ Implements PLAN §4.3: scan the recent history for trigger keys, honour
 `selective`/`secondary_keys` and `constant` entries, order by `insertion_order`,
 enforce `token_budget` by dropping the lowest `priority` first, optionally
 re-scan matched content (bounded), and split into `before_char`/`after_char`.
+
+§4.4 stacks a user-level world book underneath the character book; see
+`select_stacked_entries`.
 """
 
 from collections.abc import Sequence
@@ -78,6 +81,60 @@ def select_entries(
         before_char=[e for e in ordered if e.position != "after_char"],
         after_char=[e for e in ordered if e.position == "after_char"],
     )
+
+
+def select_stacked_entries(
+    character_book: CharacterBook | None,
+    world_book: CharacterBook | None,
+    history: Sequence[str],
+    *,
+    use_character_book: bool = True,
+    use_world_book: bool = True,
+    default_scan_depth: int = DEFAULT_SCAN_DEPTH,
+    default_token_budget: int = DEFAULT_TOKEN_BUDGET,
+) -> MatchedEntries:
+    """Match the character book and the world book, character book first.
+
+    Each book honours its own `scan_depth` and `token_budget`. The character book
+    takes precedence (PLAN §4.4): a world entry whose trigger keys collide with a
+    selected character entry is dropped. Both books are on by default, and either
+    can be switched off per session.
+    """
+    matched = (
+        select_entries(
+            character_book,
+            history,
+            default_scan_depth=default_scan_depth,
+            default_token_budget=default_token_budget,
+        )
+        if use_character_book
+        else MatchedEntries()
+    )
+    if not use_world_book or world_book is None:
+        return matched
+
+    world = select_entries(
+        world_book,
+        history,
+        default_scan_depth=default_scan_depth,
+        default_token_budget=default_token_budget,
+    )
+    character_keys = _normalized_keys(matched.all)
+    extra = [entry for entry in world.all if not _normalized_keys([entry]) & character_keys]
+    if not extra:
+        return matched
+
+    # Character entries come first, so a stable sort keeps them ahead on ties.
+    ordered = sorted([*matched.all, *extra], key=lambda entry: entry.insertion_order)
+    return MatchedEntries(
+        before_char=[e for e in ordered if e.position != "after_char"],
+        after_char=[e for e in ordered if e.position == "after_char"],
+    )
+
+
+def _normalized_keys(entries: Sequence[CharacterBookEntry]) -> set[str]:
+    """Trigger keys compared case-insensitively, for precedence resolution."""
+    return {key.strip().lower() for entry in entries for key in entry.keys if key.strip()}
 
 
 def _matches(entry: CharacterBookEntry, lower: str, raw: str) -> bool:

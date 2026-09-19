@@ -9,8 +9,8 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sparklchat.models.card import TavernCardV2
-from sparklchat.services.lorebook import select_entries
+from sparklchat.models.card import CharacterBook, TavernCardV2
+from sparklchat.services.lorebook import select_stacked_entries
 from sparklchat.services.providers import ChatMessage
 from sparklchat.services.tokens import count_tokens
 
@@ -94,6 +94,8 @@ def build_prompt(
     system_prompt_override: str | None = None,
     post_history_override: str | None = None,
     use_character_book: bool = True,
+    world_book: CharacterBook | None = None,
+    use_world_book: bool = True,
     context_window: int = 8192,
     context_reserve: int = DEFAULT_CONTEXT_RESERVE,
 ) -> list[ChatMessage]:
@@ -119,8 +121,14 @@ def build_prompt(
 
     sections = [system_text, _character_block(card, context)]
 
-    if use_character_book and card.data.character_book is not None:
-        matched = select_entries(card.data.character_book, [turn.content for turn in history])
+    if _has_book(card.data.character_book, use_character_book, world_book, use_world_book):
+        matched = select_stacked_entries(
+            card.data.character_book,
+            world_book,
+            [turn.content for turn in history],
+            use_character_book=use_character_book,
+            use_world_book=use_world_book,
+        )
         before = _contents(matched.before_char, context)
         after = _contents(matched.after_char, context)
         if before:
@@ -149,6 +157,17 @@ def build_prompt(
     if post_history:
         messages.append(ChatMessage(role="system", content=post_history))
     return messages
+
+
+def _has_book(
+    character_book: CharacterBook | None,
+    use_character_book: bool,
+    world_book: CharacterBook | None,
+    use_world_book: bool,
+) -> bool:
+    return (use_character_book and character_book is not None) or (
+        use_world_book and world_book is not None
+    )
 
 
 def _character_block(card: TavernCardV2, context: PromptContext) -> str:

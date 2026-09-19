@@ -23,9 +23,9 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - Front end is a separate SvelteKit SPA (`frontend/`, static adapter) served by FastAPI; no Jinja2/HTMX.
 - `character_book` is stored inline in `characters.card_json`; no separate `character_books`/`lorebook_entries` tables (per §2.2's "or stored inline").
 - Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
-- World books (§4.4) are not implemented; only the character book is injected, toggled per session.
+- The user-level world book is a single `CharacterBook`-shaped JSON blob on `user_settings` (no separate tables), stored verbatim so unknown keys round-trip.
 - Characters can be published (`is_public`) to a shared library that any signed-in user can read, export, and chat with; group chats and TTS/STT hooks (M8) remain unimplemented.
-- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: world books (§4.4) and sorting the character list by `character_version`.
+- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: sorting the character list by `character_version`.
 
 ---
 
@@ -121,8 +121,8 @@ Implement the full `CharacterBook` typing.
 7. Split into `before_char` and `after_char` buckets and inject accordingly.
 
 ### 4.4 World book stacking
-- [ ] Support a user-level "World Info" book.
-- [ ] Character book **takes full precedence** over world book (spec: *SHOULD*). Resolve key collisions in favor of character book.
+- [x] Support a user-level "World Info" book.
+- [x] Character book **takes full precedence** over world book (spec: *SHOULD*). Resolve key collisions in favor of character book.
 - [x] Character book is **on by default**; user can toggle per session.
 
 ---
@@ -177,7 +177,7 @@ Checklist:
 - [x] Multiple sessions per character per user.
 - [x] Session title (auto from first message, editable).
 - [x] Per-session provider override.
-- [ ] Per-session toggle for character book / world book.
+- [x] Per-session toggle for character book / world book.
 - [x] **Greeting swipes:** on session start, show `first_mes` as greeting. A swipe control cycles through `alternate_greetings`. Changing the swipe **replaces** the greeting message (and optionally branches a new session — expose as a setting).
 - [x] Message swipes (regenerate last AI reply, keep N alternatives, swipe between them). Stored in `messages.metadata` or a `message_swipes` table.
 - [x] Edit / delete messages.

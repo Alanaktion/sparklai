@@ -91,6 +91,7 @@ def _summary(session: ChatSession) -> SessionSummary:
         title=session.title,
         provider_id=session.provider_id,
         use_character_book=session.use_character_book,
+        use_world_book=session.use_world_book,
         created_at=session.created_at,
         updated_at=session.updated_at,
     )
@@ -269,6 +270,8 @@ async def update_session(
         session.post_history_override = data["post_history_override"]
     if data.get("use_character_book") is not None:
         session.use_character_book = data["use_character_book"]
+    if data.get("use_world_book") is not None:
+        session.use_world_book = data["use_world_book"]
 
     session.updated_at = utcnow()
     db.add(session)

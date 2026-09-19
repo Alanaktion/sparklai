@@ -1,5 +1,8 @@
 """Per-user defaults used when assembling prompts."""
 
+from typing import Any
+
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -15,6 +18,11 @@ class UserSettings(SQLModel, table=True):
     # Nullable by design; the foreign key to `providers.id` arrives with the
     # providers milestone (M4).
     default_provider_id: int | None = Field(default=None)
+    # The user-level "World Info" book, stored as a `CharacterBook`-shaped blob so
+    # unknown keys survive a round trip. Null when the user has not written one.
+    world_book: dict[str, Any] | None = Field(
+        default=None, sa_column=Column("world_book", JSON, nullable=True)
+    )
 
 
 class UserSettingsUpdate(SQLModel):
@@ -32,3 +40,5 @@ class UserSettingsPublic(SQLModel):
     default_system_prompt: str
     default_ujb: str
     default_provider_id: int | None
+    # Stored verbatim, so it is returned as plain JSON rather than a validated book.
+    world_book: dict[str, Any] | None = None

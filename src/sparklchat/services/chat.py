@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from sparklchat.models.card import TavernCardV2
+from sparklchat.models.card import CharacterBook, TavernCardV2
 from sparklchat.models.chat import ChatSession, Message, MessagePublic
 from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettings
@@ -121,6 +121,14 @@ def history_turns(messages: Sequence[Message]) -> list[HistoryTurn]:
     ]
 
 
+def settings_world_book(settings: UserSettings | None) -> CharacterBook | None:
+    """The user's world book, validated, or None when they have not written one."""
+    raw = settings.world_book if settings else None
+    if not raw:
+        return None
+    return CharacterBook.model_validate(raw)
+
+
 def build_session_prompt(
     *,
     card: TavernCardV2,
@@ -139,6 +147,8 @@ def build_session_prompt(
         system_prompt_override=session.system_prompt_override,
         post_history_override=session.post_history_override,
         use_character_book=session.use_character_book,
+        world_book=settings_world_book(settings),
+        use_world_book=session.use_world_book,
         context_window=context_window,
         context_reserve=context_reserve,
     )
