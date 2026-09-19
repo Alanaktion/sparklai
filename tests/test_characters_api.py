@@ -14,13 +14,6 @@ async def create(client: AsyncClient, headers: dict[str, str], card: dict) -> di
     return response.json()
 
 
-async def login_as(client: AsyncClient, email: str, password: str) -> dict[str, str]:
-    await client.post("/api/auth/register", json={"email": email, "password": password})
-    response = await client.post("/api/auth/login", data={"username": email, "password": password})
-    assert response.status_code == 200, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
-
-
 async def test_endpoints_require_authentication(client: AsyncClient) -> None:
     assert (await client.get("/api/characters")).status_code == 401
     assert (await client.post("/api/characters", json={})).status_code == 401
@@ -131,10 +124,10 @@ async def test_unknown_character_is_404(client: AsyncClient, auth_headers: dict[
 
 
 async def test_characters_are_isolated_per_user(
-    client: AsyncClient, auth_headers: dict[str, str], password: str, v2_card: dict
+    client: AsyncClient, auth_headers: dict[str, str], login_as, v2_card: dict
 ) -> None:
     created = await create(client, auth_headers, v2_card)
-    other = await login_as(client, "misty@example.com", password)
+    other = await login_as("misty@example.com")
 
     assert (await client.get("/api/characters", headers=other)).json() == []
     assert (await client.get(f"/api/characters/{created['id']}", headers=other)).status_code == 404

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from sparklchat.config import Settings, get_settings
-from sparklchat.db import create_db_and_tables, get_session
+from sparklchat.db import create_db_and_tables, create_session, get_session
 from sparklchat.main import create_app
 
 PASSWORD = "correct horse battery staple"
@@ -31,7 +31,7 @@ def isolated_uploads(tmp_path, monkeypatch) -> None:
 
 def _override_session(app: FastAPI, engine: AsyncEngine) -> None:
     async def override_get_session() -> AsyncIterator[AsyncSession]:
-        async with AsyncSession(engine) as session:
+        async with create_session(engine) as session:
             yield session
 
     app.dependency_overrides[get_session] = override_get_session
@@ -173,3 +173,18 @@ def v2_card() -> dict:
             "extensions": {"card_ext": {"nested": "value"}},
         },
     }
+
+
+@pytest.fixture
+def login_as(client: AsyncClient, password: str):
+    """Register and log in another user, returning their auth headers."""
+
+    async def _login(email: str) -> dict[str, str]:
+        await client.post("/api/auth/register", json={"email": email, "password": password})
+        response = await client.post(
+            "/api/auth/login", data={"username": email, "password": password}
+        )
+        assert response.status_code == 200, response.text
+        return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+    return _login

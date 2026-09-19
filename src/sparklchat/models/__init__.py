@@ -19,6 +19,13 @@ from sparklchat.models.character import (
     CharacterSummary,
     CharacterUpdate,
 )
+from sparklchat.models.provider import (
+    Provider,
+    ProviderCreate,
+    ProviderPublic,
+    ProviderTestResult,
+    ProviderUpdate,
+)
 from sparklchat.models.user import Token, User, UserCreate, UserPublic
 from sparklchat.models.user_settings import (
     UserSettings,
@@ -35,6 +42,11 @@ __all__ = [
     "CharacterDetail",
     "CharacterSummary",
     "CharacterUpdate",
+    "Provider",
+    "ProviderCreate",
+    "ProviderPublic",
+    "ProviderTestResult",
+    "ProviderUpdate",
     "TavernCardV1",
     "TavernCardV2",
     "Token",

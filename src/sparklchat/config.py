@@ -26,10 +26,14 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite+aiosqlite:///./sparklchat.db"
 
-    # Signing key for auth tokens and future Fernet key derivation for provider
-    # API keys at rest. Never ship the default value.
+    # Signing key for auth tokens. Also the default source of the encryption key
+    # for provider API keys at rest — never ship the default value.
     secret_key: str = "insecure-development-key-change-me"
     access_token_expire_minutes: int = 60 * 24 * 7
+
+    # Optional Fernet key (44 url-safe base64 characters) for encrypting provider
+    # API keys. When unset, a key is derived from `secret_key`.
+    encryption_key: str | None = None
 
     # Built Svelte app served by FastAPI. When this directory does not exist the
     # app serves the API alone and logs a hint.

@@ -37,11 +37,17 @@ async def test_settings_update_is_partial_and_persisted(
 async def test_settings_can_be_cleared_explicitly(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
-    await client.patch("/api/settings", headers=auth_headers, json={"default_provider_id": 7})
-    response = await client.patch(
-        "/api/settings", headers=auth_headers, json={"default_provider_id": None}
+    await client.patch(
+        "/api/settings",
+        headers=auth_headers,
+        json={"default_system_prompt": "You are {{char}}."},
     )
-    assert response.json()["default_provider_id"] is None
+    response = await client.patch(
+        "/api/settings", headers=auth_headers, json={"default_system_prompt": None}
+    )
+    assert response.status_code == 200
+    # The column is NOT NULL, so clearing means an empty prompt.
+    assert response.json()["default_system_prompt"] == ""
 
 
 async def test_settings_require_auth(client: AsyncClient) -> None:

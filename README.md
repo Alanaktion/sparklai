@@ -84,6 +84,14 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | GET | `/api/me` | The authenticated user |
 | GET | `/api/settings` | Per-user prompt defaults |
 | PATCH | `/api/settings` | Update prompt defaults |
+| POST | `/api/providers` | Create a provider (API key stored encrypted) |
+| GET | `/api/providers` | List your providers |
+| GET | `/api/providers/{id}` | Provider detail |
+| PATCH | `/api/providers/{id}` | Update; `"api_key": null` clears the stored key |
+| DELETE | `/api/providers/{id}` | Delete, clearing it as the default if needed |
+| POST | `/api/providers/{id}/test` | Send a tiny prompt to verify the connection |
+| POST | `/api/providers/{id}/complete` | One-off completion |
+| POST | `/api/providers/{id}/complete/stream` | The same, streamed as Server-Sent Events |
 | POST | `/api/characters` | Create from a V1 or V2 card (JSON body) |
 | POST | `/api/characters/upload` | Import a PNG card or JSON file (multipart `file`) |
 | GET | `/api/characters` | List your characters (`q`, `limit`, `offset`) |
@@ -127,6 +135,38 @@ PNG cards embed their JSON base64-encoded in a `tEXt` chunk. Import reads the
 `chara` chunk, falling back to `ccv3`; export writes `chara`. Only that chunk is
 touched, so other PNG metadata is preserved byte-for-byte. Exporting a character
 that has no avatar uses a 1×1 transparent placeholder image.
+
+## Providers
+
+A provider is one endpoint to talk to: its type, base URL, model, sampling
+settings, and an optional API key.
+
+| `provider_type` | Driven by | Default base URL |
+| --- | --- | --- |
+| `openai` | OpenAI-compatible client | `https://api.openai.com/v1` |
+| `anthropic` | Anthropic Messages API | `https://api.anthropic.com` |
+| `ollama` | Ollama native `/api/chat` | `http://127.0.0.1:11434` |
+| `koboldcpp` | OpenAI-compatible client | `http://127.0.0.1:5001/v1` |
+| `custom` | OpenAI-compatible client | required from you |
+
+OpenAI-compatible, Anthropic, and Ollama each have a real client; `koboldcpp`
+and `custom` are served by the OpenAI-compatible one (KoboldCpp's
+`/v1` chat-completions endpoint). Anthropic's API has no system role, so system
+messages are lifted into the top-level `system` field and `max_tokens` is filled
+in when unset, since Anthropic requires it.
+
+`extra_params` is merged into the request body for provider-specific fields
+(for example Ollama's `keep_alive`, OpenAI's `frequency_penalty`). The dedicated
+columns and the request envelope (`model`, `messages`, `stream`) take precedence,
+so extras cannot accidentally break a request.
+
+**API keys are encrypted at rest** with Fernet and are never returned — the API
+exposes only `has_api_key`. The key comes from `ENCRYPTION_KEY` when set, and is
+otherwise derived from `SECRET_KEY`; see [`.env.example`](.env.example).
+
+Set a default provider through `PATCH /api/settings` with `default_provider_id`.
+It must reference one of your own providers, and deleting a provider that is your
+default clears the reference. Per-session overrides arrive with chat sessions.
 
 ## Common tasks
 
@@ -172,8 +212,8 @@ frontend/                    SvelteKit SPA (Svelte 5 + TypeScript)
   vite.config.ts             Static SPA adapter + /api dev proxy
 src/sparklchat/
   api/                       HTTP routers (`/api` prefix), auth deps, health checks
-  models/                    SQLModel tables, card models, request/response schemas
-  services/                  Card parsing, PNG tEXt I/O, security, avatars
+  models/                    SQLModel tables, card models, provider schemas
+  services/                  Card parsing, PNG tEXt I/O, crypto, provider clients
   cli.py                     `sparklchat` console entry point
   config.py                  Settings, package paths, frontend build location
   db.py                      Async engine, session dependency, schema helpers

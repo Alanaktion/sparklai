@@ -17,6 +17,14 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - **Token counting:** `tiktoken` (approximate), pluggable
 - **Tests:** `pytest`, `httpx.AsyncClient`
 
+**Deviations adopted during implementation:**
+- Layout is the uv `src/` layout (`src/sparklchat/…`) instead of a top-level `app/` package.
+- Auth uses `PyJWT` + the `bcrypt` library directly (`passlib` is unmaintained).
+- Front end is a separate SvelteKit SPA (`frontend/`, static adapter) served by FastAPI; no Jinja2/HTMX.
+- `character_book` is stored inline in `characters.card_json`; no separate `character_books`/`lorebook_entries` tables (per §2.2's "or stored inline").
+- Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
+- Boxes below describe **API/service capability**; UI wording in §6 (forms, buttons, panels) stays unticked until the Svelte app covers it.
+
 ---
 
 ## 2. Data Model
@@ -50,13 +58,13 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 Every field from the spec must be handled:
 
 ### 3.1 Detection & parsing
-- [ ] Detect V1 vs V2 by presence of `spec == "chara_card_v2"` (fallback: presence of `data` key).
-- [ ] Wrap V1 cards into V2 shape on import (nest V1 fields under `data`, fill defaults: `creator_notes=""`, `system_prompt=""`, `post_history_instructions=""`, `alternate_greetings=[]`, `tags=[]`, `creator=""`, `character_version=""`, `extensions={}`).
-- [ ] Validate `spec_version == "2.0"` on V2.
-- [ ] On export, offer V1 (un-nested) or V2 depending on user choice.
+- [x] Detect V1 vs V2 by presence of `spec == "chara_card_v2"` (fallback: presence of `data` key).
+- [x] Wrap V1 cards into V2 shape on import (nest V1 fields under `data`, fill defaults: `creator_notes=""`, `system_prompt=""`, `post_history_instructions=""`, `alternate_greetings=[]`, `tags=[]`, `creator=""`, `character_version=""`, `extensions={}`).
+- [x] Validate `spec_version == "2.0"` on V2.
+- [x] On export, offer V1 (un-nested) or V2 depending on user choice.
 
 ### 3.2 Top-level V2 fields
-- [ ] `spec`, `spec_version` — read/write, validated.
+- [x] `spec`, `spec_version` — read/write, validated.
 - [ ] `data.name`, `description`, `personality`, `scenario`, `first_mes`, `mes_example` — used in prompt assembly.
 
 ### 3.3 V2 additions
@@ -68,10 +76,10 @@ Every field from the spec must be handled:
 - [ ] `tags: string[]` — case-insensitive filter/search, never sent to model.
 - [ ] `creator` — display only.
 - [ ] `character_version` — display + sort.
-- [ ] `extensions: {}` — preserved, namespaced on write, never destroyed.
+- [x] `extensions: {}` — preserved, namespaced on write, never destroyed.
 
 ### 3.4 Avatar
-- [ ] Cards typically ship as PNG with embedded JSON in `tEXt` chunk (`chara` for V1, `ccv3`/`chara` for V2). Implement PNG tEXt extractor + writer so users can upload `.png` cards directly, and download their character as PNG.
+- [x] Cards typically ship as PNG with embedded JSON in `tEXt` chunk (`chara` for V1, `ccv3`/`chara` for V2). Implement PNG tEXt extractor + writer so users can upload `.png` cards directly, and download their character as PNG.
 
 ---
 
@@ -142,23 +150,23 @@ Checklist:
 ## 6. Features
 
 ### 6.1 Auth
-- [ ] Register / login / logout (JWT or session cookie).
-- [ ] Password hashing with bcrypt.
-- [ ] Per-user data isolation on every route.
+- [x] Register / login / logout (JWT or session cookie).
+- [x] Password hashing with bcrypt.
+- [x] Per-user data isolation on every route.
 
 ### 6.2 Provider settings
-- [ ] CRUD for providers: `name`, `type` (OpenAI-compatible / Anthropic / Ollama / KoboldCpp / custom), `base_url`, `api_key`, `model`, `temperature`, `max_tokens`, `top_p`, extra JSON.
-- [ ] Encrypt API keys at rest (Fernet with a server key).
-- [ ] "Test connection" button.
+- [x] CRUD for providers: `name`, `type` (OpenAI-compatible / Anthropic / Ollama / KoboldCpp / custom), `base_url`, `api_key`, `model`, `temperature`, `max_tokens`, `top_p`, extra JSON.
+- [x] Encrypt API keys at rest (Fernet with a server key).
+- [x] "Test connection" endpoint.
 - [ ] Set a default provider; override per session.
 - [ ] Streaming responses (SSE) in the chat UI.
 
 ### 6.3 Character management
-- [ ] Upload PNG card (extract embedded JSON + avatar).
-- [ ] Upload JSON card (V1 or V2).
+- [x] Upload PNG card (extract embedded JSON + avatar).
+- [x] Upload JSON card (V1 or V2).
 - [ ] Create from scratch in a form covering **every** V2 field.
 - [ ] Edit existing character (all fields, including `extensions` and book entries).
-- [ ] Export as V2 JSON, V1 JSON, or PNG.
+- [x] Export as V2 JSON, V1 JSON, or PNG.
 - [ ] List/search/filter by `tags` (case-insensitive), `creator`, `character_version`.
 - [ ] Delete character (cascade sessions or block if in use — configurable).
 - [ ] Character detail page showing `creator_notes` (per spec: "at least one paragraph SHOULD be displayed").
@@ -226,19 +234,19 @@ PATCH  /settings
 ## 8. Milestones / Todo
 
 ### M0 — Scaffolding
-- [ ] FastAPI project layout (`app/`, `app/api`, `app/models`, `app/services`, `app/templates`).
-- [ ] DB + Alembic setup, base models.
-- [ ] Config via `pydantic-settings` (`.env`).
+- [x] FastAPI project layout (`app/`, `app/api`, `app/models`, `app/services`, `app/templates`).
+- [x] DB + Alembic setup, base models.
+- [x] Config via `pydantic-settings` (`.env`).
 
 ### M1 — Auth & Users
-- [ ] Register/login/logout, JWT/session.
-- [ ] `user_settings` table + defaults endpoint.
+- [x] Register/login/logout, JWT/session.
+- [x] `user_settings` table + defaults endpoint.
 
 ### M2 — Character Card Core
-- [ ] Pydantic models for `TavernCardV1`, `TavernCardV2`, `CharacterBook`, book entries.
-- [ ] V1→V2 upconverter; strict validation; round-trip test.
-- [ ] PNG tEXt read/write.
-- [ ] CRUD endpoints + storage of raw JSON.
+- [x] Pydantic models for `TavernCardV1`, `TavernCardV2`, `CharacterBook`, book entries.
+- [x] V1→V2 upconverter; strict validation; round-trip test.
+- [x] PNG tEXt read/write.
+- [x] CRUD endpoints + storage of raw JSON.
 
 ### M3 — Character Editor UI
 - [ ] Form covering every V2 field.
@@ -247,9 +255,9 @@ PATCH  /settings
 - [ ] `extensions` editor (namespaced key/value).
 
 ### M4 — Providers
-- [ ] Provider CRUD + encryption.
-- [ ] OpenAI-compatible client, Anthropic client, Ollama client.
-- [ ] Streaming via SSE.
+- [x] Provider CRUD + encryption.
+- [x] OpenAI-compatible client, Anthropic client, Ollama client.
+- [x] Streaming via SSE (provider clients + `POST /api/providers/{id}/complete/stream`).
 
 ### M5 — Prompt Builder
 - [ ] `{{original}}` substitution.

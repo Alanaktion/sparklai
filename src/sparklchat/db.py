@@ -47,9 +47,20 @@ def reset_engine() -> None:
     _engine = None
 
 
+def create_session(engine: AsyncEngine) -> AsyncSession:
+    """Build an `AsyncSession` with the settings this app relies on.
+
+    `expire_on_commit=False` matters: with the default, every object in the
+    session is expired on commit, so merely reading an attribute afterwards (for
+    example `current_user.id`) would issue lazy IO and raise `MissingGreenlet` in
+    an async context. Tests use this same constructor so behaviour matches.
+    """
+    return AsyncSession(engine, expire_on_commit=False)
+
+
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Yield an `AsyncSession` for the duration of a request."""
-    async with AsyncSession(get_engine()) as session:
+    async with create_session(get_engine()) as session:
         yield session
 
 

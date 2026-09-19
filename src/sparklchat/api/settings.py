@@ -1,9 +1,11 @@
 """Per-user prompt defaults."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
+from sqlmodel import select
 
 from sparklchat.api.deps import CurrentUserDep
 from sparklchat.db import SessionDep
+from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettingsPublic, UserSettingsUpdate
 from sparklchat.services.user_settings import get_or_create_settings
 
@@ -20,7 +22,29 @@ async def update_settings(
     payload: UserSettingsUpdate, db: SessionDep, current_user: CurrentUserDep
 ) -> UserSettingsPublic:
     settings = await get_or_create_settings(db, current_user.id)
-    settings.sqlmodel_update(payload.model_dump(exclude_unset=True))
+    updates = payload.model_dump(exclude_unset=True)
+
+    # The prompt columns are NOT NULL, so an explicit null means "clear it".
+    for field in ("default_system_prompt", "default_ujb"):
+        if field in updates and updates[field] is None:
+            updates[field] = ""
+
+    provider_id = updates.get("default_provider_id")
+    if provider_id is not None:
+        owned = (
+            await db.exec(
+                select(Provider).where(
+                    Provider.id == provider_id, Provider.user_id == current_user.id
+                )
+            )
+        ).first()
+        if owned is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "default_provider_id must reference one of your providers",
+            )
+
+    settings.sqlmodel_update(updates)
     db.add(settings)
     await db.commit()
     await db.refresh(settings)
