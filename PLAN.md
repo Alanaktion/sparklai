@@ -24,7 +24,7 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - `character_book` is stored inline in `characters.card_json`; no separate `character_books`/`lorebook_entries` tables (per §2.2's "or stored inline").
 - Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
 - World books (§4.4) are not implemented; only the character book is injected, toggled per session.
-- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: the character/lorebook editors, tag filters, chat export, world books, and theme switching.
+- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: tag filters, chat export, world books, and theme switching.
 
 ---
 
@@ -165,8 +165,8 @@ Checklist:
 ### 6.3 Character management
 - [x] Upload PNG card (extract embedded JSON + avatar).
 - [x] Upload JSON card (V1 or V2).
-- [ ] Create from scratch in a form covering **every** V2 field.
-- [ ] Edit existing character (all fields, including `extensions` and book entries).
+- [x] Create from scratch in a form covering **every** V2 field.
+- [x] Edit existing character (all fields, including `extensions` and book entries).
 - [x] Export as V2 JSON, V1 JSON, or PNG.
 - [ ] List/search/filter by `tags` (case-insensitive), `creator`, `character_version`.
 - [x] Delete character (cascade sessions or block if in use — configurable).
@@ -187,9 +187,9 @@ Checklist:
 ### 6.5 UI
 - [x] Sidebar: characters list, sessions per character.
 - [x] Chat pane: message bubbles, swipe arrows, edit, regenerate.
-- [ ] Character editor: tabs for Identity / Prompting / Lorebook / Extensions / Raw JSON.
+- [x] Character editor: tabs for Identity / Prompting / Lorebook / Extensions / Raw JSON.
 - [ ] Settings: providers, default system prompt, default UJB, theme.
-- [ ] Character book editor: table of entries with all fields, enable/disable toggle, drag-to-reorder `insertion_order`.
+- [x] Character book editor: table of entries with all fields, enable/disable toggle, drag-to-reorder `insertion_order`.
 
 ---
 
@@ -250,10 +250,10 @@ PATCH  /settings
 - [x] CRUD endpoints + storage of raw JSON.
 
 ### M3 — Character Editor UI
-- [ ] Form covering every V2 field.
-- [ ] Raw JSON tab with validation.
-- [ ] Lorebook editor (all entry fields).
-- [ ] `extensions` editor (namespaced key/value).
+- [x] Form covering every V2 field.
+- [x] Raw JSON tab with validation.
+- [x] Lorebook editor (all entry fields).
+- [x] `extensions` editor (namespaced key/value).
 
 ### M4 — Providers
 - [x] Provider CRUD + encryption.

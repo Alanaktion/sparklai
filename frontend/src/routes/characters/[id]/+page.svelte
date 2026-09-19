@@ -114,9 +114,12 @@
 						{/each}
 					</ul>
 				{/if}
-				<button class="primary" onclick={startChat} disabled={starting}>
-					{starting ? 'Starting…' : 'Start new chat'}
-				</button>
+				<div class="actions">
+					<button class="primary" onclick={startChat} disabled={starting}>
+						{starting ? 'Starting…' : 'Start new chat'}
+					</button>
+					<a class="edit" href={`/characters/${character.id}/edit`}>Edit</a>
+				</div>
 			</div>
 		</header>
 
@@ -177,6 +180,21 @@
 	.byline {
 		margin: 0;
 		font-size: 0.9rem;
+	}
+
+	.actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.edit {
+		padding: 0.45rem 0.8rem;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		color: inherit;
+		text-decoration: none;
 	}
 
 	.tags {

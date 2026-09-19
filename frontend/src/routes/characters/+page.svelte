@@ -92,15 +92,18 @@
 <main class="page">
 	<div class="header">
 		<h1>Characters</h1>
-		<label class="upload">
-			<span>{uploading ? 'Importing…' : 'Import card (PNG or JSON)'}</span>
-			<input
-				type="file"
-				accept=".png,.json,image/png,application/json"
-				onchange={onFileChange}
-				disabled={uploading}
-			/>
-		</label>
+		<div class="header-actions">
+			<a class="new" href="/characters/new">New character</a>
+			<label class="upload">
+				<span>{uploading ? 'Importing…' : 'Import card (PNG or JSON)'}</span>
+				<input
+					type="file"
+					accept=".png,.json,image/png,application/json"
+					onchange={onFileChange}
+					disabled={uploading}
+				/>
+			</label>
+		</div>
 	</div>
 
 	<form class="search" onsubmit={submitSearch}>
@@ -165,6 +168,22 @@
 
 	.header h1 {
 		margin: 0;
+	}
+
+	.header-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		align-items: flex-end;
+	}
+
+	.new {
+		padding: 0.45rem 0.8rem;
+		background: var(--accent);
+		border: 1px solid var(--accent);
+		border-radius: 8px;
+		color: var(--accent-contrast);
+		text-decoration: none;
 	}
 
 	.upload {
