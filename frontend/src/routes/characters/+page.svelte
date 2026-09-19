@@ -6,6 +6,7 @@
 		deleteCharacter,
 		listCharacters,
 		uploadCharacter,
+		type CharacterSort,
 		type CharacterSummary
 	} from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
@@ -20,12 +21,33 @@
 	let tagInput = $state('');
 	let creatorInput = $state('');
 	let versionInput = $state('');
+	let sortInput = $state<CharacterSort>('name');
+
+	const SORTS: { value: CharacterSort; label: string }[] = [
+		{ value: 'name', label: 'Name' },
+		{ value: 'created', label: 'Newest' },
+		{ value: 'updated', label: 'Recently updated' },
+		{ value: 'character_version', label: 'Character version' }
+	];
 
 	type Scope = 'mine' | 'public';
-	type Filters = { q: string; tag: string; creator: string; version: string; scope: Scope };
+	type Filters = {
+		q: string;
+		tag: string;
+		creator: string;
+		version: string;
+		scope: Scope;
+		sort: CharacterSort;
+	};
 
 	function parseScope(value: string | null): Scope {
 		return value === 'public' ? 'public' : 'mine';
+	}
+
+	function parseSort(value: string | null): CharacterSort {
+		return SORTS.some((option) => option.value === value)
+			? (value as CharacterSort)
+			: 'name';
 	}
 
 	const query = $derived(page.url.searchParams.get('q') ?? '');
@@ -33,6 +55,7 @@
 	const creatorQuery = $derived(page.url.searchParams.get('creator') ?? '');
 	const versionQuery = $derived(page.url.searchParams.get('version') ?? '');
 	const scopeQuery = $derived(parseScope(page.url.searchParams.get('scope')));
+	const sortQuery = $derived(parseSort(page.url.searchParams.get('sort')));
 	const hasFilters = $derived(Boolean(query || tagQuery || creatorQuery || versionQuery));
 	let requestId = 0;
 
@@ -41,12 +64,14 @@
 		tagInput = tagQuery;
 		creatorInput = creatorQuery;
 		versionInput = versionQuery;
+		sortInput = sortQuery;
 		void load({
 			q: query,
 			tag: tagQuery,
 			creator: creatorQuery,
 			version: versionQuery,
-			scope: scopeQuery
+			scope: scopeQuery,
+			sort: sortQuery
 		});
 	});
 
@@ -78,7 +103,8 @@
 				tags: tags.length ? tags : undefined,
 				creator: filters.creator || undefined,
 				characterVersion: filters.version || undefined,
-				scope: filters.scope
+				scope: filters.scope,
+				sort: filters.sort
 			});
 			if (id === requestId) characters = result;
 		} catch (cause) {
@@ -94,7 +120,8 @@
 			tag: tagQuery,
 			creator: creatorQuery,
 			version: versionQuery,
-			scope: scopeQuery
+			scope: scopeQuery,
+			sort: sortQuery
 		};
 	}
 
@@ -110,6 +137,17 @@
 		const version = versionInput.trim();
 		if (version) params.set('version', version);
 		if (scopeQuery === 'public') params.set('scope', 'public');
+		if (sortInput !== 'name') params.set('sort', sortInput);
+		const qs = params.toString();
+		void goto(qs ? `/characters?${qs}` : '/characters');
+	}
+
+	function changeSort(event: Event) {
+		const value = (event.currentTarget as HTMLSelectElement).value as CharacterSort;
+		sortInput = value;
+		const params = new URLSearchParams(page.url.searchParams);
+		if (value === 'name') params.delete('sort');
+		else params.set('sort', value);
 		const qs = params.toString();
 		void goto(qs ? `/characters?${qs}` : '/characters');
 	}
@@ -207,6 +245,14 @@
 			/>
 		</label>
 		<div class="filter-actions">
+			<label class="field sort">
+				<span>Sort</span>
+				<select value={sortInput} onchange={changeSort} aria-label="Sort characters">
+					{#each SORTS as option (option.value)}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+			</label>
 			<button type="submit">Apply</button>
 			{#if hasFilters}
 				<a class="clear" href="/characters">Clear</a>
@@ -355,6 +401,10 @@
 		display: flex;
 		gap: 0.75rem;
 		align-items: center;
+	}
+
+	.sort select {
+		min-width: 10rem;
 	}
 
 	.clear {

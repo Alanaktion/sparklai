@@ -42,6 +42,15 @@ from sparklchat.services.png import (
 router = APIRouter(prefix="/characters", tags=["characters"])
 
 ExportFormat = Literal["v1", "v2", "png"]
+# Named orderings for `GET /characters`. `character_version` groups the versions a
+# creator publishes, oldest string first, with the name breaking ties.
+SORT_ORDERS: dict[str, tuple] = {
+    "name": (Character.name.asc(),),
+    "created": (Character.created_at.desc(),),
+    "updated": (Character.updated_at.desc(),),
+    "character_version": (Character.character_version.asc(), Character.name.asc()),
+}
+CharacterSort = Literal["name", "created", "updated", "character_version"]
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
@@ -128,6 +137,7 @@ async def list_characters(
     creator: Annotated[str | None, Query(max_length=200)] = None,
     character_version: Annotated[str | None, Query(max_length=100)] = None,
     scope: Annotated[Literal["mine", "public"], Query()] = "mine",
+    sort: Annotated[CharacterSort, Query()] = "name",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[CharacterSummary]:
@@ -158,7 +168,7 @@ async def list_characters(
             )
         )
 
-    statement = statement.order_by(Character.name).offset(offset).limit(limit)
+    statement = statement.order_by(*SORT_ORDERS[sort]).offset(offset).limit(limit)
     return [character_summary(row, current_user.id) for row in (await db.exec(statement)).all()]
 
 

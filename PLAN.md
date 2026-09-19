@@ -25,7 +25,7 @@ A plan/todo document for building a FastAPI-based web app for chatting with AI-b
 - Provider API keys are encrypted with Fernet, keyed by `ENCRYPTION_KEY` or derived from `SECRET_KEY`.
 - The user-level world book is a single `CharacterBook`-shaped JSON blob on `user_settings` (no separate tables), stored verbatim so unknown keys round-trip.
 - Characters can be published (`is_public`) to a shared library that any signed-in user can read, export, and chat with; group chats and TTS/STT hooks (M8) remain unimplemented.
-- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Still open: sorting the character list by `character_version`.
+- Boxes below describe **API/service capability**; UI items in §6 are ticked only where the Svelte app in `frontend/` actually covers them. Every box outside M8's optional group chats and TTS/STT hooks is now checked.
 
 ---
 
@@ -77,7 +77,7 @@ Every field from the spec must be handled:
 - [x] `character_book` — full support (see §4).
 - [x] `tags: string[]` — case-insensitive filter/search, never sent to model.
 - [x] `creator` — display only.
-- [ ] `character_version` — display + sort.
+- [x] `character_version` — display + sort.
 - [x] `extensions: {}` — preserved, namespaced on write, never destroyed.
 
 ### 3.4 Avatar

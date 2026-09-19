@@ -250,6 +250,8 @@ export type CharacterCard = {
 
 export type CharacterDetail = CharacterSummary & { card: CharacterCard };
 
+export type CharacterSort = 'name' | 'created' | 'updated' | 'character_version';
+
 export type CharacterFilters = {
 	q?: string;
 	/** Matches any of these tags, ignoring case. */
@@ -258,6 +260,7 @@ export type CharacterFilters = {
 	characterVersion?: string;
 	/** `mine` (default) lists your own characters; `public` lists the shared library. */
 	scope?: 'mine' | 'public';
+	sort?: CharacterSort;
 	limit?: number;
 	offset?: number;
 };
@@ -274,6 +277,7 @@ export function listCharacters(
 	if (filters.creator) params.set('creator', filters.creator);
 	if (filters.characterVersion) params.set('character_version', filters.characterVersion);
 	if (filters.scope) params.set('scope', filters.scope);
+	if (filters.sort) params.set('sort', filters.sort);
 	params.set('limit', String(filters.limit ?? 100));
 	params.set('offset', String(filters.offset ?? 0));
 	return apiFetch<CharacterSummary[]>(`/characters?${params.toString()}`, {

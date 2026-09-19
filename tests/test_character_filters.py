@@ -92,6 +92,40 @@ async def test_filters_combine(client: AsyncClient, auth_headers: dict[str, str]
     assert await names(client, auth_headers, tags="anime", creator="tests") == ["Haruhi"]
 
 
+async def seed_versions(client: AsyncClient, headers: dict[str, str]) -> None:
+    await create(client, headers, card("Alpha", tags=[], version="3.0"))
+    await create(client, headers, card("Beta", tags=[], version="1.0"))
+    await create(client, headers, card("Gamma", tags=[], version="2.0"))
+
+
+async def test_lists_by_name_by_default(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    await seed_versions(client, auth_headers)
+    assert await names(client, auth_headers) == ["Alpha", "Beta", "Gamma"]
+
+
+async def test_sorts_by_character_version(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    await seed_versions(client, auth_headers)
+    assert await names(client, auth_headers, sort="character_version") == [
+        "Beta",
+        "Gamma",
+        "Alpha",
+    ]
+
+
+async def test_sorts_by_most_recently_created(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    await seed_versions(client, auth_headers)
+    assert await names(client, auth_headers, sort="created") == ["Gamma", "Beta", "Alpha"]
+
+
+async def test_rejects_an_unknown_sort(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    response = await client.get("/api/characters", params={"sort": "weird"}, headers=auth_headers)
+    assert response.status_code == 422
+
+
 async def test_tags_are_stored_lowercased_and_keep_original_case_in_the_card(
     client: AsyncClient, auth_headers: dict[str, str], engine: AsyncEngine
 ) -> None:
