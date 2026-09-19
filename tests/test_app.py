@@ -1,4 +1,4 @@
-"""Smoke tests for the scaffolded app shell."""
+"""Smoke tests for the app shell and API routing."""
 
 from httpx import AsyncClient
 
@@ -15,7 +15,12 @@ async def test_health(client: AsyncClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
-async def test_index_renders(client: AsyncClient) -> None:
-    response = await client.get("/")
+async def test_openapi_schema_is_served(client: AsyncClient) -> None:
+    response = await client.get("/openapi.json")
     assert response.status_code == 200
-    assert "Sparkl Chat" in response.text
+    assert "/api/auth/login" in response.json()["paths"]
+
+
+async def test_api_only_app_serves_no_spa(client: AsyncClient) -> None:
+    # With no frontend build present, non-API paths simply 404.
+    assert (await client.get("/")).status_code == 404
