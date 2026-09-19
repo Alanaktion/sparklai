@@ -1,0 +1,57 @@
+[project]
+name = "sparklchat"
+version = "0.1.0"
+description = "Self-hosted roleplay chat with Character Card V1/V2 support"
+readme = "README.md"
+authors = [
+    { name = "Alan Hardman", email = "alanaktion@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "aiosqlite>=0.20.0",
+    "alembic>=1.13.0",
+    "asyncpg>=0.30",
+    "bcrypt>=4.1",
+    "fastapi[standard]>=0.141.1",
+    "pydantic-settings>=2.0.0",
+    "pyjwt>=2.8",
+    "sqlmodel>=0.0.42",
+]
+
+[project.scripts]
+sparklchat = "sparklchat.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.17,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27.0",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.9.0",
+]
+
+[tool.fastapi]
+entrypoint = "sparklchat.main:app"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Generated migrations are left in Alembic's stock style so future autogenerate
+# diffs stay readable.
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "FAST"]
+
+[tool.ruff.lint.isort]
+# The local `alembic/` migration directory otherwise makes Ruff treat the
+# third-party Alembic package as first-party.
+known-first-party = ["sparklchat"]
+known-third-party = ["alembic"]
