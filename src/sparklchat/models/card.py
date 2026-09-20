@@ -11,7 +11,7 @@ calls mandatory) while *types* are validated strictly.
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CardFields(BaseModel):
@@ -48,6 +48,20 @@ class CharacterBookEntry(BaseModel):
     secondary_keys: list[str] | None = None
     constant: bool = False
     position: Literal["before_char", "after_char"] | None = None
+
+    @field_validator("position", mode="before")
+    @classmethod
+    def _blank_position_is_absent(cls, value: Any) -> Any:
+        """Treat a blank `position` as the documented `before_char` default.
+
+        Real-world exports (e.g. Chub, SillyTavern) often write `"position": ""`
+        for entries that use the default placement. A blank string carries no
+        information, so it normalises to absent rather than failing validation;
+        unknown non-blank values are still rejected by the `Literal`.
+        """
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
 
 class CharacterBook(BaseModel):

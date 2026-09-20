@@ -91,6 +91,20 @@ def test_v2_parses_every_book_entry_field(v2_card: dict) -> None:
     assert entry.name == "Brigade"
 
 
+def test_blank_entry_position_is_treated_as_absent(v2_card: dict) -> None:
+    """Real-world exports (Chub, SillyTavern) write `"position": ""` for the default.
+
+    The blank value must not fail the whole card; it normalises to the absent
+    (before_char) default.
+    """
+    for blank in ("", "   "):
+        raw = copy.deepcopy(v2_card)
+        raw["data"]["character_book"]["entries"][0]["position"] = blank
+        card, _ = parse_card(raw)
+        entry = card.data.character_book.entries[0]  # type: ignore[union-attr]
+        assert entry.position is None
+
+
 def test_extensions_survive_import_export(v2_card: dict) -> None:
     """The spec forbids destroying unknown keys inside any `extensions` map."""
     exported = dump_v2(parse_card(v2_card)[0])
