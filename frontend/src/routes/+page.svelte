@@ -319,7 +319,9 @@
 
 	.when {
 		flex-shrink: 0;
+		min-width: 4.5rem;
 		font-size: 0.78rem;
+		text-align: right;
 	}
 
 	.cards {
@@ -375,6 +377,7 @@
 
 	.chat-start {
 		flex-shrink: 0;
+		min-width: 6rem;
 		padding: 0.3rem 0.6rem;
 		font-size: 0.82rem;
 	}

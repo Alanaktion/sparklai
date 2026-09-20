@@ -108,14 +108,16 @@ async def test_upload_charx_extracts_the_icon_and_serves_assets(
     package = write_charx(v3_card, {ICON_PATH: ICON_BYTES})
     response = await client.post(
         "/api/characters/upload",
-        files={"file": ("haruhi.charx", package, "application/octet-stream")},
+        files={"files": ("haruhi.charx", package, "application/octet-stream")},
         headers=auth_headers,
     )
-    assert response.status_code == 201, response.text
-    body = response.json()
+    assert response.status_code == 200, response.text
+    body = response.json()[0]["character"]
     assert body["has_avatar"] is True
     assert body["card"]["data"]["assets"][0]["uri"] == f"embeded://{ICON_PATH}"
 
+    # The icon bytes are not a real image, so there is no WebP variant and the
+    # original is served.
     avatar = await client.get(f"/api/characters/{body['id']}/avatar", headers=auth_headers)
     assert avatar.status_code == 200
     assert avatar.content == ICON_BYTES
@@ -136,10 +138,10 @@ async def test_export_charx_round_trips_the_package(
     package = write_charx(v3_card, {ICON_PATH: ICON_BYTES})
     uploaded = await client.post(
         "/api/characters/upload",
-        files={"file": ("haruhi.charx", package, "application/octet-stream")},
+        files={"files": ("haruhi.charx", package, "application/octet-stream")},
         headers=auth_headers,
     )
-    character_id = uploaded.json()["id"]
+    character_id = uploaded.json()[0]["character"]["id"]
 
     response = await client.get(
         f"/api/characters/{character_id}/export",
@@ -160,16 +162,16 @@ async def test_upload_png_keeps_embedded_asset_chunks(
     png = with_asset_chunk(embed_card_json(blank_png(), v3_card), ICON_PATH, ICON_BYTES)
     response = await client.post(
         "/api/characters/upload",
-        files={"file": ("haruhi.png", png, "image/png")},
+        files={"files": ("haruhi.png", png, "image/png")},
         headers=auth_headers,
     )
-    assert response.status_code == 201, response.text
-    body = response.json()
+    assert response.status_code == 200, response.text
+    body = response.json()[0]["character"]
 
-    # The PNG itself stays the avatar, and the embedded asset chunk is served
-    # through the asset endpoint.
+    # The card's own assets are served through the asset endpoint; the avatar
+    # endpoint hands the UI an optimized WebP copy of the image.
     avatar = await client.get(f"/api/characters/{body['id']}/avatar", headers=auth_headers)
-    assert avatar.content == png
+    assert avatar.headers["content-type"] == "image/webp"
 
     asset = await client.get(
         f"/api/characters/{body['id']}/assets/{ICON_PATH}", headers=auth_headers
@@ -190,10 +192,13 @@ async def test_upload_rejects_a_charx_without_card_json(
 
     response = await client.post(
         "/api/characters/upload",
-        files={"file": ("bad.charx", buffer.getvalue(), "application/octet-stream")},
+        files={"files": ("bad.charx", buffer.getvalue(), "application/octet-stream")},
         headers=auth_headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 200
+    result = response.json()[0]
+    assert result["character"] is None
+    assert result["error"]
 
 
 async def test_assets_endpoint_is_404_without_a_package(

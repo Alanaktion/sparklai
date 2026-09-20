@@ -4,6 +4,7 @@ import copy
 import json
 import mimetypes
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, File, HTTPException, Query, UploadFile, status
@@ -22,9 +23,15 @@ from sparklchat.models.character import (
     CharacterSummary,
     CharacterTag,
     CharacterUpdate,
+    CharacterUploadResult,
 )
 from sparklchat.models.chat import ChatSession, Message
-from sparklchat.services.avatars import avatar_file, delete_avatar, save_avatar
+from sparklchat.services.avatars import (
+    avatar_file,
+    delete_avatar,
+    save_avatar,
+    save_display_avatar,
+)
 from sparklchat.services.cards import (
     CardError,
     apply_card_metadata,
@@ -81,12 +88,14 @@ def _build(
     user_id: int,
     avatar_path: str | None,
     package_path: str | None,
+    avatar_webp_path: str | None = None,
 ) -> Character:
     return Character(
         user_id=user_id,
         source=source,
         card_json=stamp_creation(dump_card(card, "v3" if source == "v3" else "v2")),
         avatar_path=avatar_path,
+        avatar_webp_path=avatar_webp_path,
         package_path=package_path,
     )
 
@@ -98,8 +107,9 @@ async def _save_new(
     user_id: int,
     avatar_path: str | None,
     package_path: str | None = None,
+    avatar_webp_path: str | None = None,
 ) -> Character:
-    character = _build(card, source, user_id, avatar_path, package_path)
+    character = _build(card, source, user_id, avatar_path, package_path, avatar_webp_path)
     db.add(character)
     await apply_card_metadata(db, character, card)
     await db.commit()
@@ -119,37 +129,50 @@ async def create_character(
     return character_detail(character, current_user.id)
 
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_character(
-    file: Annotated[UploadFile, File()],
+@router.post("/upload")
+async def upload_characters(
+    files: Annotated[list[UploadFile], File()],
     db: SessionDep,
     current_user: CurrentUserDep,
-) -> CharacterDetail:
-    """Import a character from a PNG card, a CHARX package, or a JSON file."""
+) -> list[CharacterUploadResult]:
+    """Import one or more character files: PNG cards, CHARX packages, or JSON.
+
+    Each file is handled independently, so one unreadable file does not discard
+    the rest of the batch; it reports its own error in the response instead.
+    """
+    if not files:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Provide at least one file")
+    return [await _import_upload(file, db, current_user.id) for file in files]
+
+
+async def _import_upload(file: UploadFile, db: SessionDep, user_id: int) -> CharacterUploadResult:
+    filename = file.filename or "upload"
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "File is too large")
+        return CharacterUploadResult(filename=filename, error="File is too large")
 
     try:
         raw, avatar, assets, package, package_suffix = _read_upload(data)
-    except (PngError, CharxError, CardError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"Could not read the uploaded file: {exc}",
-        ) from exc
+    except (PngError, CharxError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return CharacterUploadResult(filename=filename, error=f"Could not read the file: {exc}")
 
-    card, source = _parse(raw)
+    try:
+        card, source = parse_card(raw)
+    except CardError as exc:
+        return CharacterUploadResult(filename=filename, error=str(exc))
+
     if avatar is None:
         avatar = _embedded_icon(raw, assets)
     character = await _save_new(
         db,
         card,
         source,
-        current_user.id,
+        user_id,
         save_avatar(avatar, _image_suffix(avatar)) if avatar else None,
         save_package(package, package_suffix) if package else None,
+        save_display_avatar(avatar) if avatar else None,
     )
-    return character_detail(character, current_user.id)
+    return CharacterUploadResult(filename=filename, character=character_detail(character, user_id))
 
 
 async def _last_message_times(
@@ -259,6 +282,7 @@ async def delete_character(character_id: int, db: SessionDep, current_user: Curr
     # Sessions, messages, and tag rows all cascade from the character row.
     character = await owned_character(db, character_id, current_user.id)
     delete_avatar(character.avatar_path)
+    delete_avatar(character.avatar_webp_path)
     delete_package(character.package_path)
     await db.delete(character)
     await db.commit()
@@ -268,12 +292,11 @@ async def delete_character(character_id: int, db: SessionDep, current_user: Curr
 async def get_avatar(
     character_id: int, db: SessionDep, current_user: CurrentUserDep
 ) -> FileResponse:
+    """Serve the avatar to display: the WebP variant when one was stored."""
     character = await readable_character(db, character_id, current_user.id)
-    if not character.avatar_path:
+    path = _display_avatar(character)
+    if path is None or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Character has no avatar")
-    path = avatar_file(character.avatar_path)
-    if not path.is_file():
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Avatar file is missing")
     return FileResponse(path, media_type=_guess_type(path.name))
 
 
@@ -410,6 +433,17 @@ def _avatar_bytes(character: Character) -> bytes | None:
         return None
     path = avatar_file(character.avatar_path)
     return path.read_bytes() if path.is_file() else None
+
+
+def _display_avatar(character: Character) -> Path | None:
+    """The avatar file the UI should load: the WebP variant when it exists."""
+    if character.avatar_webp_path:
+        webp = avatar_file(character.avatar_webp_path)
+        if webp.is_file():
+            return webp
+    if character.avatar_path:
+        return avatar_file(character.avatar_path)
+    return None
 
 
 def _image_suffix(data: bytes | None) -> str:

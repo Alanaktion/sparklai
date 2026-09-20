@@ -17,7 +17,12 @@ async def create(client: AsyncClient, headers: dict[str, str], card: dict) -> di
 async def test_endpoints_require_authentication(client: AsyncClient) -> None:
     assert (await client.get("/api/characters")).status_code == 401
     assert (await client.post("/api/characters", json={})).status_code == 401
-    assert (await client.post("/api/characters/upload")).status_code == 401
+    assert (
+        await client.post(
+            "/api/characters/upload",
+            files={"files": ("haruhi.json", b"{}", "application/json")},
+        )
+    ).status_code == 401
 
 
 async def test_create_from_v2_card(
@@ -142,18 +147,61 @@ async def test_upload_png_card(
     png = embed_card_json(blank_png(), v2_card)
     response = await client.post(
         "/api/characters/upload",
-        files={"file": ("haruhi.png", png, "image/png")},
+        files={"files": ("haruhi.png", png, "image/png")},
         headers=auth_headers,
     )
-    assert response.status_code == 201, response.text
-    body = response.json()
+    assert response.status_code == 200, response.text
+    results = response.json()
+    assert [result["filename"] for result in results] == ["haruhi.png"]
+    assert results[0]["error"] is None
+    body = results[0]["character"]
     assert body["name"] == "Haruhi"
     assert body["has_avatar"] is True
 
+    # The UI loads the optimized WebP variant of the avatar...
     avatar = await client.get(f"/api/characters/{body['id']}/avatar", headers=auth_headers)
     assert avatar.status_code == 200
-    assert avatar.headers["content-type"] == "image/png"
-    assert avatar.content == png
+    assert avatar.headers["content-type"] == "image/webp"
+    assert avatar.content.startswith(b"RIFF")
+
+    # ...while the original PNG card is kept for export.
+    exported = await client.get(
+        f"/api/characters/{body['id']}/export",
+        params={"format": "png"},
+        headers=auth_headers,
+    )
+    assert exported.status_code == 200
+    assert read_card_json(exported.content)["data"]["name"] == "Haruhi"
+
+
+async def test_upload_imports_multiple_files_in_one_request(
+    client: AsyncClient, auth_headers: dict[str, str], v1_card: dict, v2_card: dict
+) -> None:
+    png = embed_card_json(blank_png(), v2_card)
+    response = await client.post(
+        "/api/characters/upload",
+        files=[
+            ("files", ("haruhi.png", png, "image/png")),
+            ("files", ("haruhi.json", json.dumps(v1_card).encode(), "application/json")),
+            ("files", ("broken.png", b"\x89PNG\r\n\x1a\nnope", "image/png")),
+        ],
+        headers=auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    results = response.json()
+    assert [result["filename"] for result in results] == [
+        "haruhi.png",
+        "haruhi.json",
+        "broken.png",
+    ]
+    # The readable files import; the broken one only reports an error.
+    assert results[0]["character"]["source"] == "v2"
+    assert results[1]["character"]["source"] == "v1"
+    assert results[2]["character"] is None
+    assert results[2]["error"]
+
+    listing = await client.get("/api/characters", headers=auth_headers)
+    assert len(listing.json()) == 2
 
 
 async def test_upload_json_file(
@@ -161,31 +209,39 @@ async def test_upload_json_file(
 ) -> None:
     response = await client.post(
         "/api/characters/upload",
-        files={"file": ("haruhi.json", json.dumps(v1_card).encode(), "application/json")},
+        files={"files": ("haruhi.json", json.dumps(v1_card).encode(), "application/json")},
         headers=auth_headers,
     )
-    assert response.status_code == 201, response.text
-    body = response.json()
+    assert response.status_code == 200, response.text
+    body = response.json()[0]["character"]
     assert body["source"] == "v1"
     assert body["has_avatar"] is False
 
 
-async def test_upload_rejects_broken_png(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+async def test_upload_reports_a_broken_png(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
     response = await client.post(
         "/api/characters/upload",
-        files={"file": ("bad.png", b"\x89PNG\r\n\x1a\nnot-really-a-png", "image/png")},
+        files={"files": ("bad.png", b"\x89PNG\r\n\x1a\nnot-really-a-png", "image/png")},
         headers=auth_headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 200
+    result = response.json()[0]
+    assert result["character"] is None
+    assert "Could not read the file" in result["error"]
 
 
-async def test_upload_rejects_non_json(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+async def test_upload_reports_a_non_json_file(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
     response = await client.post(
         "/api/characters/upload",
-        files={"file": ("notes.txt", b"just some text", "text/plain")},
+        files={"files": ("notes.txt", b"just some text", "text/plain")},
         headers=auth_headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 200
+    assert response.json()[0]["character"] is None
 
 
 async def test_avatar_missing_when_none_uploaded(
@@ -259,10 +315,10 @@ async def test_export_png_reuses_the_avatar(
     png = embed_card_json(blank_png(), v2_card)
     uploaded = await client.post(
         "/api/characters/upload",
-        files={"file": ("haruhi.png", png, "image/png")},
+        files={"files": ("haruhi.png", png, "image/png")},
         headers=auth_headers,
     )
-    character_id = uploaded.json()["id"]
+    character_id = uploaded.json()[0]["character"]["id"]
 
     edited = copy.deepcopy(v2_card)
     edited["data"]["name"] = "Exported"

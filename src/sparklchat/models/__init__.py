@@ -25,6 +25,7 @@ from sparklchat.models.character import (
     CharacterSummary,
     CharacterTag,
     CharacterUpdate,
+    CharacterUploadResult,
 )
 from sparklchat.models.chat import (
     ChatSession,
@@ -65,6 +66,7 @@ __all__ = [
     "CharacterSummary",
     "CharacterTag",
     "CharacterUpdate",
+    "CharacterUploadResult",
     "ChatSession",
     "DEFAULT_ASSETS",
     "LorebookEnvelope",

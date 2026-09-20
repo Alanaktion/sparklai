@@ -19,6 +19,10 @@
 
 	const publicRoutes = new Set(['/', '/login']);
 
+	// The chat page owns the full viewport so only the transcript scrolls, which
+	// keeps the nav and the composer visible while messages scroll past.
+	const isChatRoute = $derived(page.url.pathname.startsWith('/chat'));
+
 	onMount(() => {
 		// Any authenticated request that comes back 401 means the token is stale.
 		setUnauthorizedHandler(() => {
@@ -41,7 +45,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="shell">
+<div class="shell" class:fill={isChatRoute}>
 	{#if auth.isAuthenticated}
 		<header class="nav">
 			<a class="brand" href="/">Sparkl Chat</a>
@@ -67,13 +71,24 @@
 		min-height: 100dvh;
 	}
 
+	/* Pin the shell to the viewport on the chat page. */
+	.shell.fill {
+		height: 100dvh;
+		overflow: hidden;
+	}
+
 	.nav {
 		display: flex;
 		gap: 1rem;
 		align-items: center;
+		min-height: 3.25rem;
 		padding: 0.6rem 1.25rem;
 		background: var(--surface);
 		border-bottom: 1px solid var(--border);
+		/* Stays put when the page scrolls (every route but chat). */
+		position: sticky;
+		top: 0;
+		z-index: 20;
 	}
 
 	.brand {

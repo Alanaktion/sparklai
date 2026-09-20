@@ -33,7 +33,10 @@ class Character(SQLModel, table=True):
     # Published characters can be read and chatted with by any user.
     is_public: bool = Field(default=False, index=True)
     card_json: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    # The avatar as it was uploaded, kept byte-for-byte for export.
     avatar_path: str | None = Field(default=None)
+    # An optimized WebP copy of the avatar, which is what the UI actually loads.
+    avatar_webp_path: str | None = Field(default=None)
     # A stored CHARX package (or PNG card) with the card's binary assets, kept so a
     # V3 card with assets can be exported losslessly. Null for plain JSON/PNG cards.
     package_path: str | None = Field(default=None)
@@ -86,3 +89,15 @@ class CharacterUpdate(SQLModel):
 
     card: dict[str, Any] | None = None
     is_public: bool | None = None
+
+
+class CharacterUploadResult(SQLModel):
+    """The outcome of importing one file from a batch upload.
+
+    A batch never fails as a whole: files that could not be read report their
+    reason here while the rest still import.
+    """
+
+    filename: str
+    character: CharacterDetail | None = None
+    error: str | None = None

@@ -56,7 +56,7 @@
 
 <style>
 	img {
-		border-radius: 50%;
+		border-radius: 0.5rem;
 		object-fit: cover;
 		background: var(--surface-2);
 	}

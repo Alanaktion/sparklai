@@ -78,6 +78,9 @@ finalizing any `.svelte`/`.svelte.ts` change.
     `prompts.py`, including V3 `use_regex` keys, decorator conditions, and
     `@@depth` routing into the chat log.
   - `tokens.py` — tiktoken-or-heuristic token counting (`TOKENIZER` setting).
+  - `images.py` — best-effort Pillow encode of an uploaded image into a
+downscaled WebP display variant (`to_webp`, returns `None` for anything it
+cannot read).
   - `downloads.py`, `avatars.py`, `security.py`, `user_settings.py` — smaller
     single-purpose helpers.
 - `config.py` — `pydantic-settings` `Settings`; also resolves the frontend
@@ -129,6 +132,14 @@ V3 additions beyond the card fields: `use_regex` lorebook keys, `@@…` decorato
 `GET /api/characters/{id}/assets/{path}` out of the stored package), and
 `creation_date`/`modification_date` stamping. `Character.package_path` holds the
 imported CHARX/PNG package so assets round-trip on export.
+
+`POST /api/characters/upload` takes a repeatable `files` field, so several cards
+import in one request; each file is handled independently and returns its own
+`CharacterUploadResult` (`character` or `error`), and a bad file never discards
+the rest of the batch. An uploaded avatar is stored twice: `avatar_path` keeps
+the original bytes (what `?format=png` embeds) and `avatar_webp_path` holds the
+downscaled WebP copy (`images.py`) that `GET .../avatar` serves, so pages never
+fetch the full-size original.
 
 Per-session lorebook state (`ChatSession.lorebook_state`) records how often each
 entry has matched, which is what `@@keep_activate_after_match` /

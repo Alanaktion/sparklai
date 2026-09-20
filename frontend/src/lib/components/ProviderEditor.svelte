@@ -244,4 +244,8 @@
 		display: flex;
 		gap: 0.5rem;
 	}
+
+	.actions button {
+		min-width: 8.5rem;
+	}
 </style>

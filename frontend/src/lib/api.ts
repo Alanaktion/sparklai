@@ -333,11 +333,24 @@ export function createCharacter(token: string, card: unknown): Promise<Character
 	return apiFetch<CharacterDetail>('/characters', jsonInit('POST', card, token));
 }
 
-export function uploadCharacter(token: string, file: File): Promise<CharacterDetail> {
+/** The outcome of importing one file with `uploadCharacters`. */
+export type CharacterUploadResult = {
+	filename: string;
+	/** The imported character, or null when the file could not be read. */
+	character: CharacterDetail | null;
+	error: string | null;
+};
+
+/**
+ * Import one or more PNG cards, CHARX packages, or JSON cards. Each file is
+ * handled independently, so an unreadable one reports its own error instead of
+ * failing the whole batch.
+ */
+export function uploadCharacters(token: string, files: File[]): Promise<CharacterUploadResult[]> {
 	const body = new FormData();
-	body.append('file', file);
+	for (const file of files) body.append('files', file);
 	// No Content-Type: the browser sets the multipart boundary.
-	return apiFetch<CharacterDetail>('/characters/upload', {
+	return apiFetch<CharacterUploadResult[]>('/characters/upload', {
 		method: 'POST',
 		headers: bearer(token),
 		body

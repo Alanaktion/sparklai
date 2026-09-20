@@ -504,6 +504,11 @@
 		flex-wrap: wrap;
 	}
 
+	/* "Start new chat"/"Starting…" and "Publish"/"Make private" swap labels. */
+	.actions button {
+		min-width: 9.5rem;
+	}
+
 	.group {
 		max-width: 34rem;
 		padding: 0.75rem;
@@ -514,6 +519,10 @@
 
 	.group summary {
 		cursor: pointer;
+	}
+
+	.group > button {
+		min-width: 9.5rem;
 	}
 
 	.group p {
@@ -552,6 +561,7 @@
 	}
 
 	.export button {
+		min-width: 5rem;
 		padding: 0.3rem 0.6rem;
 		font-size: 0.85rem;
 	}
@@ -618,7 +628,8 @@
 	}
 
 	.import input {
-		max-width: 16rem;
+		width: 16rem;
+		max-width: 100%;
 		font-size: 0.85rem;
 	}
 

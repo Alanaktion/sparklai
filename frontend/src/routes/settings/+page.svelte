@@ -424,6 +424,10 @@
 		align-items: center;
 	}
 
+	.actions button {
+		min-width: 8rem;
+	}
+
 	.saved {
 		font-size: 0.85rem;
 		color: var(--muted);
@@ -469,6 +473,7 @@
 	}
 
 	.controls button {
+		min-width: 5rem;
 		padding: 0.3rem 0.6rem;
 		font-size: 0.85rem;
 	}

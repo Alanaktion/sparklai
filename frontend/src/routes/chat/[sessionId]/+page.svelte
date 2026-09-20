@@ -568,6 +568,8 @@
 		flex: 1;
 		flex-direction: column;
 		min-height: 0;
+		/* Only the transcript scrolls; the bar and composer stay put. */
+		overflow: hidden;
 	}
 
 	.bar {
@@ -578,6 +580,9 @@
 		padding: 0.6rem 1rem;
 		background: var(--surface);
 		border-bottom: 1px solid var(--border);
+		position: sticky;
+		top: 0;
+		z-index: 5;
 	}
 
 	.back {
@@ -587,11 +592,15 @@
 
 	.title {
 		display: grid;
+		min-width: 0;
 	}
 
 	.title h1 {
 		margin: 0;
+		overflow: hidden;
 		font-size: 1rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.title span {
@@ -632,6 +641,7 @@
 
 	.controls select {
 		width: auto;
+		min-width: 8.5rem;
 	}
 
 	.export {
@@ -645,6 +655,7 @@
 	}
 
 	.export button {
+		min-width: 5.25rem;
 		padding: 0.3rem 0.6rem;
 		font-size: 0.85rem;
 	}
@@ -692,6 +703,15 @@
 		padding: 0.75rem 1rem;
 		background: var(--surface);
 		border-top: 1px solid var(--border);
+		/* Pinned to the bottom of the viewport while the transcript scrolls. */
+		position: sticky;
+		bottom: 0;
+		z-index: 5;
+	}
+
+	/* Send/Stop and Dictate/Stop swap labels; a fixed width keeps the row still. */
+	.composer button {
+		min-width: 5.25rem;
 	}
 
 	.composer textarea {

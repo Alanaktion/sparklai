@@ -605,8 +605,8 @@
 	}
 
 	.asset-preview {
-		max-width: 8rem;
-		max-height: 8rem;
+		width: 8rem;
+		height: 8rem;
 		justify-self: start;
 		background: var(--surface-2);
 		border: 1px solid var(--border);
@@ -641,6 +641,11 @@
 		align-items: center;
 		padding-top: 0.6rem;
 		border-top: 1px solid var(--border);
+	}
+
+	/* "Save changes"/"Create character"/"Saving…" swap labels. */
+	.actions button {
+		min-width: 9.5rem;
 	}
 
 	.saved {

@@ -5,7 +5,7 @@
 	import {
 		deleteCharacter,
 		listCharacters,
-		uploadCharacter,
+		uploadCharacters,
 		type CharacterSort,
 		type CharacterSummary
 	} from '$lib/api';
@@ -17,6 +17,8 @@
 	let loading = $state(true);
 	let uploading = $state(false);
 	let error = $state<string | null>(null);
+	let notice = $state<string | null>(null);
+	let importErrors = $state<string[]>([]);
 	let search = $state('');
 	let tagInput = $state('');
 	let creatorInput = $state('');
@@ -154,18 +156,26 @@
 
 	async function onFileChange(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
+		const files = Array.from(input.files ?? []);
 		input.value = '';
-		if (!file) return;
+		if (files.length === 0) return;
 
 		const token = auth.token;
 		if (!token) return;
 
 		uploading = true;
 		error = null;
+		notice = null;
+		importErrors = [];
 		try {
-			await uploadCharacter(token, file);
-			await load(currentFilters());
+			const results = await uploadCharacters(token, files);
+			const failed = results.filter((result) => result.error !== null);
+			const imported = results.length - failed.length;
+			importErrors = failed.map((result) => `${result.filename}: ${result.error}`);
+			if (imported > 0) {
+				notice = `Imported ${imported} character${imported === 1 ? '' : 's'}.`;
+				await load(currentFilters());
+			}
 		} catch (cause) {
 			error = errorMessage(cause);
 		} finally {
@@ -197,17 +207,33 @@
 		<h1>Characters</h1>
 		<div class="header-actions">
 			<a class="new" href="/characters/new">New character</a>
-			<label class="upload">
-				<span>{uploading ? 'Importing…' : 'Import card (PNG or JSON)'}</span>
+			<label class="upload" title="PNG cards, JSON, or CHARX — pick several at once">
+				<span>{uploading ? 'Importing…' : 'Import cards'}</span>
 				<input
 					type="file"
-					accept=".png,.json,image/png,application/json"
+					accept=".png,.json,.charx,image/png,application/json"
+					multiple
 					onchange={onFileChange}
 					disabled={uploading}
 				/>
 			</label>
 		</div>
 	</div>
+
+	{#if notice}
+		<p class="notice" role="status">{notice}</p>
+	{/if}
+
+	{#if importErrors.length > 0}
+		<div class="error import-errors" role="alert">
+			<p>Some files could not be imported:</p>
+			<ul>
+				{#each importErrors as message, index (index)}
+					<li>{message}</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 
 	<nav class="scopes" aria-label="Character library">
 		<a class:active={scopeQuery === 'mine'} href={scopeHref('mine')}>Mine</a>
@@ -346,7 +372,28 @@
 	}
 
 	.upload input {
-		max-width: 18rem;
+		width: 18rem;
+		max-width: 100%;
+	}
+
+	.notice {
+		margin: 1rem 0 0;
+		font-size: 0.9rem;
+		color: var(--success);
+	}
+
+	.import-errors {
+		margin: 1rem 0 0;
+		font-size: 0.9rem;
+	}
+
+	.import-errors p {
+		margin: 0 0 0.3rem;
+	}
+
+	.import-errors ul {
+		margin: 0;
+		padding-left: 1.1rem;
 	}
 
 	.scopes {
@@ -401,6 +448,10 @@
 		display: flex;
 		gap: 0.75rem;
 		align-items: center;
+	}
+
+	.filter-actions button {
+		min-width: 5.25rem;
 	}
 
 	.sort select {

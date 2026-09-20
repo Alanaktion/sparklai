@@ -162,10 +162,10 @@ async def test_non_owner_can_read_and_export_a_public_character(
     png = embed_card_json(blank_png(), v2_card)
     uploaded = await client.post(
         "/api/characters/upload",
-        files={"file": ("haruhi.png", png, "image/png")},
+        files={"files": ("haruhi.png", png, "image/png")},
         headers=auth_headers,
     )
-    created = uploaded.json()
+    created = uploaded.json()[0]["character"]
     await publish(client, auth_headers, created["id"])
     other = await login_as("misty@example.com")
 
@@ -179,7 +179,7 @@ async def test_non_owner_can_read_and_export_a_public_character(
 
     avatar = await client.get(f"/api/characters/{created['id']}/avatar", headers=other)
     assert avatar.status_code == 200
-    assert avatar.headers["content-type"] == "image/png"
+    assert avatar.headers["content-type"] == "image/webp"
 
 
 async def test_non_owner_can_chat_with_a_public_character(

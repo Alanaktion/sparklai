@@ -91,12 +91,12 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | POST | `/api/providers/{id}/complete` | One-off completion |
 | POST | `/api/providers/{id}/complete/stream` | The same, streamed as Server-Sent Events |
 | POST | `/api/characters` | Create from a V1, V2, or V3 card (JSON body) |
-| POST | `/api/characters/upload` | Import a PNG card, CHARX package, or JSON file (multipart `file`) |
+| POST | `/api/characters/upload` | Import one or more PNG cards, CHARX packages, or JSON files (repeatable multipart `files`; returns a per-file result) |
 | GET | `/api/characters` | List your characters (`q`, `limit`, `offset`; rows carry the viewer's `last_message_at`) |
 | GET | `/api/characters/{id}` | Character detail, including the canonical card |
 | PATCH | `/api/characters/{id}` | Replace the card (`{"card": {...}}`) |
 | DELETE | `/api/characters/{id}` | Delete the character and its avatar |
-| GET | `/api/characters/{id}/avatar` | The character's avatar image |
+| GET | `/api/characters/{id}/avatar` | The character's avatar image (an optimized WebP copy when one was stored) |
 | GET | `/api/characters/{id}/assets/{path}` | A binary asset from the stored CHARX package |
 | GET | `/api/characters/{id}/export` | Export as `?format=v1`, `v2`, `v3`, `png`, or `charx` |
 | GET | `/api/characters/{id}/sessions` | Chat sessions for this character |
@@ -131,7 +131,12 @@ Cards are accepted as **V1** (flat, six fields), **V2**, or **V3** (`spec`,
 Import normalises V1 into V2 shape but otherwise keeps the format the card
 arrived in: V2 cards stay V2, V3 cards stay V3. The `source` column records
 `v1`, `v2`, or `v3`, and `GET .../export?format=...` converts on request —
-including `format=v3`, which fills the V3 defaults for a V2/V1 card.
+including `format=v3`, which fills the V3 defaults for a V2/V1 card. Several
+files can be imported in a single `POST /api/characters/upload`; each is handled
+independently and reports its own error, so one bad file does not lose the rest.
+
+Uploaded avatars are stored twice: the original bytes (what exports embed) and a
+downscaled WebP copy that `GET .../avatar` serves to the UI.
 
 Fidelity rules, straight from the spec:
 

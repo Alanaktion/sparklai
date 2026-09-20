@@ -87,7 +87,7 @@
 		>
 			↓
 		</button>
-		<button type="button" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>
+		<button type="button" class="toggle" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>
 			{expanded ? 'Collapse' : 'Expand'}
 		</button>
 		<button type="button" class="danger" onclick={() => onRemove(index)}>Remove</button>
@@ -220,6 +220,11 @@
 	.head button {
 		padding: 0.25rem 0.5rem;
 		font-size: 0.82rem;
+	}
+
+	/* Expand/Collapse swap labels; the arrows stay content-sized. */
+	.head button.toggle {
+		min-width: 5.5rem;
 	}
 
 	.body {

@@ -118,12 +118,15 @@
 	}
 
 	.actions button {
+		min-width: 5rem;
 		padding: 0.2rem 0.5rem;
 		font-size: 0.8rem;
 	}
 
 	.swipes {
+		min-width: 3.25rem;
 		font-size: 0.8rem;
 		color: var(--muted);
+		text-align: center;
 	}
 </style>
