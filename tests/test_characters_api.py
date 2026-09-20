@@ -278,3 +278,39 @@ async def test_export_png_reuses_the_avatar(
     assert response.status_code == 200
     # The avatar is the base image, with the (updated) card re-embedded.
     assert read_card_json(response.content)["data"]["name"] == "Exported"
+
+
+async def test_listing_reports_the_viewers_last_message_time(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
+) -> None:
+    chatted = await create(client, auth_headers, v2_card)
+    untouched = await create(client, auth_headers, copy.deepcopy(v2_card))
+
+    listing = await client.get("/api/characters", headers=auth_headers)
+    never = {item["id"]: item for item in listing.json()}
+    assert never[chatted["id"]]["last_message_at"] is None
+
+    # Starting a session seeds the greeting, which counts as a message.
+    started = await client.post(
+        f"/api/characters/{chatted['id']}/sessions", json={}, headers=auth_headers
+    )
+    assert started.status_code == 201, started.text
+
+    listing = await client.get("/api/characters", headers=auth_headers)
+    seen = {item["id"]: item for item in listing.json()}
+    assert seen[chatted["id"]]["last_message_at"] is not None
+    assert seen[untouched["id"]]["last_message_at"] is None
+
+
+async def test_last_message_time_is_per_user(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, login_as
+) -> None:
+    created = await create(client, auth_headers, v2_card)
+    await client.patch(
+        f"/api/characters/{created['id']}", json={"is_public": True}, headers=auth_headers
+    )
+    await client.post(f"/api/characters/{created['id']}/sessions", json={}, headers=auth_headers)
+
+    other = await login_as("other@example.com")
+    listing = await client.get("/api/characters?scope=public", headers=other)
+    assert listing.json()[0]["last_message_at"] is None

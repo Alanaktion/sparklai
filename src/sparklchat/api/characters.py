@@ -3,10 +3,12 @@
 import copy
 import json
 import mimetypes
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, Response
+from sqlalchemy import func
 from sqlmodel import select
 
 from sparklchat.api.access import owned_character, readable_character
@@ -21,6 +23,7 @@ from sparklchat.models.character import (
     CharacterTag,
     CharacterUpdate,
 )
+from sparklchat.models.chat import ChatSession, Message
 from sparklchat.services.avatars import avatar_file, delete_avatar, save_avatar
 from sparklchat.services.cards import (
     CardError,
@@ -149,6 +152,24 @@ async def upload_character(
     return character_detail(character, current_user.id)
 
 
+async def _last_message_times(
+    db: SessionDep, user_id: int, character_ids: list[int]
+) -> dict[int, datetime]:
+    """The viewer's newest message time per character, for a page of rows."""
+    if not character_ids:
+        return {}
+    statement = (
+        select(ChatSession.character_id, func.max(Message.created_at))
+        .join(Message, Message.session_id == ChatSession.id)
+        .where(
+            ChatSession.user_id == user_id,
+            ChatSession.character_id.in_(character_ids),
+        )
+        .group_by(ChatSession.character_id)
+    )
+    return {character_id: seen for character_id, seen in (await db.exec(statement)).all()}
+
+
 @router.get("")
 async def list_characters(
     db: SessionDep,
@@ -190,7 +211,9 @@ async def list_characters(
         )
 
     statement = statement.order_by(*SORT_ORDERS[sort]).offset(offset).limit(limit)
-    return [character_summary(row, current_user.id) for row in (await db.exec(statement)).all()]
+    rows = list((await db.exec(statement)).all())
+    activity = await _last_message_times(db, current_user.id, [row.id for row in rows])
+    return [character_summary(row, current_user.id, activity.get(row.id)) for row in rows]
 
 
 @router.get("/{character_id}")

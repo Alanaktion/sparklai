@@ -4,8 +4,6 @@ A self-hosted web app for roleplay chat with AI-backed characters, supporting
 Character Card V1, V2, and V3 (see [`docs/`](docs) for the specs) and multiple
 independently configured AI providers.
 
-> Status: early scaffolding. See [`PLAN.md`](PLAN.md) for the full roadmap.
-
 ## Stack
 
 - **FastAPI** + **Uvicorn** (async), **Pydantic v2**
@@ -94,7 +92,7 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | POST | `/api/providers/{id}/complete/stream` | The same, streamed as Server-Sent Events |
 | POST | `/api/characters` | Create from a V1, V2, or V3 card (JSON body) |
 | POST | `/api/characters/upload` | Import a PNG card, CHARX package, or JSON file (multipart `file`) |
-| GET | `/api/characters` | List your characters (`q`, `limit`, `offset`) |
+| GET | `/api/characters` | List your characters (`q`, `limit`, `offset`; rows carry the viewer's `last_message_at`) |
 | GET | `/api/characters/{id}` | Character detail, including the canonical card |
 | PATCH | `/api/characters/{id}` | Replace the card (`{"card": {...}}`) |
 | DELETE | `/api/characters/{id}` | Delete the character and its avatar |

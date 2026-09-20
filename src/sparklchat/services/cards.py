@@ -7,6 +7,7 @@ them is lossless one way and drops only the V3-only fields the other way.
 """
 
 import time
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import ValidationError
@@ -331,8 +332,16 @@ def creator_notes_for(card: CharacterCard, language: str = "en") -> str:
     return multilingual["en"]
 
 
-def character_summary(character: Character, viewer_id: int | None = None) -> CharacterSummary:
-    """Build the listing view, reading denormalized fields out of the card."""
+def character_summary(
+    character: Character,
+    viewer_id: int | None = None,
+    last_message_at: datetime | None = None,
+) -> CharacterSummary:
+    """Build the listing view, reading denormalized fields out of the card.
+
+    `last_message_at` is viewer-relative, so callers that list characters fill it
+    in from their sessions; anything else leaves it null.
+    """
     data = character.card_json.get("data") or {}
     return CharacterSummary(
         id=character.id or 0,
@@ -345,6 +354,7 @@ def character_summary(character: Character, viewer_id: int | None = None) -> Cha
         is_public=character.is_public,
         is_mine=character.user_id is not None and character.user_id == viewer_id,
         has_avatar=bool(character.avatar_path),
+        last_message_at=last_message_at,
         created_at=character.created_at,
         updated_at=character.updated_at,
     )

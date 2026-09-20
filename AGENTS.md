@@ -132,6 +132,11 @@ Per-session lorebook state (`ChatSession.lorebook_state`) records how often each
 entry has matched, which is what `@@keep_activate_after_match` /
 `@@dont_activate_after_match` read.
 
+`CharacterSummary.last_message_at` is viewer-relative (the requester's newest
+message in any session with that character) and is only filled in by
+`GET /api/characters`, which resolves it for the whole page in one grouped query;
+everywhere else it is null.
+
 Voice hooks (TTS/STT) are card-declared, not app config: `extensions.sparklchat`
 on the card (see `models/hooks.py`) opts a character into browser Web Speech
 API behavior. This block is read leniently (bad/missing data silently
@@ -164,8 +169,10 @@ which fake a build output rather than requiring a real `npm run build`.
 ### Frontend (`frontend/src/`)
 
 - `routes/+page.svelte` — the dashboard at `/`, the default view for signed-in
-  users: recent chats (`GET /api/sessions`) and recently updated characters,
-  each with a one-click "New chat". Signed-out visitors go to `/login`.
+  users: recent chats (`GET /api/sessions`) and recently updated characters
+  (showing each character's `last_message_at`), plus a "Continue last chat"
+  shortcut to the newest session and a one-click "New chat" per character.
+  Signed-out visitors go to `/login`.
 - `lib/api.ts` — typed client for every `/api` endpoint; this is the contract
   boundary the backend must keep in sync with.
 - `lib/markdown.ts` — a small roleplay-specific Markdown-like parser (see

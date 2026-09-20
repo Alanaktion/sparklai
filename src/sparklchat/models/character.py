@@ -66,6 +66,9 @@ class CharacterSummary(SQLModel):
     # Whether the requesting user owns this character.
     is_mine: bool
     has_avatar: bool
+    # When the viewer last exchanged a message with this character, or null if
+    # they never have. Filled in by the character list (`GET /characters`).
+    last_message_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

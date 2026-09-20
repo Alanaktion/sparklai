@@ -22,6 +22,9 @@
 	let error = $state<string | null>(null);
 	let startingId = $state<number | null>(null);
 
+	// The most recently active session, if the user has any.
+	const latest = $derived(sessions.at(0) ?? null);
+
 	// `/` is public, so the layout guard leaves it alone; send signed-out visitors
 	// to the login form instead of flashing an empty dashboard.
 	$effect(() => {
@@ -76,10 +79,22 @@
 	<header class="hero">
 		<div>
 			<h1>Welcome back, {auth.user?.email ?? 'there'}</h1>
-			<p class="muted">Pick up a chat or start a new one.</p>
+			{#if latest}
+				<p class="muted">
+					Last chat: <strong>{latest.title}</strong>
+					{#if latest.title !== latest.character_name}
+						· {latest.character_name}
+					{/if}
+				</p>
+			{:else}
+				<p class="muted">Pick up a chat or start a new one.</p>
+			{/if}
 		</div>
 		<div class="hero-actions">
-			<a class="new" href="/characters">Browse characters</a>
+			{#if latest}
+				<a class="new" href={`/chat/${latest.id}`}>Continue last chat</a>
+			{/if}
+			<a class:new={!latest} href="/characters">Browse characters</a>
 			<a href="/characters/new">New character</a>
 		</div>
 	</header>
@@ -158,6 +173,11 @@
 									<strong>{character.name}</strong>
 									{#if character.tags.length > 0}
 										<span class="tags">{character.tags.slice(0, 3).join(' · ')}</span>
+									{/if}
+									{#if character.last_message_at}
+										<span class="last">Chatted {formatDate(character.last_message_at)}</span>
+									{:else}
+										<span class="last">No chats yet</span>
 									{/if}
 								</span>
 							</a>
@@ -345,6 +365,11 @@
 
 	.tags {
 		font-size: 0.78rem;
+		color: var(--muted);
+	}
+
+	.last {
+		font-size: 0.75rem;
 		color: var(--muted);
 	}
 

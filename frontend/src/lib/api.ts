@@ -221,6 +221,8 @@ export type CharacterSummary = {
 	/** Whether the signed-in user owns this character. */
 	is_mine: boolean;
 	has_avatar: boolean;
+	/** When the viewer last exchanged a message with this character; null if never. */
+	last_message_at: string | null;
 	created_at: string;
 	updated_at: string;
 };
