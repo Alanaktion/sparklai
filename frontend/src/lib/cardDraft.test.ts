@@ -76,6 +76,20 @@ function entry(card: JsonObject): JsonObject {
 	return (book(card).entries as JsonObject[])[0] as JsonObject;
 }
 
+/**
+ * Stand in for Svelte's `$state`, which deep-proxies plain objects. The HTML spec
+ * makes `structuredClone` throw `DataCloneError` on a `Proxy`, which is how the
+ * editor used to crash when handed a loaded character.
+ */
+function reactive<T>(value: T): T {
+	if (typeof value !== 'object' || value === null) return value;
+	return new Proxy(value, {
+		get(target, key, receiver) {
+			return reactive(Reflect.get(target, key, receiver) as unknown) as unknown;
+		}
+	}) as T;
+}
+
 describe('emptyDraft', () => {
 	it('produces a valid V2 envelope with no character book', () => {
 		const card = cardFromDraft(emptyDraft());
@@ -93,6 +107,21 @@ describe('emptyDraft', () => {
 });
 
 describe('round trips', () => {
+	it('accepts reactive state without throwing', () => {
+		const card = fullCard();
+		const proxied = reactive(card);
+
+		// The failure mode being worked around: structuredClone rejects proxies.
+		expect(() => structuredClone(proxied)).toThrow();
+		expect(() => draftFromCard(proxied)).not.toThrow();
+		// A proxy must behave exactly like the plain object it wraps, including
+		// preserving the keys this editor does not understand.
+		const saved = cardFromDraft(draftFromCard(proxied));
+		expect(saved).toEqual(cardFromDraft(draftFromCard(card)));
+		expect(entry(saved).future_entry_key).toBe('keep');
+		expect(book(saved).future_book_key).toBe(42);
+	});
+
 	it('keeps unknown keys at every level', () => {
 		const card = fullCard();
 		const saved = cardFromDraft(draftFromCard(card));

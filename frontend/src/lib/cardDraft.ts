@@ -74,6 +74,21 @@ export function isObject(value: unknown): value is JsonObject {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Deep-copy JSON data.
+ *
+ * `structuredClone` throws `DataCloneError` when handed a `Proxy`, and a card can
+ * reach the editor as Svelte reactive state (which deep-proxies plain objects).
+ * Cards are JSON by definition, so a JSON round trip is a faithful fallback.
+ */
+function cloneJson<T>(value: T): T {
+	try {
+		return structuredClone(value);
+	} catch {
+		return JSON.parse(JSON.stringify(value)) as T;
+	}
+}
+
 /** Parse a JSON text produced by `JSON.stringify`, for the form fields. */
 export function parseJsonText(text: string): JsonResult {
 	const trimmed = text.trim();
@@ -152,7 +167,7 @@ export function draftFromCard(card: JsonObject): Draft {
 	const bookJson = isObject(data.character_book) ? data.character_book : null;
 
 	return {
-		base: structuredClone(card),
+		base: cloneJson(card),
 		name: stringAt(data, 'name'),
 		description: stringAt(data, 'description'),
 		personality: stringAt(data, 'personality'),
@@ -172,7 +187,7 @@ export function draftFromCard(card: JsonObject): Draft {
 }
 
 export function cardFromDraft(draft: Draft): JsonObject {
-	const card = structuredClone(draft.base);
+	const card = cloneJson(draft.base);
 	card.spec = 'chara_card_v2';
 	card.spec_version = '2.0';
 
@@ -246,7 +261,7 @@ export function bookProblems(book: DraftBook): string[] {
 export function bookFromJson(bookJson: JsonObject): DraftBook {
 	const entriesJson = Array.isArray(bookJson.entries) ? bookJson.entries : [];
 	return {
-		base: structuredClone(bookJson),
+		base: cloneJson(bookJson),
 		name: stringAt(bookJson, 'name'),
 		description: stringAt(bookJson, 'description'),
 		scanDepth: numberTextAt(bookJson, 'scan_depth'),
@@ -260,7 +275,7 @@ export function bookFromJson(bookJson: JsonObject): DraftBook {
 function entryFromJson(entry: JsonObject): DraftEntry {
 	const position = entry.position;
 	return {
-		base: structuredClone(entry),
+		base: cloneJson(entry),
 		keys: stringListAt(entry, 'keys').join(', '),
 		secondaryKeys: stringListAt(entry, 'secondary_keys').join(', '),
 		content: stringAt(entry, 'content'),
@@ -279,7 +294,7 @@ function entryFromJson(entry: JsonObject): DraftEntry {
 }
 
 export function bookFromDraft(book: DraftBook): JsonObject {
-	const out = structuredClone(book.base);
+	const out = cloneJson(book.base);
 	setOptional(out, 'name', book.name);
 	setOptional(out, 'description', book.description);
 	setNumberText(out, 'scan_depth', book.scanDepth);
@@ -291,7 +306,7 @@ export function bookFromDraft(book: DraftBook): JsonObject {
 }
 
 function entryFromDraft(entry: DraftEntry): JsonObject {
-	const out = structuredClone(entry.base);
+	const out = cloneJson(entry.base);
 	out.keys = splitList(entry.keys);
 	out.content = entry.content;
 	out.extensions = jsonOrRaw(entry.extensions, out.extensions);
