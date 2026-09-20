@@ -44,8 +44,9 @@
 <div class="shell">
 	{#if auth.isAuthenticated}
 		<header class="nav">
-			<a class="brand" href="/characters">Sparkl Chat</a>
+			<a class="brand" href="/">Sparkl Chat</a>
 			<nav>
+				<a href="/" class:active={page.url.pathname === '/'}>Home</a>
 				<a href="/characters" class:active={page.url.pathname.startsWith('/characters')}>
 					Characters
 				</a>

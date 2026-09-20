@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from sqlalchemy import func
 from sqlmodel import select
 
 from sparklchat.api.access import readable_character
@@ -28,6 +29,7 @@ from sparklchat.models.chat import (
     SessionCharacter,
     SessionCreate,
     SessionDetail,
+    SessionListItem,
     SessionSummary,
     SessionUpdate,
     SwipeRequest,
@@ -40,6 +42,7 @@ from sparklchat.services.chat import (
     build_session_prompt,
     cast_by_id,
     cast_public,
+    character_name,
     create_greeting,
     message_public,
     prompt_context,
@@ -69,6 +72,8 @@ router = APIRouter(prefix="/sessions", tags=["chat"])
 character_router = APIRouter(prefix="/characters", tags=["chat"])
 
 _NO_PROVIDER = "No provider configured. Add one under Settings and make it your default."
+# How much of the latest message the dashboard preview keeps.
+PREVIEW_LENGTH = 160
 
 
 async def _owned_session(db: SessionDep, session_id: int, user_id: int) -> ChatSession:
@@ -92,6 +97,28 @@ async def _owned_provider(db: SessionDep, provider_id: int, user_id: int) -> Pro
 async def _load_messages(db: SessionDep, session_id: int) -> list[Message]:
     statement = select(Message).where(Message.session_id == session_id).order_by(Message.id)
     return list((await db.exec(statement)).all())
+
+
+def _preview(content: str) -> str:
+    """Collapse whitespace and clip to a single-line preview."""
+    text = " ".join(content.split())
+    if len(text) <= PREVIEW_LENGTH:
+        return text
+    return text[: PREVIEW_LENGTH - 1].rstrip() + "\u2026"
+
+
+async def _last_messages(db: SessionDep, session_ids: list[int]) -> dict[int, str]:
+    """The newest message per session, keyed by session id."""
+    if not session_ids:
+        return {}
+    newest = (
+        select(Message.session_id, func.max(Message.id).label("message_id"))
+        .where(Message.session_id.in_(session_ids))
+        .group_by(Message.session_id)
+        .subquery()
+    )
+    rows = (await db.exec(select(Message).join(newest, Message.id == newest.c.message_id))).all()
+    return {row.session_id: row.content for row in rows}
 
 
 def _summary(session: ChatSession) -> SessionSummary:
@@ -275,6 +302,33 @@ async def list_sessions(
         .order_by(ChatSession.updated_at.desc())
     )
     return [_summary(row) for row in (await db.exec(statement)).all()]
+
+
+@router.get("")
+async def list_recent_sessions(
+    db: SessionDep,
+    current_user: CurrentUserDep,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> list[SessionListItem]:
+    """The user's most recently active sessions, across every character."""
+    statement = (
+        select(ChatSession, Character)
+        .join(Character, ChatSession.character_id == Character.id)
+        .where(ChatSession.user_id == current_user.id)
+        .order_by(ChatSession.updated_at.desc(), ChatSession.id.desc())
+        .limit(limit)
+    )
+    rows = (await db.exec(statement)).all()
+    previews = await _last_messages(db, [session.id for session, _ in rows])
+    return [
+        SessionListItem(
+            **_summary(session).model_dump(),
+            character_name=character_name(character),
+            character_has_avatar=bool(character.avatar_path),
+            last_message=_preview(previews[session.id]) if session.id in previews else None,
+        )
+        for session, character in rows
+    ]
 
 
 @character_router.post("/{character_id}/sessions", status_code=status.HTTP_201_CREATED)

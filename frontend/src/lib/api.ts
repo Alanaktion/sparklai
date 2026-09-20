@@ -514,6 +514,22 @@ export function listSessions(token: string, characterId: number): Promise<Sessio
 	});
 }
 
+export type SessionListItem = SessionSummary & {
+	/** The primary character's display name. */
+	character_name: string;
+	character_has_avatar: boolean;
+	/** A one-line preview of the latest message; null for an empty session. */
+	last_message: string | null;
+};
+
+/** The signed-in user's most recently active sessions, across all characters. */
+export function listRecentSessions(token: string, limit = 20): Promise<SessionListItem[]> {
+	const params = new URLSearchParams({ limit: String(limit) });
+	return apiFetch<SessionListItem[]>(`/sessions?${params.toString()}`, {
+		headers: bearer(token)
+	});
+}
+
 export function createSession(
 	token: string,
 	characterId: number,

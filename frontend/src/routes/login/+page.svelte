@@ -13,7 +13,7 @@
 	function redirectTarget(): string {
 		const target = page.url.searchParams.get('redirectTo');
 		// Only ever redirect to an in-app path.
-		return target && target.startsWith('/') ? target : '/characters';
+		return target && target.startsWith('/') ? target : '/';
 	}
 
 	$effect(() => {

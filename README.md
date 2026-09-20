@@ -103,6 +103,7 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | GET | `/api/characters/{id}/export` | Export as `?format=v1`, `v2`, `v3`, `png`, or `charx` |
 | GET | `/api/characters/{id}/sessions` | Chat sessions for this character |
 | POST | `/api/characters/{id}/sessions` | Start a session (seeds the greeting) |
+| GET | `/api/sessions` | Your recent sessions, across all characters (dashboard) |
 | GET | `/api/sessions/{id}` | Session plus its messages |
 | PATCH | `/api/sessions/{id}` | Title, provider override, prompt overrides, book toggle |
 | DELETE | `/api/sessions/{id}` | Delete the session and its messages |

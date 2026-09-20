@@ -103,6 +103,11 @@ Streaming endpoints (`.../messages/stream`, `.../regenerate/stream`) emit SSE
 events `user` → `delta`* → `message` → `done` (or `error`); if the stream fails
 mid-way, whatever text arrived is still persisted before the `error` event.
 
+`GET /api/sessions` lists the user's sessions across *all* characters (newest
+activity first, joined to the primary character's name/avatar and a one-line
+preview of the latest message) — it backs the dashboard, unlike the
+per-character `GET /api/characters/{id}/sessions`.
+
 ### Character cards
 
 Cards are stored as the canonical card JSON in whichever envelope they arrived
@@ -158,6 +163,9 @@ which fake a build output rather than requiring a real `npm run build`.
 
 ### Frontend (`frontend/src/`)
 
+- `routes/+page.svelte` — the dashboard at `/`, the default view for signed-in
+  users: recent chats (`GET /api/sessions`) and recently updated characters,
+  each with a one-click "New chat". Signed-out visitors go to `/login`.
 - `lib/api.ts` — typed client for every `/api` endpoint; this is the contract
   boundary the backend must keep in sync with.
 - `lib/markdown.ts` — a small roleplay-specific Markdown-like parser (see

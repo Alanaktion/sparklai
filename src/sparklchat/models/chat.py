@@ -107,6 +107,15 @@ class SessionSummary(SQLModel):
     updated_at: datetime
 
 
+class SessionListItem(SessionSummary):
+    """A session row for the dashboard, with its primary character's context."""
+
+    character_name: str
+    character_has_avatar: bool
+    # A short preview of the latest message; null until the session has one.
+    last_message: str | None
+
+
 class SessionCharacterPublic(SQLModel):
     """A member of a session's cast, for the chat UI."""
 

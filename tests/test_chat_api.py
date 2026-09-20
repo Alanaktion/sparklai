@@ -80,6 +80,7 @@ async def make_session(
 async def test_endpoints_require_authentication(client: AsyncClient) -> None:
     assert (await client.get("/api/characters/1/sessions")).status_code == 401
     assert (await client.post("/api/characters/1/sessions", json={})).status_code == 401
+    assert (await client.get("/api/sessions")).status_code == 401
     assert (await client.get("/api/sessions/1")).status_code == 401
     assert (
         await client.post("/api/sessions/1/messages", json={"content": "hi"})
@@ -144,6 +145,62 @@ async def test_sessions_are_listed_per_character(
 
     listing = await client.get(f"/api/characters/{character['id']}/sessions", headers=auth_headers)
     assert [item["id"] for item in listing.json()] == [session["id"]]
+
+
+async def test_recent_sessions_span_characters(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
+) -> None:
+    first = await make_character(client, auth_headers, v2_card)
+    second_card = copy.deepcopy(v2_card)
+    second_card["data"]["name"] = "Kyon"
+    second = await make_character(client, auth_headers, second_card)
+
+    older = await make_session(client, auth_headers, first["id"])
+    newer = await make_session(client, auth_headers, second["id"])
+
+    response = await client.get("/api/sessions", headers=auth_headers)
+    assert response.status_code == 200
+    items = response.json()
+    assert [item["id"] for item in items] == [newer["id"], older["id"]]
+    assert [item["character_name"] for item in items] == ["Kyon", "Haruhi"]
+    assert items[0]["character_has_avatar"] is False
+    # The seeded greeting is the newest (and only) message so far.
+    assert items[0]["last_message"] == "Hi!"
+    assert "messages" not in items[0]
+
+    capped = await client.get("/api/sessions?limit=1", headers=auth_headers)
+    assert [item["id"] for item in capped.json()] == [newer["id"]]
+
+
+async def test_recent_sessions_follow_latest_activity(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    await make_provider(client, auth_headers)
+    install_stub(monkeypatch, reply="Sure thing.")
+    character = await make_character(client, auth_headers, v2_card)
+    older = await make_session(client, auth_headers, character["id"])
+    newer = await make_session(client, auth_headers, character["id"])
+
+    # Replying in the older session makes it the most recent one again.
+    sent = await client.post(
+        f"/api/sessions/{older['id']}/messages", json={"content": "hi"}, headers=auth_headers
+    )
+    assert sent.status_code == 200, sent.text
+
+    items = (await client.get("/api/sessions", headers=auth_headers)).json()
+    assert [item["id"] for item in items] == [older["id"], newer["id"]]
+    assert items[0]["last_message"] == "Sure thing."
+
+
+async def test_recent_sessions_are_isolated_per_user(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, login_as
+) -> None:
+    character = await make_character(client, auth_headers, v2_card)
+    await make_session(client, auth_headers, character["id"])
+
+    other = await login_as("other@example.com")
+    assert (await client.get("/api/sessions", headers=other)).json() == []
+    assert len((await client.get("/api/sessions", headers=auth_headers)).json()) == 1
 
 
 async def test_session_updates(
