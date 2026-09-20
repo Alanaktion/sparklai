@@ -6,12 +6,18 @@ Alembic autogenerate and `create_db_and_tables` both rely on.
 
 from sparklchat.models.base import utcnow
 from sparklchat.models.card import (
+    DEFAULT_ASSETS,
+    CardAsset,
     CardFields,
     CharacterBook,
     CharacterBookEntry,
+    CharacterCard,
     CharacterCardData,
+    CharacterCardDataV3,
+    LorebookEnvelope,
     TavernCardV1,
     TavernCardV2,
+    TavernCardV3,
 )
 from sparklchat.models.character import (
     Character,
@@ -47,16 +53,21 @@ from sparklchat.models.user_settings import (
 )
 
 __all__ = [
+    "CardAsset",
     "CardFields",
     "Character",
     "CharacterBook",
     "CharacterBookEntry",
+    "CharacterCard",
     "CharacterCardData",
+    "CharacterCardDataV3",
     "CharacterDetail",
     "CharacterSummary",
     "CharacterTag",
     "CharacterUpdate",
     "ChatSession",
+    "DEFAULT_ASSETS",
+    "LorebookEnvelope",
     "Message",
     "MessagePair",
     "MessagePublic",
@@ -73,6 +84,7 @@ __all__ = [
     "SwipeRequest",
     "TavernCardV1",
     "TavernCardV2",
+    "TavernCardV3",
     "Token",
     "User",
     "UserCreate",

@@ -1,11 +1,11 @@
 """Session and message helpers: greetings, swipes, titles, prompt context."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from sparklchat.models.card import CharacterBook, TavernCardV2
+from sparklchat.models.card import CharacterBook, CharacterCard
 from sparklchat.models.character import Character
 from sparklchat.models.chat import (
     ChatSession,
@@ -16,6 +16,12 @@ from sparklchat.models.chat import (
 )
 from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettings
+from sparklchat.services.cards import (
+    card_group_greetings,
+    card_nickname,
+    card_user_icon,
+    load_card,
+)
 from sparklchat.services.prompts import (
     CastMember,
     HistoryTurn,
@@ -27,10 +33,12 @@ from sparklchat.services.providers import ChatMessage
 from sparklchat.services.tokens import count_tokens
 
 TITLE_MAX_LENGTH = 60
+# Cap on stored per-entry match counts, so a long session cannot grow unbounded.
+ACTIVATION_LIMIT = 100
 
 
-def card_of(character: Character) -> TavernCardV2:
-    return TavernCardV2.model_validate(character.card_json)
+def card_of(character: Character) -> CharacterCard:
+    return load_card(character.card_json)
 
 
 def character_name(character: Character) -> str:
@@ -95,10 +103,10 @@ def speaker_map(characters: Sequence[Character]) -> dict[int, str]:
     return {character.id: character_name(character) for character in characters if character.id}
 
 
-def prompt_context(card: TavernCardV2, settings: UserSettings | None) -> PromptContext:
+def prompt_context(card: CharacterCard, settings: UserSettings | None) -> PromptContext:
     user_name = (settings.display_name if settings else "") or "User"
     return PromptContext(
-        character_name=(card.data.name or "").strip() or "Character",
+        character_name=card_nickname(card),
         user_name=user_name.strip() or "User",
     )
 
@@ -124,17 +132,30 @@ def message_public(message: Message) -> MessagePublic:
     )
 
 
-def greeting_variants(card: TavernCardV2, context: PromptContext) -> list[str]:
-    """`first_mes` plus `alternate_greetings`, with macros resolved."""
+def greeting_variants(
+    card: CharacterCard, context: PromptContext, *, group: bool = False
+) -> list[str]:
+    """`first_mes`, `alternate_greetings`, and (in a group) the group greetings.
+
+    Macros are resolved here so the greeting is stored with the character's
+    nickname and the user's display name already substituted.
+    """
     candidates = [card.data.first_mes, *card.data.alternate_greetings]
+    if group:
+        candidates.extend(card_group_greetings(card))
     return [substitute_macros(text, context) for text in candidates if text and text.strip()]
 
 
 async def create_greeting(
-    db: AsyncSession, session: ChatSession, card: TavernCardV2, context: PromptContext
+    db: AsyncSession,
+    session: ChatSession,
+    card: CharacterCard,
+    context: PromptContext,
+    *,
+    group: bool = False,
 ) -> Message | None:
     """Seed a new session with the greeting as the first assistant message."""
-    variants = greeting_variants(card, context)
+    variants = greeting_variants(card, context, group=group)
     if not variants:
         return None
 
@@ -214,6 +235,14 @@ def history_turns(
     return turns
 
 
+def active_greeting_index(messages: Sequence[Message]) -> int | None:
+    """The swipe index of the session's greeting, for `@@is_greeting`."""
+    for message in messages:
+        if message.is_greeting:
+            return message.swipe_index
+    return None
+
+
 def settings_world_book(settings: UserSettings | None) -> CharacterBook | None:
     """The user's world book, validated, or None when they have not written one."""
     raw = settings.world_book if settings else None
@@ -222,9 +251,29 @@ def settings_world_book(settings: UserSettings | None) -> CharacterBook | None:
     return CharacterBook.model_validate(raw)
 
 
+def activation_counts(session: ChatSession) -> dict[str, int]:
+    """How often each lorebook entry has matched in this session so far."""
+    state = (session.lorebook_state or {}).get("matches")
+    if not isinstance(state, dict):
+        return {}
+    return {
+        str(key): int(value)
+        for key, value in state.items()
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    }
+
+
+def record_activations(session: ChatSession, keys: Iterable[str]) -> None:
+    """Bump the match counts for the entries that matched this turn."""
+    counts = activation_counts(session)
+    for key in keys:
+        counts[key] = min(counts.get(key, 0) + 1, ACTIVATION_LIMIT)
+    session.lorebook_state = {**(session.lorebook_state or {}), "matches": counts}
+
+
 def build_session_prompt(
     *,
-    card: TavernCardV2,
+    card: CharacterCard,
     session: ChatSession,
     messages: Sequence[Message],
     settings: UserSettings | None,
@@ -232,7 +281,10 @@ def build_session_prompt(
     context_reserve: int,
     cast: Sequence[CastMember] | None = None,
     speakers: Mapping[int, str] | None = None,
+    activation_counts: Mapping[str, int] | None = None,
+    matched_keys: set[str] | None = None,
 ) -> list[ChatMessage]:
+    user_icon = card_user_icon(card)
     return build_prompt(
         card,
         history_turns(messages, speakers),
@@ -247,6 +299,10 @@ def build_session_prompt(
         cast=cast,
         context_window=context_window,
         context_reserve=context_reserve,
+        greeting_index=active_greeting_index(messages),
+        user_icon=user_icon.name if user_icon is not None else None,
+        activation_counts=activation_counts,
+        matched_keys=matched_keys,
     )
 
 

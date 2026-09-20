@@ -1,7 +1,7 @@
 # Sparkl Chat
 
 A self-hosted web app for roleplay chat with AI-backed characters, supporting
-Character Card V1 and V2 (see [`docs/`](docs) for the specs) and multiple
+Character Card V1, V2, and V3 (see [`docs/`](docs) for the specs) and multiple
 independently configured AI providers.
 
 > Status: early scaffolding. See [`PLAN.md`](PLAN.md) for the full roadmap.
@@ -92,14 +92,15 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | POST | `/api/providers/{id}/test` | Send a tiny prompt to verify the connection |
 | POST | `/api/providers/{id}/complete` | One-off completion |
 | POST | `/api/providers/{id}/complete/stream` | The same, streamed as Server-Sent Events |
-| POST | `/api/characters` | Create from a V1 or V2 card (JSON body) |
-| POST | `/api/characters/upload` | Import a PNG card or JSON file (multipart `file`) |
+| POST | `/api/characters` | Create from a V1, V2, or V3 card (JSON body) |
+| POST | `/api/characters/upload` | Import a PNG card, CHARX package, or JSON file (multipart `file`) |
 | GET | `/api/characters` | List your characters (`q`, `limit`, `offset`) |
 | GET | `/api/characters/{id}` | Character detail, including the canonical card |
 | PATCH | `/api/characters/{id}` | Replace the card (`{"card": {...}}`) |
 | DELETE | `/api/characters/{id}` | Delete the character and its avatar |
-| GET | `/api/characters/{id}/avatar` | The character's avatar PNG |
-| GET | `/api/characters/{id}/export` | Export as `?format=v1`, `v2`, or `png` |
+| GET | `/api/characters/{id}/avatar` | The character's avatar image |
+| GET | `/api/characters/{id}/assets/{path}` | A binary asset from the stored CHARX package |
+| GET | `/api/characters/{id}/export` | Export as `?format=v1`, `v2`, `v3`, `png`, or `charx` |
 | GET | `/api/characters/{id}/sessions` | Chat sessions for this character |
 | POST | `/api/characters/{id}/sessions` | Start a session (seeds the greeting) |
 | GET | `/api/sessions/{id}` | Session plus its messages |
@@ -124,10 +125,12 @@ In Swagger UI, use the **Authorize** button to exercise authenticated routes.
 
 ## Character cards
 
-Cards are accepted as either **V1** (flat, six fields) or **V2** (`spec`,
-`spec_version`, `data`). Import always produces the canonical V2 form; the
-`source` column records whether the card arrived as `v1` or `v2`, and
-`GET .../export?format=v1` un-nests it again on request.
+Cards are accepted as **V1** (flat, six fields), **V2**, or **V3** (`spec`,
+`spec_version`, `data`), from raw JSON, an uploaded PNG, or a CHARX package.
+Import normalises V1 into V2 shape but otherwise keeps the format the card
+arrived in: V2 cards stay V2, V3 cards stay V3. The `source` column records
+`v1`, `v2`, or `v3`, and `GET .../export?format=...` converts on request —
+including `format=v3`, which fills the V3 defaults for a V2/V1 card.
 
 Fidelity rules, straight from the spec:
 
@@ -138,17 +141,49 @@ Fidelity rules, straight from the spec:
   ride along on the V2 card so a V1 export stays lossless.
 - `character_book` entries support every documented field, including
   `selective`/`secondary_keys`, `constant`, `position`, `insertion_order`,
-  `priority`, and `case_sensitive`.
+  `priority`, `case_sensitive`, and the V3 `use_regex` (whose `keys` are then
+  regex patterns, optionally written as `/pattern/flags`).
+- V3 cards keep their `nickname`, `assets`, `source`,
+  `creator_notes_multilingual`, `group_only_greetings`, `creation_date`, and
+  `modification_date`. `creation_date` is filled in when a V3 card is created
+  without one, and `modification_date` is refreshed on export.
 
 Validation is strict about *types* and about the `spec`, but lenient about field
 *presence*, because real-world cards routinely omit fields the spec calls
-mandatory. Unsupported specs (`chara_card_v3`) and `spec_version` values other
-than `2.0` are rejected with a 422 and a clear message.
+mandatory. A V3 card written to a newer `spec_version` is imported with a
+warning (`warnings` on the detail response) rather than rejected, and a V2 card
+whose `spec_version` is not `2.0` is rejected with a 422.
 
-PNG cards embed their JSON base64-encoded in a `tEXt` chunk. Import reads the
-`chara` chunk, falling back to `ccv3`; export writes `chara`. Only that chunk is
-touched, so other PNG metadata is preserved byte-for-byte. Exporting a character
-that has no avatar uses a 1×1 transparent placeholder image.
+### Embedding methods
+
+- **JSON** — the card object on its own.
+- **PNG** — the JSON base64-encoded in a `tEXt` chunk: `ccv3` for V3 cards,
+  `chara` for V1/V2. The spec says `ccv3` wins when a file carries both, so that
+  is the read order, and a V3 export writes `ccv3`. Binary assets may also ride
+  along in `chara-ext-asset_:{path}` chunks; those are read (never written) and
+  preserved. Only the chunks we care about are touched, so other PNG metadata is
+  preserved byte-for-byte. Exporting a character with no avatar uses a 1×1
+  transparent placeholder image.
+- **CHARX** — a zip with `card.json` at its root plus the card's binary assets.
+  Assets are served through `/api/characters/{id}/assets/{path}` so an
+  `embeded://path` asset URI works in the UI, and the package is kept on disk so
+  a CHARX export round-trips losslessly. Encrypted packages and packages without
+  a root `card.json` are rejected.
+
+### Prompts and lorebooks
+
+The V3 spec's lorebook decorators (`@@activate`, `@@dont_activate`,
+`@@scan_depth`, `@@activate_only_after`/`@@activate_only_every`,
+`@@keep_activate_after_match`/`@@dont_activate_after_match`, `@@is_greeting`,
+`@@is_user_icon`, `@@additional_keys`/`@@exclude_keys`,
+`@@ignore_on_max_context`, `@@depth`/`@@role`, and `@@position`,
+`@@disable_ui_prompt`) are honoured when assembling prompts, as are the
+curly-braced syntaxes (`{{char}}` uses the nickname, `{{random:}}`, `{{pick:}}`,
+`{{roll:}}`, `{{// }}`, `{{hidden_key:}}`, `{{comment:}}`, `{{reverse:}}`).
+Decorator lines are stripped before a lorebook entry's content reaches the
+model. `@@keep_activate_after_match`/`@@dont_activate_after_match` need to know
+whether an entry matched before; that count is kept per session in
+`chat_sessions.lorebook_state` and refreshed on every generation.
 
 ## Providers
 
@@ -228,13 +263,13 @@ frontend/                    SvelteKit SPA (Svelte 5 + TypeScript)
 src/sparklchat/
   api/                       HTTP routers (`/api` prefix), auth deps, health checks
   models/                    SQLModel tables (users, providers, characters, chat)
-  services/                  Card parsing, PNG I/O, crypto, providers, prompts
+  services/                  Card parsing, PNG/CHARX I/O, macros, providers, prompts
     providers/               OpenAI-compatible, Anthropic, and Ollama clients
   cli.py                     `sparklchat` console entry point
   config.py                  Settings, package paths, frontend build location
   db.py                      Async engine, session dependency, schema helpers
   main.py                    App factory, API routing, SPA serving
-data/                        Local uploads (avatars); gitignored
+data/                        Local uploads (avatars, CHARX packages); gitignored
 tests/                       pytest suite
 ```
 

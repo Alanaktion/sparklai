@@ -24,6 +24,7 @@ PASSWORD = "correct horse battery staple"
 def isolated_uploads(tmp_path, monkeypatch) -> None:
     """Keep uploads out of the real tree and token counting offline/deterministic."""
     monkeypatch.setenv("AVATAR_DIR", str(tmp_path / "avatars"))
+    monkeypatch.setenv("PACKAGE_DIR", str(tmp_path / "packages"))
     # tiktoken downloads its BPE data on first use; tests stay offline.
     monkeypatch.setenv("TOKENIZER", "heuristic")
     get_settings.cache_clear()
@@ -173,6 +174,66 @@ def v2_card() -> dict:
             "creator": "tests",
             "character_version": "1.1",
             "extensions": {"card_ext": {"nested": "value"}},
+        },
+    }
+
+
+@pytest.fixture
+def v3_card() -> dict:
+    """A V3 card exercising the fields V2 does not have."""
+    return {
+        "spec": "chara_card_v3",
+        "spec_version": "3.0",
+        "data": {
+            "name": "Haruhi",
+            "nickname": "Haru",
+            "description": "A cheerful but blunt student.",
+            "personality": "Energetic and demanding.",
+            "scenario": "The club room after school.",
+            "first_mes": "Hi!",
+            "mes_example": "",
+            "creator_notes": "Made for tests.",
+            "creator_notes_multilingual": {"en": "English notes.", "ja": "Japanese notes."},
+            "system_prompt": "You are {{char}}.",
+            "post_history_instructions": "",
+            "alternate_greetings": ["Oh, it's you."],
+            "group_only_greetings": ["Everyone, listen up!"],
+            "source": ["example-id", "https://example.com/haruhi.png"],
+            "assets": [
+                {
+                    "type": "icon",
+                    "uri": "embeded://assets/icon/images/main.png",
+                    "name": "main",
+                    "ext": "png",
+                },
+                {
+                    "type": "user_icon",
+                    "uri": "ccdefault:",
+                    "name": "Ash",
+                    "ext": "png",
+                },
+            ],
+            "creation_date": 1700000000,
+            "modification_date": 1700000100,
+            "character_book": {
+                "name": "Club",
+                "extensions": {},
+                "entries": [
+                    {
+                        "keys": [r"/brigade|club/i"],
+                        "content": "The SOS Brigade.",
+                        "enabled": True,
+                        "insertion_order": 10,
+                        "use_regex": True,
+                        "id": "brigade-lore",
+                        "extensions": {"entry_ext": [1, 2, 3]},
+                    }
+                ],
+            },
+            "tags": ["Anime", "school"],
+            "creator": "tests",
+            "character_version": "1.1",
+            "extensions": {"card_ext": {"keep": True}},
         },
     }
 

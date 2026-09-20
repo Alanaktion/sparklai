@@ -18,18 +18,31 @@ function fullCard(): JsonObject {
 		future_top_level: { keep: true },
 		data: {
 			name: 'Haruhi',
+			nickname: 'Haru',
 			description: 'A blunt student.',
 			personality: 'Bold.',
 			scenario: 'The club room.',
 			first_mes: 'Hi!',
 			mes_example: 'example',
 			creator_notes: 'Notes.',
+			creator_notes_multilingual: { en: 'Notes.', ja: 'メモ。' },
 			system_prompt: 'You are {{char}}.',
 			post_history_instructions: 'Stay in character.',
 			alternate_greetings: ['Oh, it is you.', 'Hey.'],
+			group_only_greetings: ['Club members only.'],
 			tags: ['anime', 'school'],
 			creator: 'tests',
 			character_version: '1.1',
+			source: ['sos-brigade', 'https://example.com/haruhi.png'],
+			assets: [
+				{
+					type: 'icon',
+					uri: 'embeded://assets/icon/main.png',
+					name: 'main',
+					ext: 'png',
+					future_asset_key: 'keep'
+				}
+			],
 			future_data_key: ['keep', 'me'],
 			extensions: { card_ext: { nested: 'value' } },
 			character_book: {
@@ -50,6 +63,7 @@ function fullCard(): JsonObject {
 						case_sensitive: true,
 						selective: true,
 						constant: false,
+						use_regex: true,
 						position: 'before_char',
 						priority: 5,
 						id: 1,
@@ -91,18 +105,23 @@ function reactive<T>(value: T): T {
 }
 
 describe('emptyDraft', () => {
-	it('produces a valid V2 envelope with no character book', () => {
+	it('produces a valid V3 envelope with no character book', () => {
 		const card = cardFromDraft(emptyDraft());
 
-		expect(card.spec).toBe('chara_card_v2');
-		expect(card.spec_version).toBe('2.0');
+		expect(card.spec).toBe('chara_card_v3');
+		expect(card.spec_version).toBe('3.0');
 		expect(data(card).name).toBe('');
 		expect(data(card).first_mes).toBe('');
 		expect(data(card).mes_example).toBe('');
 		expect(data(card).alternate_greetings).toEqual([]);
+		expect(data(card).group_only_greetings).toEqual([]);
 		expect(data(card).tags).toEqual([]);
 		expect(data(card).extensions).toEqual({});
 		expect('character_book' in data(card)).toBe(false);
+		expect('nickname' in data(card)).toBe(false);
+		expect('source' in data(card)).toBe(false);
+		expect('assets' in data(card)).toBe(false);
+		expect('creator_notes_multilingual' in data(card)).toBe(false);
 	});
 });
 
@@ -130,6 +149,9 @@ describe('round trips', () => {
 		expect(data(saved).future_data_key).toEqual(['keep', 'me']);
 		expect(book(saved).future_book_key).toBe(42);
 		expect(entry(saved).future_entry_key).toBe('keep');
+
+		const assets = data(saved).assets as JsonObject[];
+		expect(assets[0]!.future_asset_key).toBe('keep');
 	});
 
 	it('keeps extensions at card, book and entry level', () => {
@@ -145,10 +167,14 @@ describe('round trips', () => {
 		const saved = cardFromDraft(draftFromCard(fullCard()));
 
 		expect(data(saved).name).toBe('Haruhi');
+		expect(data(saved).nickname).toBe('Haru');
 		expect(data(saved).creator_notes).toBe('Notes.');
+		expect(data(saved).creator_notes_multilingual).toEqual({ en: 'Notes.', ja: 'メモ。' });
 		expect(data(saved).system_prompt).toBe('You are {{char}}.');
 		expect(data(saved).post_history_instructions).toBe('Stay in character.');
 		expect(data(saved).alternate_greetings).toEqual(['Oh, it is you.', 'Hey.']);
+		expect(data(saved).group_only_greetings).toEqual(['Club members only.']);
+		expect(data(saved).source).toEqual(['sos-brigade', 'https://example.com/haruhi.png']);
 		expect(data(saved).tags).toEqual(['anime', 'school']);
 		expect(data(saved).creator).toBe('tests');
 		expect(data(saved).character_version).toBe('1.1');
@@ -176,6 +202,18 @@ describe('round trips', () => {
 		expect(typeof book(saved).scan_depth).toBe('number');
 		expect(typeof entry(saved).insertion_order).toBe('number');
 		expect(typeof entry(saved).priority).toBe('number');
+	});
+
+	it('preserves a string entry id and only re-types an edited one', () => {
+		const card = fullCard();
+		entry(card).id = 'brigade-lore';
+
+		const draft = draftFromCard(card);
+		expect(draft.book!.entries[0]!.id).toBe('brigade-lore');
+		expect(entry(cardFromDraft(draft)).id).toBe('brigade-lore');
+
+		draft.book!.entries[0]!.id = '12';
+		expect(entry(cardFromDraft(draft)).id).toBe(12);
 	});
 
 	it('leaves a card without a character book alone', () => {
@@ -257,6 +295,142 @@ describe('round trips', () => {
 	});
 });
 
+describe('V3 fields', () => {
+	it('reads nickname, group greetings, multilingual notes, source, assets and use_regex', () => {
+		const draft = draftFromCard(fullCard());
+
+		expect(draft.nickname).toBe('Haru');
+		expect(draft.groupOnlyGreetings).toEqual(['Club members only.']);
+		expect(draft.creatorNotesMultilingual).toEqual([
+			{ key: 'en', value: 'Notes.' },
+			{ key: 'ja', value: 'メモ。' }
+		]);
+		expect(draft.source).toEqual(['sos-brigade', 'https://example.com/haruhi.png']);
+		expect(draft.assets).toHaveLength(1);
+		expect(draft.assets[0]).toMatchObject({
+			type: 'icon',
+			uri: 'embeded://assets/icon/main.png',
+			name: 'main',
+			ext: 'png'
+		});
+		expect(draft.assets[0]!.base.future_asset_key).toBe('keep');
+		expect(draft.book!.entries[0]!.useRegex).toBe(true);
+	});
+
+	it('defaults missing V3 fields and skips malformed rows', () => {
+		const draft = draftFromCard({
+			data: {
+				name: 'Plain',
+				creator_notes_multilingual: { en: 'Notes.', de: 7 },
+				assets: [{ type: 'icon' }, 'not an object'],
+				character_book: { entries: [{ keys: ['club'], content: 'Lore.' }] }
+			}
+		});
+
+		expect(draft.nickname).toBe('');
+		expect(draft.groupOnlyGreetings).toEqual([]);
+		expect(draft.source).toEqual([]);
+		expect(draft.creatorNotesMultilingual).toEqual([{ key: 'en', value: 'Notes.' }]);
+		expect(draft.assets).toHaveLength(1);
+		expect(draft.assets[0]).toMatchObject({ type: 'icon', uri: '', name: '', ext: '' });
+		expect(draft.book!.entries[0]!.useRegex).toBe(false);
+	});
+
+	it('writes spec, spec_version and an empty group greeting list for a bare draft', () => {
+		const card = cardFromDraft(emptyDraft());
+
+		expect(card.spec).toBe('chara_card_v3');
+		expect(card.spec_version).toBe('3.0');
+		expect(data(card).group_only_greetings).toEqual([]);
+	});
+
+	it('writes the optional V3 fields only when they carry a value', () => {
+		const draft = emptyDraft();
+		draft.name = 'Fresh';
+
+		const empty = data(cardFromDraft(draft));
+		for (const key of ['nickname', 'source', 'assets', 'creator_notes_multilingual']) {
+			expect(key in empty).toBe(false);
+		}
+
+		draft.nickname = '  Nick  ';
+		draft.source = ['  ', 'id-1'];
+		draft.creatorNotesMultilingual = [
+			{ key: '  ', value: 'ignored' },
+			{ key: ' en ', value: 'Notes.' }
+		];
+		draft.assets = [
+			{
+				base: { future_asset_key: 'keep' },
+				type: ' icon ',
+				uri: ' embeded://assets/icon/main.png ',
+				name: ' main ',
+				ext: ' png '
+			}
+		];
+
+		const filled = data(cardFromDraft(draft));
+		expect(filled.nickname).toBe('Nick');
+		expect(filled.source).toEqual(['id-1']);
+		expect(filled.creator_notes_multilingual).toEqual({ en: 'Notes.' });
+		expect(filled.assets).toEqual([
+			{
+				future_asset_key: 'keep',
+				type: 'icon',
+				uri: 'embeded://assets/icon/main.png',
+				name: 'main',
+				ext: 'png'
+			}
+		]);
+	});
+
+	it('keeps the last of duplicate multilingual rows', () => {
+		const draft = emptyDraft();
+		draft.name = 'Fresh';
+		draft.creatorNotesMultilingual = [
+			{ key: 'en', value: 'first' },
+			{ key: 'en', value: 'second' }
+		];
+
+		expect(data(cardFromDraft(draft)).creator_notes_multilingual).toEqual({ en: 'second' });
+	});
+
+	it('never writes or removes the backend-stamped dates', () => {
+		const card = fullCard();
+		data(card).creation_date = 1700000000;
+		data(card).modification_date = 1700000100;
+
+		const saved = data(cardFromDraft(draftFromCard(card)));
+		expect(saved.creation_date).toBe(1700000000);
+		expect(saved.modification_date).toBe(1700000100);
+
+		const fresh = data(cardFromDraft(emptyDraft()));
+		expect('creation_date' in fresh).toBe(false);
+		expect('modification_date' in fresh).toBe(false);
+	});
+
+	it('always writes `use_regex`, both false and true', () => {
+		const draft = draftFromCard(fullCard());
+		expect(entry(cardFromDraft(draft)).use_regex).toBe(true);
+
+		draft.book!.entries[0]!.useRegex = false;
+		expect(entry(cardFromDraft(draft)).use_regex).toBe(false);
+
+		const fresh = draftFromCard({ data: { name: 'Fresh' } });
+		fresh.book = {
+			base: {},
+			name: '',
+			description: '',
+			scanDepth: '',
+			tokenBudget: '',
+			recursiveScanning: false,
+			extensions: '{}',
+			entries: [{ ...emptyEntry(), keys: 'club' }]
+		};
+		expect(entry(cardFromDraft(fresh)).use_regex).toBe(false);
+	});
+});
+
 describe('draftProblems', () => {
 	it('accepts a well-formed draft', () => {
 		expect(draftProblems(draftFromCard(fullCard()))).toEqual([]);
@@ -290,6 +464,39 @@ describe('draftProblems', () => {
 
 		expect(problems).toContain('Scan depth must be a number.');
 		expect(problems).toContain('Brigade: priority must be a number.');
+	});
+
+	it('reports duplicate multilingual language codes', () => {
+		const draft = draftFromCard(fullCard());
+		draft.creatorNotesMultilingual = [
+			{ key: 'en', value: 'a' },
+			{ key: 'en', value: 'b' }
+		];
+
+		expect(draftProblems(draft)).toContain('Duplicate creator notes language "en".');
+	});
+
+	it('reports a language code that is not ISO 639-1', () => {
+		const draft = draftFromCard(fullCard());
+		draft.creatorNotesMultilingual = [{ key: 'en-US', value: 'a' }];
+
+		expect(draftProblems(draft)).toContain(
+			'Creator notes language "en-US" must be a 2-letter ISO 639-1 code.'
+		);
+	});
+
+	it('reports an asset extension that is not lowercase without a dot', () => {
+		const draft = draftFromCard(fullCard());
+
+		for (const ext of ['PNG', '.png', 'p ng', '']) {
+			draft.assets[0]!.ext = ext;
+			expect(draftProblems(draft)).toContain(
+				'Asset 1: extension must be lowercase without a dot.'
+			);
+		}
+
+		draft.assets[0]!.ext = 'png';
+		expect(draftProblems(draft)).toEqual([]);
 	});
 });
 

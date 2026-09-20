@@ -11,6 +11,8 @@ PROJECT_ROOT = PACKAGE_DIR.parent.parent
 FRONTEND_DIST_DIR = PROJECT_ROOT / "frontend" / "build"
 # Where uploaded character avatars are written.
 AVATAR_DIR = PROJECT_ROOT / "data" / "avatars"
+# Where imported CHARX/PNG packages (with their binary assets) are written.
+PACKAGE_DIR = PROJECT_ROOT / "data" / "packages"
 
 
 class Settings(BaseSettings):
@@ -47,6 +49,9 @@ class Settings(BaseSettings):
 
     # Directory holding uploaded character avatars.
     avatar_dir: Path = AVATAR_DIR
+
+    # Directory holding imported card packages (CHARX/PNG) with binary assets.
+    package_dir: Path = PACKAGE_DIR
 
 
 @lru_cache

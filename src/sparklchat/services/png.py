@@ -1,8 +1,11 @@
 """Minimal PNG `tEXt` chunk reader/writer for character cards.
 
 Cards embed their JSON as base64 inside a `tEXt` chunk: `chara` for V1/V2 and
-`ccv3` for V3. We speak V2, so `chara` wins when a file carries both; the V3
-chunk is only consulted as a fallback.
+`ccv3` for V3. The spec says `ccv3` wins when a file carries both, so that is the
+order we look in; `chara` is the fallback.
+
+PNGs may also carry binary assets in `chara-ext-asset_:{path}` chunks. New
+applications are told to prefer CHARX, so we only *read* these, never write them.
 
 Only the chunks we care about are touched — every other chunk (including
 unrelated `tEXt` metadata) is copied through byte-for-byte, and chunk CRCs are
@@ -18,8 +21,10 @@ from collections.abc import Iterator
 from typing import Any
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-# Ordered by preference: the first keyword present wins.
-CARD_KEYWORDS = ("chara", "ccv3")
+# Ordered by preference: the spec says `ccv3` wins when both are present.
+CARD_KEYWORDS = ("ccv3", "chara")
+# Keyword prefix for a binary asset embedded in a `tEXt` chunk.
+ASSET_PREFIX = "chara-ext-asset_:"
 _TEXT_CHUNK = b"tEXt"
 
 
@@ -65,18 +70,49 @@ def read_card_json(png: bytes) -> dict[str, Any]:
     raise PngError("no character card data found in the PNG")
 
 
-def embed_card_json(png: bytes, card_json: dict[str, Any], keyword: str = "chara") -> bytes:
+def read_asset_chunks(png: bytes) -> dict[str, bytes]:
+    """Extract embedded binary assets, keyed by their `chara-ext-asset_:` path.
+
+    Asset paths are case sensitive, so the raw keyword is read rather than the
+    lowercased map `_text_chunks` builds.
+    """
+    assets: dict[str, bytes] = {}
+    for chunk_type, data in iter_chunks(png):
+        if chunk_type != _TEXT_CHUNK:
+            continue
+        keyword, _, text = data.partition(b"\x00")
+        name = keyword.decode("latin-1")
+        if not name.lower().startswith(ASSET_PREFIX):
+            continue
+        path = name[len(ASSET_PREFIX) :]
+        if not path:
+            continue
+        try:
+            assets[path] = _decode_base64(text.decode("latin-1"))
+        except (binascii.Error, ValueError):
+            continue
+    return assets
+
+
+def card_keyword(card_json: dict[str, Any]) -> str:
+    """The chunk keyword a card should be embedded under: `ccv3` for V3."""
+    return "ccv3" if card_json.get("spec") == "chara_card_v3" else "chara"
+
+
+def embed_card_json(png: bytes, card_json: dict[str, Any], keyword: str | None = None) -> bytes:
     """Return `png` with `card_json` embedded in a `tEXt` chunk.
 
-    Any existing chunk with the same keyword is replaced, and the new chunk is
-    placed directly after `IHDR`.
+    The new chunk is placed directly after `IHDR`. Every existing card chunk
+    (`chara` and `ccv3` alike) is replaced, so re-exporting a different format
+    cannot leave a stale chunk behind that a reader would prefer. The keyword
+    defaults to `ccv3` for V3 cards and `chara` otherwise.
     """
     if not is_png(png):
         raise PngError("not a PNG file")
 
+    keyword = keyword or card_keyword(card_json)
     payload = base64.b64encode(_serialize(card_json).encode("utf-8"))
     new_chunk = _text_chunk(keyword, payload.decode("ascii"))
-    target = keyword.lower()
 
     out = bytearray(PNG_SIGNATURE)
     inserted = False
@@ -89,7 +125,7 @@ def embed_card_json(png: bytes, card_json: dict[str, Any], keyword: str = "chara
             continue
         if chunk_type == _TEXT_CHUNK:
             name = data.partition(b"\x00")[0].decode("latin-1").lower()
-            if name == target:
+            if name in CARD_KEYWORDS:
                 continue  # superseded by the chunk we just inserted
         if chunk_type == b"IEND":
             saw_iend = True
@@ -123,10 +159,8 @@ def _text_chunks(png: bytes) -> dict[str, str]:
 
 def _decode(text: str) -> dict[str, Any]:
     """Decode base64-encoded JSON, tolerating missing padding."""
-    compact = "".join(text.split())
-    padded = compact + "=" * (-len(compact) % 4)
     try:
-        raw = base64.b64decode(padded, validate=True)
+        raw = _decode_base64(text)
     except (binascii.Error, ValueError):
         raw = None
 
@@ -146,6 +180,13 @@ def _decode(text: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise PngError("character card data in the PNG is not a JSON object")
     return parsed
+
+
+def _decode_base64(text: str) -> bytes:
+    """Base64-decode chunk text, tolerating whitespace and missing padding."""
+    compact = "".join(text.split())
+    padded = compact + "=" * (-len(compact) % 4)
+    return base64.b64decode(padded, validate=True)
 
 
 def _serialize(card_json: dict[str, Any]) -> str:

@@ -15,7 +15,7 @@ from sparklchat.api.deps import CurrentUserDep
 from sparklchat.config import get_settings
 from sparklchat.db import SessionDep
 from sparklchat.models.base import utcnow
-from sparklchat.models.card import TavernCardV2
+from sparklchat.models.card import CharacterCard
 from sparklchat.models.character import Character
 from sparklchat.models.chat import (
     ChatSession,
@@ -34,13 +34,16 @@ from sparklchat.models.chat import (
 )
 from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettings
+from sparklchat.services.cards import load_card
 from sparklchat.services.chat import (
+    activation_counts,
     build_session_prompt,
     cast_by_id,
     cast_public,
     create_greeting,
     message_public,
     prompt_context,
+    record_activations,
     record_swipe,
     replace_active_content,
     resolve_provider,
@@ -134,7 +137,7 @@ class _Generation:
     session: ChatSession
     characters: list[Character]
     acting: Character
-    card: TavernCardV2
+    card: CharacterCard
     members: list[CastMember]
     speakers: dict[int, str]
     settings: UserSettings
@@ -192,7 +195,8 @@ async def _generation_context(
 
 def _prompt(generation: _Generation, messages: list[Message]):
     settings_values = get_settings()
-    return build_session_prompt(
+    matched_keys: set[str] = set()
+    prompt = build_session_prompt(
         card=generation.card,
         session=generation.session,
         messages=messages,
@@ -201,7 +205,13 @@ def _prompt(generation: _Generation, messages: list[Message]):
         context_reserve=settings_values.context_reserve,
         cast=generation.members,
         speakers=generation.speakers or None,
+        activation_counts=activation_counts(generation.session),
+        matched_keys=matched_keys,
     )
+    # The session row is committed alongside the reply, so the counters stick.
+    if matched_keys:
+        record_activations(generation.session, matched_keys)
+    return prompt
 
 
 async def _append_user_message(
@@ -289,7 +299,7 @@ async def create_session(
             continue
         characters.append(await readable_character(db, member_id, current_user.id))
 
-    card = TavernCardV2.model_validate(character.card_json)
+    card = load_card(character.card_json)
     settings = await get_or_create_settings(db, current_user.id)
 
     session = ChatSession(
@@ -306,7 +316,9 @@ async def create_session(
         db.add(SessionCharacter(session_id=session.id, character_id=member.id, position=position))
     await db.commit()
 
-    greeting = await create_greeting(db, session, card, prompt_context(card, settings))
+    greeting = await create_greeting(
+        db, session, card, prompt_context(card, settings), group=len(characters) > 1
+    )
     messages = [greeting] if greeting is not None else []
     return _detail(session, characters, messages)
 

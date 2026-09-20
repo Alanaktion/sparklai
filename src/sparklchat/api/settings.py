@@ -3,14 +3,13 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, HTTPException, status
-from pydantic import ValidationError
 from sqlmodel import select
 
 from sparklchat.api.deps import CurrentUserDep
 from sparklchat.db import SessionDep
-from sparklchat.models.card import CharacterBook
 from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettingsPublic, UserSettingsUpdate
+from sparklchat.services.cards import CardError, parse_lorebook
 from sparklchat.services.user_settings import get_or_create_settings
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -73,22 +72,28 @@ async def replace_world_book(
 ) -> dict[str, Any]:
     """Replace the user's World Info book wholesale.
 
-    The body is validated as a `CharacterBook` but stored verbatim, so unknown
-    keys (book-level and entry-level `extensions`) survive a round trip.
+    The body is validated as a `CharacterBook` (or a V3 `lorebook_v3` envelope)
+    but stored verbatim, so unknown keys (book-level and entry-level
+    `extensions`) survive a round trip.
     """
     try:
-        CharacterBook.model_validate(payload)
-    except ValidationError as exc:
+        parse_lorebook(payload)
+    except CardError as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"Invalid world book: {exc}"
         ) from exc
 
+    # Unwrap a `lorebook_v3` envelope so internal storage stays book-shaped.
+    stored = payload.get("data") if payload.get("spec") == "lorebook_v3" else payload
+    if not isinstance(stored, dict):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Invalid world book")
+
     settings = await get_or_create_settings(db, current_user.id)
-    settings.world_book = payload
+    settings.world_book = stored
     db.add(settings)
     await db.commit()
     await db.refresh(settings)
-    return payload
+    return stored
 
 
 @router.delete("/world-book", status_code=status.HTTP_204_NO_CONTENT)

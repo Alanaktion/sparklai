@@ -240,6 +240,24 @@ export type CharacterCardData = {
 	tags?: string[];
 	creator?: string;
 	character_version?: string;
+	/** V3 fields. */
+	nickname?: string;
+	creator_notes_multilingual?: Record<string, string>;
+	source?: string[];
+	group_only_greetings?: string[];
+	assets?: CardAsset[];
+	/** Stamped by the backend; the editor never writes these. */
+	creation_date?: number;
+	modification_date?: number;
+};
+
+/** A V3 card asset. Unknown keys are preserved by the backend. */
+export type CardAsset = {
+	type: string;
+	uri: string;
+	name: string;
+	ext: string;
+	[key: string]: unknown;
 };
 
 export type CharacterCard = {
@@ -271,6 +289,7 @@ export type CharacterHooks = {
 export type CharacterDetail = CharacterSummary & {
 	card: CharacterCard;
 	hooks: CharacterHooks;
+	warnings: string[];
 };
 
 export type CharacterSort = 'name' | 'created' | 'updated' | 'character_version';
@@ -350,7 +369,7 @@ export function deleteCharacter(token: string, id: number): Promise<void> {
 	return apiFetch<void>(`/characters/${id}`, { method: 'DELETE', headers: bearer(token) });
 }
 
-export type CharacterExportFormat = 'v1' | 'v2' | 'png';
+export type CharacterExportFormat = 'v1' | 'v2' | 'v3' | 'png' | 'charx';
 export type ChatExportFormat = 'json' | 'markdown';
 
 /**
@@ -365,7 +384,7 @@ export async function downloadCharacterCard(
 	return downloadFile(
 		`/characters/${id}/export?format=${format}`,
 		token,
-		`character.${format === 'png' ? 'png' : 'json'}`
+		`character.${format === 'charx' ? 'charx' : format === 'png' ? 'png' : 'json'}`
 	);
 }
 
@@ -413,6 +432,26 @@ export function fetchAvatar(token: string, id: number): Promise<Blob> {
 			return response.blob();
 		}
 	);
+}
+
+/**
+ * Assets are addressed as `embeded://<path>` and `<path>` may contain `/`, so
+ * each segment is encoded while the separators are left intact.
+ */
+export function fetchCharacterAsset(token: string, id: number, path: string): Promise<Blob> {
+	const encoded = path
+		.split('/')
+		.map((segment) => encodeURIComponent(segment))
+		.join('/');
+	return fetch(`${API_BASE}/characters/${id}/assets/${encoded}`, {
+		headers: bearer(token)
+	}).then(async (response) => {
+		if (!response.ok) {
+			reportUnauthorized(response.status);
+			throw new ApiError(response.status, await errorDetail(response));
+		}
+		return response.blob();
+	});
 }
 
 // --- Sessions & messages --------------------------------------------------

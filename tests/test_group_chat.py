@@ -5,6 +5,8 @@ from collections.abc import AsyncIterator
 
 from httpx import AsyncClient
 
+from sparklchat.models.chat import ChatSession
+from sparklchat.services.chat import activation_counts, record_activations
 from sparklchat.services.providers import ChatMessage
 
 
@@ -78,6 +80,24 @@ def card(name: str, **data) -> dict:
             "description": f"{name} is here.",
             "first_mes": f"Hi, I am {name}.",
             "mes_example": "",
+            "extensions": {},
+        },
+    }
+    payload["data"].update(data)
+    return payload
+
+
+def v3_card(name: str, **data) -> dict:
+    """A V3 card, so the V3-only greeting fields are honoured."""
+    payload = {
+        "spec": "chara_card_v3",
+        "spec_version": "3.0",
+        "data": {
+            "name": name,
+            "description": f"{name} is here.",
+            "first_mes": f"Hi, I am {name}.",
+            "mes_example": "",
+            "group_only_greetings": [],
             "extensions": {},
         },
     }
@@ -249,6 +269,43 @@ async def test_an_unknown_speaker_is_rejected(
     )
     assert response.status_code == 422
     assert "speaker_id" in response.json()["detail"]
+
+
+async def test_group_only_greetings_are_offered_only_in_groups(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    haruhi = await make_character(
+        client, auth_headers, v3_card("Haruhi", group_only_greetings=["Everyone, listen up!"])
+    )
+    mikuru = await make_character(client, auth_headers, card("Mikuru"))
+
+    solo = await make_session(client, auth_headers, haruhi["id"])
+    assert solo["messages"][0]["swipe_count"] == 1
+
+    group = await make_session(client, auth_headers, haruhi["id"], character_ids=[mikuru["id"]])
+    assert group["messages"][0]["swipe_count"] == 2
+
+    # The group-only greeting is reachable by swiping the first message.
+    swiped = await client.post(
+        f"/api/sessions/{group['id']}/greeting/swipe",
+        json={"direction": "next"},
+        headers=auth_headers,
+    )
+    assert swiped.status_code == 200, swiped.text
+    assert swiped.json()["content"] == "Everyone, listen up!"
+
+
+def test_lorebook_activation_counts_round_trip() -> None:
+    session = ChatSession(user_id=1, character_id=1)
+    assert activation_counts(session) == {}
+
+    record_activations(session, ["a", "b"])
+    record_activations(session, ["a"])
+    assert activation_counts(session) == {"a": 2, "b": 1}
+
+    # Malformed state degrades to empty rather than raising.
+    session.lorebook_state = {"matches": {"x": "not a number"}}
+    assert activation_counts(session) == {}
 
 
 async def test_previous_group_turns_are_labelled_with_their_speaker(

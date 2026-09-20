@@ -117,6 +117,17 @@
 				</label>
 			</div>
 
+			<div class="regex">
+				<label class="inline">
+					<input type="checkbox" bind:checked={entry.useRegex} />
+					<span>Use regex keys</span>
+				</label>
+				<p class="hint">
+					Keys are treated as regular expressions (e.g. <code>/pattern/i</code>). Secondary keys and
+					Constant are ignored for regex entries.
+				</p>
+			</div>
+
 			<label>
 				<span>Content</span>
 				<textarea bind:value={entry.content} rows="4"></textarea>
@@ -132,8 +143,8 @@
 					<input bind:value={entry.priority} inputmode="numeric" />
 				</label>
 				<label>
-					<span>ID</span>
-					<input bind:value={entry.id} inputmode="numeric" />
+					<span>ID <em>number or string</em></span>
+					<input bind:value={entry.id} />
 				</label>
 				<label>
 					<span>Position</span>
@@ -226,6 +237,26 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 1rem;
+	}
+
+	.regex {
+		display: grid;
+		gap: 0.25rem;
+	}
+
+	.hint {
+		margin: 0;
+		font-size: 0.75rem;
+		color: var(--muted);
+	}
+
+	code {
+		padding: 0.05rem 0.3rem;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.9em;
 	}
 
 	label {

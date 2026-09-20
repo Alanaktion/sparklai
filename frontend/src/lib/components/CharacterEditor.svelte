@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 
-	import { createCharacter, updateCharacter, type CharacterDetail } from '$lib/api';
+	import {
+		createCharacter,
+		fetchCharacterAsset,
+		updateCharacter,
+		type CharacterDetail
+	} from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import {
 		cardFromDraft,
@@ -17,7 +22,7 @@
 	import CharacterBookEditor from './CharacterBookEditor.svelte';
 	import StringListEditor from './StringListEditor.svelte';
 
-	type Tab = 'identity' | 'prompting' | 'lorebook' | 'extensions' | 'raw';
+	type Tab = 'identity' | 'prompting' | 'lorebook' | 'extensions' | 'assets' | 'raw';
 
 	type Props = {
 		/** Existing card when editing; omit or pass null to create a new one. */
@@ -35,6 +40,7 @@
 		{ id: 'prompting', label: 'Prompting' },
 		{ id: 'lorebook', label: 'Lorebook' },
 		{ id: 'extensions', label: 'Extensions' },
+		{ id: 'assets', label: 'Assets' },
 		{ id: 'raw', label: 'Raw JSON' }
 	];
 
@@ -52,6 +58,67 @@
 	const editing = $derived(characterId !== null);
 	const problems = $derived(draftProblems(draft));
 	const blocking = $derived(tab !== 'raw' && problems.length > 0);
+
+	// Assets stored on the server are only reachable through the authenticated
+	// asset endpoint, so an `embeded://` asset is fetched into an object URL to
+	// preview it. Anything else (or any failure) simply shows no preview.
+	const ASSET_URI_PREFIX = 'embeded://';
+
+	function embeddedPath(uri: string): string | null {
+		const trimmed = uri.trim();
+		return trimmed.startsWith(ASSET_URI_PREFIX) ? trimmed.slice(ASSET_URI_PREFIX.length) : null;
+	}
+
+	const embeddedAssets = $derived(
+		draft.assets
+			.map((asset) => embeddedPath(asset.uri))
+			.filter((path): path is string => path !== null)
+	);
+
+	let previews = $state<Record<string, string>>({});
+	const pending = new Set<string>();
+	const failed = new Set<string>();
+
+	function previewFor(uri: string): string | null {
+		const path = embeddedPath(uri);
+		return path === null ? null : (previews[path] ?? null);
+	}
+
+	$effect(() => {
+		const id = characterId;
+		const token = auth.token;
+		const paths = embeddedAssets;
+		if (id === null || !token) return;
+
+		// Untracked so a loaded preview cannot retrigger this effect.
+		untrack(() => {
+			const wanted = new Set(paths);
+			for (const path of Object.keys(previews)) {
+				if (wanted.has(path)) continue;
+				URL.revokeObjectURL(previews[path]);
+				delete previews[path];
+			}
+
+			for (const path of wanted) {
+				if (path in previews || failed.has(path) || pending.has(path)) continue;
+				pending.add(path);
+				fetchCharacterAsset(token, id, path)
+					.then((blob) => {
+						previews[path] = URL.createObjectURL(blob);
+					})
+					.catch(() => {
+						failed.add(path);
+					})
+					.finally(() => pending.delete(path));
+			}
+		});
+	});
+
+	$effect(() => {
+		return () => {
+			for (const url of Object.values(previews)) URL.revokeObjectURL(url);
+		};
+	});
 
 	function selectTab(next: Tab) {
 		if (next === tab) return;
@@ -144,6 +211,14 @@
 					<input bind:value={draft.name} maxlength="200" />
 				</label>
 				<label>
+					<span>Nickname</span>
+					<input bind:value={draft.nickname} maxlength="200" />
+				</label>
+				<p class="hint">
+					When set, replaces <code>{'{{char}}'}</code> in prompts. Leave empty to keep using the
+					name.
+				</p>
+				<label>
 					<span>Description</span>
 					<textarea bind:value={draft.description} rows="5"></textarea>
 				</label>
@@ -174,6 +249,29 @@
 				</fieldset>
 
 				<fieldset>
+					<legend>Group-only greetings</legend>
+					<StringListEditor
+						label="group-only greeting"
+						placeholder="An opening line offered only in group chats…"
+						items={draft.groupOnlyGreetings}
+					/>
+					<p class="hint">Only offered when this character opens a group chat.</p>
+				</fieldset>
+
+				<fieldset>
+					<legend>Source</legend>
+					<StringListEditor
+						label="source"
+						placeholder="https://example.com/character"
+						items={draft.source}
+					/>
+					<p class="hint">
+						An id or an https URL recording where the card came from. Usually written by the
+						importing tool rather than by hand.
+					</p>
+				</fieldset>
+
+				<fieldset>
 					<legend>Tags</legend>
 					<StringListEditor label="tag" placeholder="e.g. fantasy" items={draft.tags} />
 				</fieldset>
@@ -192,6 +290,48 @@
 					<span>Creator notes</span>
 					<textarea bind:value={draft.creatorNotes} rows="3"></textarea>
 				</label>
+
+				<fieldset>
+					<legend>Creator notes by language</legend>
+					<p class="hint">
+						Language keys are ISO 639-1 codes without a region (e.g. <code>en</code>,
+						<code>ja</code>). The plain Creator notes field above is the <code>en</code> fallback.
+					</p>
+
+					{#each draft.creatorNotesMultilingual as row, index (index)}
+						<div class="ext-row">
+							<input
+								bind:value={row.key}
+								placeholder="en"
+								aria-label={`Creator notes language ${index + 1}`}
+							/>
+							<textarea
+								bind:value={row.value}
+								rows="3"
+								aria-label={`Creator notes for language ${index + 1}`}
+							></textarea>
+							<button
+								type="button"
+								class="ghost"
+								onclick={() => draft.creatorNotesMultilingual.splice(index, 1)}
+								aria-label={`Remove creator notes language ${index + 1}`}
+							>
+								Remove
+							</button>
+						</div>
+					{/each}
+
+					{#if draft.creatorNotesMultilingual.length === 0}
+						<p class="muted">No translated creator notes.</p>
+					{/if}
+
+					<button
+						type="button"
+						onclick={() => draft.creatorNotesMultilingual.push({ key: '', value: '' })}
+					>
+						Add language
+					</button>
+				</fieldset>
 
 				<label>
 					<span>System prompt</span>
@@ -259,6 +399,72 @@
 
 				<button type="button" onclick={() => draft.extensions.push({ key: '', value: '' })}>
 					Add extension
+				</button>
+			</div>
+		{:else if tab === 'assets'}
+			<div class="fields">
+				<p class="hint">
+					<code>uri</code> may be <code>embeded://path</code>, <code>ccdefault:</code>, an https URL, or a
+					data URL. <code>ext</code> is a lowercase extension without a dot. Use <code>icon</code> or
+					<code>main</code> for the card icon and <code>user_icon</code> for a persona image.
+				</p>
+
+				{#each draft.assets as asset, index (index)}
+					{@const preview = previewFor(asset.uri)}
+					<div class="ext-row">
+						<div class="grid">
+							<label>
+								<span>Type</span>
+								<input
+									bind:value={asset.type}
+									placeholder="icon"
+									aria-label={`Asset ${index + 1} type`}
+								/>
+							</label>
+							<label>
+								<span>Name</span>
+								<input bind:value={asset.name} aria-label={`Asset ${index + 1} name`} />
+							</label>
+							<label>
+								<span>Extension</span>
+								<input
+									bind:value={asset.ext}
+									placeholder="png"
+									aria-label={`Asset ${index + 1} extension`}
+								/>
+							</label>
+						</div>
+						<label>
+							<span>URI</span>
+							<input
+								bind:value={asset.uri}
+								placeholder="embeded://assets/icon/main.png"
+								aria-label={`Asset ${index + 1} URI`}
+							/>
+						</label>
+						{#if preview}
+							<img class="asset-preview" src={preview} alt={`Asset ${index + 1} preview`} />
+						{/if}
+						<button
+							type="button"
+							class="ghost"
+							onclick={() => draft.assets.splice(index, 1)}
+							aria-label={`Remove asset ${index + 1}`}
+						>
+							Remove
+						</button>
+					</div>
+				{/each}
+
+				{#if draft.assets.length === 0}
+					<p class="muted">No assets.</p>
+				{/if}
+
+				<button
+					type="button"
+					onclick={() => draft.assets.push({ base: {}, type: '', uri: '', name: '', ext: '' })}
+				>
+					Add asset
 				</button>
 			</div>
 		{:else}
@@ -390,6 +596,22 @@
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
+	}
+
+	.grid {
+		display: grid;
+		gap: 0.4rem;
+		grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+	}
+
+	.asset-preview {
+		max-width: 8rem;
+		max-height: 8rem;
+		justify-self: start;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		object-fit: contain;
 	}
 
 	.ext-row > button {

@@ -6,10 +6,12 @@
 		createSession,
 		deleteSession,
 		downloadCharacterCard,
+		fetchCharacterAsset,
 		getCharacter,
 		listCharacters,
 		listSessions,
 		updateCharacter,
+		type CharacterCardData,
 		type CharacterDetail,
 		type CharacterExportFormat,
 		type CharacterSummary,
@@ -37,6 +39,68 @@
 	$effect(() => {
 		void load(characterId);
 	});
+
+	/** Asset URIs the API can serve; other schemes are used by the browser directly. */
+	const ASSET_URI_PREFIX = 'embeded://';
+
+	function embeddedPath(uri: string): string | null {
+		const trimmed = uri.trim();
+		return trimmed.startsWith(ASSET_URI_PREFIX) ? trimmed.slice(ASSET_URI_PREFIX.length) : null;
+	}
+
+	/** The card's main icon asset, per the spec's `name: "main"` selection rule. */
+	const iconAssets = $derived(
+		(character?.card.data?.assets ?? []).filter((asset) => asset.type === 'icon')
+	);
+	const iconAsset = $derived(iconAssets.find((asset) => asset.name === 'main') ?? iconAssets[0]);
+	const iconPath = $derived(iconAsset ? embeddedPath(iconAsset.uri) : null);
+
+	let iconUrl = $state<string | null>(null);
+
+	$effect(() => {
+		const token = auth.token;
+		const id = character?.id ?? null;
+		const path = iconPath;
+		if (!token || id === null || path === null) return;
+
+		let active = true;
+		let created: string | null = null;
+		fetchCharacterAsset(token, id, path)
+			.then((blob) => {
+				if (!active) return;
+				created = URL.createObjectURL(blob);
+				iconUrl = created;
+			})
+			.catch(() => {
+				// Unreadable asset: the regular avatar is used instead.
+			});
+		return () => {
+			active = false;
+			if (created) URL.revokeObjectURL(created);
+			iconUrl = null;
+		};
+	});
+
+	/** The visitor's preferred language, as an ISO 639-1 code. */
+	const LANGUAGE =
+		typeof navigator === 'undefined' ? 'en' : navigator.language.slice(0, 2).toLowerCase() || 'en';
+
+	/**
+	 * The creator notes to show: the visitor's language first, then English, then
+	 * the plain `creator_notes` field — which the editor treats as the English
+	 * fallback, so it is only used when the map has no `en` key.
+	 */
+	function resolveCreatorNotes(data: CharacterCardData | undefined): string | null {
+		const notes = data?.creator_notes_multilingual;
+		if (notes) {
+			if (typeof notes[LANGUAGE] === 'string') return notes[LANGUAGE];
+			if (Object.prototype.hasOwnProperty.call(notes, 'en')) return notes.en;
+		}
+		return data?.creator_notes ?? null;
+	}
+
+	const creatorNotes = $derived(character ? resolveCreatorNotes(character.card.data) : null);
+	const groupGreetings = $derived(character?.card.data?.group_only_greetings ?? []);
 
 	async function load(id: number) {
 		const token = auth.token;
@@ -178,10 +242,30 @@
 			<p class="error" role="alert">{error}</p>
 		{/if}
 
+		{#if character.warnings.length > 0}
+			<div class="warnings" role="status">
+				<p>This card was imported with warnings:</p>
+				<ul>
+					{#each character.warnings as warning, index (index)}
+						<li>{warning}</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+
 		<header class="profile">
-			<Avatar characterId={character.id} name={character.name} hasAvatar={character.has_avatar} size={96} />
+			<Avatar
+				characterId={character.id}
+				name={character.name}
+				hasAvatar={character.has_avatar}
+				size={96}
+				url={iconUrl}
+			/>
 			<div class="meta">
 				<h1>{character.name}</h1>
+				{#if character.card.data?.nickname}
+					<p class="nickname">Nickname: <strong>{character.card.data.nickname}</strong></p>
+				{/if}
 				<p class="muted byline">
 					{#if character.creator}by {character.creator}{:else}Unknown creator{/if}
 					{#if character.character_version}· v{character.character_version}{/if}
@@ -249,6 +333,9 @@
 				{/if}
 				<div class="export">
 					<span class="muted">Export</span>
+					<button onclick={() => exportCard('v3')} disabled={exporting !== null}>
+						{exporting === 'v3' ? 'V3…' : 'V3 JSON'}
+					</button>
 					<button onclick={() => exportCard('v2')} disabled={exporting !== null}>
 						{exporting === 'v2' ? 'V2…' : 'V2 JSON'}
 					</button>
@@ -258,14 +345,17 @@
 					<button onclick={() => exportCard('png')} disabled={exporting !== null}>
 						{exporting === 'png' ? 'PNG…' : 'PNG'}
 					</button>
+					<button onclick={() => exportCard('charx')} disabled={exporting !== null}>
+						{exporting === 'charx' ? 'CHARX…' : 'CHARX'}
+					</button>
 				</div>
 			</div>
 		</header>
 
 		<section class="panel">
 			<h2>About</h2>
-			{#if character.card.data?.creator_notes}
-				<p class="notes">{character.card.data.creator_notes}</p>
+			{#if creatorNotes}
+				<p class="notes">{creatorNotes}</p>
 			{:else}
 				<p class="muted">No creator notes.</p>
 			{/if}
@@ -275,6 +365,17 @@
 			<section class="panel">
 				<h2>Description</h2>
 				<p class="notes">{character.card.data.description}</p>
+			</section>
+		{/if}
+
+		{#if groupGreetings.length > 0}
+			<section class="panel">
+				<h2>Group-only greetings</h2>
+				<ul class="greetings">
+					{#each groupGreetings as greeting, index (index)}
+						<li class="notes">{greeting}</li>
+					{/each}
+				</ul>
 			</section>
 		{/if}
 
@@ -314,6 +415,37 @@
 
 	.meta h1 {
 		margin: 0;
+	}
+
+	.nickname {
+		margin: 0;
+		font-size: 0.9rem;
+	}
+
+	.warnings {
+		margin-bottom: 1.25rem;
+		padding: 0.6rem 0.75rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		font-size: 0.85rem;
+	}
+
+	.warnings p {
+		margin: 0 0 0.3rem;
+	}
+
+	.warnings ul {
+		margin: 0;
+		padding-left: 1.1rem;
+	}
+
+	.greetings {
+		display: grid;
+		gap: 0.5rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
 	.byline {

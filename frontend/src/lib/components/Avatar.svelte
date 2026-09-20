@@ -7,20 +7,24 @@
 		name: string;
 		hasAvatar?: boolean;
 		size?: number;
+		/** Explicit image source; when set, no avatar is fetched. */
+		url?: string | null;
 	};
 
-	let { characterId, name, hasAvatar = false, size = 48 }: Props = $props();
+	let { characterId, name, hasAvatar = false, size = 48, url = null }: Props = $props();
 
-	let url = $state<string | null>(null);
+	let fetched = $state<string | null>(null);
 	let failed = $state(false);
 
 	$effect(() => {
+		if (url) return;
+
 		const id = characterId;
 		if (!hasAvatar || failed) return;
 
 		const cached = cachedAvatar(id);
 		if (cached) {
-			url = cached;
+			fetched = cached;
 			return;
 		}
 
@@ -30,7 +34,7 @@
 		let active = true;
 		loadAvatar(id, token)
 			.then((loaded) => {
-				if (active) url = loaded;
+				if (active) fetched = loaded;
 			})
 			.catch(() => {
 				if (active) failed = true;
@@ -40,11 +44,12 @@
 		};
 	});
 
+	const shown = $derived(url ?? (failed ? null : fetched));
 	const initial = $derived(name.trim().charAt(0).toUpperCase() || '?');
 </script>
 
-{#if url && !failed}
-	<img src={url} alt={name} width={size} height={size} />
+{#if shown}
+	<img src={shown} alt={name} width={size} height={size} />
 {:else}
 	<span class="initial" style:--size="{size}px" aria-hidden="true">{initial}</span>
 {/if}

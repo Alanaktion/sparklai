@@ -1,7 +1,7 @@
 [project]
 name = "sparklchat"
 version = "0.1.0"
-description = "Self-hosted roleplay chat with Character Card V1/V2 support"
+description = "Self-hosted roleplay chat with Character Card V1/V2/V3 support"
 readme = "README.md"
 authors = [
     { name = "Alan Hardman", email = "alanaktion@gmail.com" }

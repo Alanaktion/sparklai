@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Sparkl Chat: a self-hosted roleplay chat app for AI-backed characters using
-Character Card V1/V2 (`docs/`). FastAPI backend + SvelteKit SPA, talking only
+Character Card V1/V2/V3 (`docs/`). FastAPI backend + SvelteKit SPA, talking only
 over `/api`.
 
 ## Commands
@@ -50,9 +50,18 @@ finalizing any `.svelte`/`.svelte.ts` change.
   **new models must be imported from `models/__init__.py`** or autogenerate
   won't see them.
 - `services/` — the actual logic, kept independent of FastAPI:
-  - `cards.py` — V1/V2 card parsing/validation/normalization.
+  - `cards.py` — V1/V2/V3 card parsing/validation/normalization, format
+    conversion, and V2/V3 export.
   - `png.py` — reads/writes the `chara`/`ccv3` `tEXt` chunk in avatar PNGs
-    without touching other image data.
+    (`ccv3` wins when both are present) and reads `chara-ext-asset_:` asset
+    chunks, without touching other image data.
+  - `charx.py` — reads/writes `.charx` zips (`card.json` + binary assets).
+  - `macros.py` — the spec's curly-braced syntaxes (`{{char}}`, `{{random:}}`,
+    `{{pick:}}`, `{{roll:}}`, `{{// }}`, `{{hidden_key:}}`, `{{comment:}}`,
+    `{{reverse:}}`).
+  - `decorators.py` — parses lorebook `@@…` decorator lines (and `@@@` fallback
+    chains) off an entry's content.
+  - `packages.py` — storage for imported CHARX/PNG card packages.
   - `prompts.py` — assembles the LLM prompt: macro substitution, system/
     post-history prompt resolution, character-book and world-book entry
     matching and truncation to a token budget, multi-character "cast" blocks.
@@ -64,7 +73,8 @@ finalizing any `.svelte`/`.svelte.ts` change.
     lifts system content into the top-level `system` field.
   - `crypto.py` — Fernet encryption for provider API keys at rest.
   - `lorebook.py` — character-book / world-book entry matching logic shared by
-    `prompts.py`.
+    `prompts.py`, including V3 `use_regex` keys, decorator conditions, and
+    `@@depth` routing into the chat log.
   - `tokens.py` — tiktoken-or-heuristic token counting (`TOKENIZER` setting).
   - `downloads.py`, `avatars.py`, `security.py`, `user_settings.py` — smaller
     single-purpose helpers.
@@ -95,14 +105,27 @@ mid-way, whatever text arrived is still persisted before the `error` event.
 
 ### Character cards
 
-Cards are stored as canonical V2 JSON (the whole JSON blob is the source of
-truth; `name`/`spec_version` columns are denormalized only for listing/
-sorting). Import accepts V1 or V2 and always normalizes to V2; `source` tracks
-which one it was so `?format=v1` export can losslessly un-nest it again,
-including unknown top-level V1 keys and `extensions` at card/book/entry level.
-Validation is strict about types and `spec`, lenient about field *presence*
-(real cards omit spec-mandated fields constantly); `chara_card_v3` and
-non-`2.0` `spec_version` are rejected with 422.
+Cards are stored as the canonical card JSON in whichever envelope they arrived
+in (the whole JSON blob is the source of truth; `name`/`spec_version` columns are
+denormalized only for listing/sorting). Import accepts V1, V2, and V3 and
+normalizes V1 into V2 shape; `source` tracks which one it was, so export can
+losslessly un-nest a V1 card again (including unknown top-level V1 keys and
+`extensions` at card/book/entry level). V3 cards keep V3, and `?format=v3`
+upgrades a V1/V2 card by filling the V3 defaults. Validation is strict about
+types and `spec`, lenient about field *presence* (real cards omit spec-mandated
+fields constantly); a non-`2.0` V2 `spec_version` is rejected with 422, while a
+newer V3 `spec_version` imports with a warning (`CharacterDetail.warnings`).
+
+V3 additions beyond the card fields: `use_regex` lorebook keys, `@@…` decorators
+(`lorebook.py` + `prompts.py`), `nickname` for `{{char}}`, `group_only_greetings`
+(offered only in group chats), `assets` (served via
+`GET /api/characters/{id}/assets/{path}` out of the stored package), and
+`creation_date`/`modification_date` stamping. `Character.package_path` holds the
+imported CHARX/PNG package so assets round-trip on export.
+
+Per-session lorebook state (`ChatSession.lorebook_state`) records how often each
+entry has matched, which is what `@@keep_activate_after_match` /
+`@@dont_activate_after_match` read.
 
 Voice hooks (TTS/STT) are card-declared, not app config: `extensions.sparklchat`
 on the card (see `models/hooks.py`) opts a character into browser Web Speech
@@ -149,9 +172,10 @@ which fake a build output rather than requiring a real `npm run build`.
   (`.svelte.ts` modules, not plain `.ts`).
 - `lib/speech.ts` — wraps the browser's Web Speech API per the card's
   `extensions.sparklchat` hooks (see above); no server involvement.
-- Avatars are fetched through the authenticated `/api/.../avatar` endpoint and
-  rendered as a blob URL (`lib/avatars.ts`) — never a bare `<img src>`, since
-  the endpoint requires a bearer token.
+- Avatars and CHARX assets are fetched through authenticated
+  `/api/.../avatar` / `/api/.../assets/{path}` endpoints and rendered as blob
+  URLs (`lib/avatars.ts`) — never a bare `<img src>`, since the endpoints
+  require a bearer token.
 - `routes/+layout.ts` disables SSR — this is a pure client-rendered SPA.
 
 Svelte 5 is in use throughout (runes, not stores-first patterns) — check the
@@ -175,6 +199,7 @@ Every test gets a throwaway SQLite file via the `engine`/`app`/`client`
 fixtures in `tests/conftest.py`, which override the `get_session` FastAPI
 dependency — tests never touch the dev `sparklchat.db`. `isolated_uploads` is
 autouse and forces `TOKENIZER=heuristic` so tests don't hit the network for
-tiktoken's BPE data, and redirects `AVATAR_DIR` to a tmp path. Use
+tiktoken's BPE data, and redirects `AVATAR_DIR`/`PACKAGE_DIR` to tmp paths. Use
 `registered_user`/`auth_headers`/`login_as` fixtures for authenticated
-requests instead of hand-rolling registration/login in each test.
+requests instead of hand-rolling registration/login in each test. `v1_card`/
+`v2_card`/`v3_card` provide sample cards.

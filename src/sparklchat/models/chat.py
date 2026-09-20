@@ -33,6 +33,11 @@ class ChatSession(SQLModel, table=True):
     post_history_override: str | None = Field(default=None)
     use_character_book: bool = Field(default=True)
     use_world_book: bool = Field(default=True)
+    # Cross-turn lorebook bookkeeping (how often each entry has matched), for the
+    # `@@keep_activate_after_match` / `@@dont_activate_after_match` decorators.
+    lorebook_state: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column("lorebook_state", JSON, nullable=False)
+    )
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 

@@ -13,6 +13,18 @@ export type JsonObject = Record<string, unknown>;
 
 export type ExtensionRow = { key: string; value: string };
 
+/** A multilingual creator-notes row; `key` is an ISO 639-1 language code. */
+export type NotesRow = { key: string; value: string };
+
+/** A card asset (V3), keeping its original JSON so unknown keys survive. */
+export type DraftAsset = {
+	base: JsonObject;
+	type: string;
+	uri: string;
+	name: string;
+	ext: string;
+};
+
 export type DraftEntry = {
 	/** Original entry JSON, kept so unknown keys survive. */
 	base: JsonObject;
@@ -23,6 +35,7 @@ export type DraftEntry = {
 	caseSensitive: boolean;
 	selective: boolean;
 	constant: boolean;
+	useRegex: boolean;
 	insertionOrder: number;
 	priority: string;
 	position: '' | 'before_char' | 'after_char';
@@ -46,18 +59,23 @@ export type DraftBook = {
 export type Draft = {
 	base: JsonObject;
 	name: string;
+	nickname: string;
 	description: string;
 	personality: string;
 	scenario: string;
 	firstMes: string;
 	alternateGreetings: string[];
+	groupOnlyGreetings: string[];
 	mesExample: string;
 	tags: string[];
 	creator: string;
 	characterVersion: string;
 	creatorNotes: string;
+	creatorNotesMultilingual: NotesRow[];
 	systemPrompt: string;
 	postHistoryInstructions: string;
+	source: string[];
+	assets: DraftAsset[];
 	book: DraftBook | null;
 	extensions: ExtensionRow[];
 };
@@ -112,18 +130,23 @@ export function emptyDraft(): Draft {
 	return {
 		base: {},
 		name: '',
+		nickname: '',
 		description: '',
 		personality: '',
 		scenario: '',
 		firstMes: '',
 		alternateGreetings: [],
+		groupOnlyGreetings: [],
 		mesExample: '',
 		tags: [],
 		creator: '',
 		characterVersion: '',
 		creatorNotes: '',
+		creatorNotesMultilingual: [],
 		systemPrompt: '',
 		postHistoryInstructions: '',
+		source: [],
+		assets: [],
 		book: null,
 		extensions: []
 	};
@@ -139,6 +162,7 @@ export function emptyEntry(): DraftEntry {
 		caseSensitive: false,
 		selective: false,
 		constant: false,
+		useRegex: false,
 		insertionOrder: 0,
 		priority: '',
 		position: '',
@@ -169,18 +193,23 @@ export function draftFromCard(card: JsonObject): Draft {
 	return {
 		base: cloneJson(card),
 		name: stringAt(data, 'name'),
+		nickname: stringAt(data, 'nickname'),
 		description: stringAt(data, 'description'),
 		personality: stringAt(data, 'personality'),
 		scenario: stringAt(data, 'scenario'),
 		firstMes: stringAt(data, 'first_mes'),
 		alternateGreetings: stringListAt(data, 'alternate_greetings'),
+		groupOnlyGreetings: stringListAt(data, 'group_only_greetings'),
 		mesExample: stringAt(data, 'mes_example'),
 		tags: stringListAt(data, 'tags'),
 		creator: stringAt(data, 'creator'),
 		characterVersion: stringAt(data, 'character_version'),
 		creatorNotes: stringAt(data, 'creator_notes'),
+		creatorNotesMultilingual: notesRowsAt(data, 'creator_notes_multilingual'),
 		systemPrompt: stringAt(data, 'system_prompt'),
 		postHistoryInstructions: stringAt(data, 'post_history_instructions'),
+		source: stringListAt(data, 'source'),
+		assets: assetRowsAt(data, 'assets'),
 		book: bookJson === null ? null : bookFromJson(bookJson),
 		extensions: extensionRows(objectAt(data, 'extensions'))
 	};
@@ -188,8 +217,11 @@ export function draftFromCard(card: JsonObject): Draft {
 
 export function cardFromDraft(draft: Draft): JsonObject {
 	const card = cloneJson(draft.base);
-	card.spec = 'chara_card_v2';
-	card.spec_version = '2.0';
+	// The editor always saves the newest card format it understands. Unknown keys
+	// (including the backend-stamped `creation_date`/`modification_date`) stay in
+	// `base`, so only the envelope version is stamped here.
+	card.spec = 'chara_card_v3';
+	card.spec_version = '3.0';
 
 	const data = objectAt(card, 'data');
 	// The six shared fields must always be present as strings.
@@ -205,8 +237,22 @@ export function cardFromDraft(draft: Draft): JsonObject {
 	data.creator = draft.creator;
 	data.character_version = draft.characterVersion;
 	data.alternate_greetings = cleanList(draft.alternateGreetings);
+	data.group_only_greetings = cleanList(draft.groupOnlyGreetings);
 	data.tags = cleanList(draft.tags);
 	data.extensions = extensionsFromRows(draft.extensions);
+
+	setOptional(data, 'nickname', draft.nickname);
+
+	const source = cleanList(draft.source);
+	if (source.length > 0) data.source = source;
+	else delete data.source;
+
+	const notes = notesFromRows(draft.creatorNotesMultilingual);
+	if (notes === null) delete data.creator_notes_multilingual;
+	else data.creator_notes_multilingual = notes;
+
+	if (draft.assets.length === 0) delete data.assets;
+	else data.assets = draft.assets.map(assetFromDraft);
 
 	if (draft.book === null) {
 		delete data.character_book;
@@ -232,6 +278,11 @@ export function draftProblems(draft: Draft): string[] {
 		problems.push(...jsonProblems(`Extension "${row.key.trim()}"`, row.value));
 	}
 
+	problems.push(...creatorNotesProblems(draft.creatorNotesMultilingual));
+	draft.assets.forEach((asset, index) => {
+		problems.push(...assetProblems(asset, index));
+	});
+
 	if (draft.book !== null) {
 		problems.push(...bookProblems(draft.book));
 	}
@@ -251,7 +302,6 @@ export function bookProblems(book: DraftBook): string[] {
 		const label = entry.name.trim() || `Entry ${index + 1}`;
 		problems.push(...numberProblems(`${label}: insertion order`, String(entry.insertionOrder)));
 		problems.push(...numberProblems(`${label}: priority`, entry.priority));
-		problems.push(...numberProblems(`${label}: id`, entry.id));
 		problems.push(...jsonProblems(`${label}: extensions`, entry.extensions));
 	});
 
@@ -283,12 +333,14 @@ function entryFromJson(entry: JsonObject): DraftEntry {
 		caseSensitive: booleanAt(entry, 'case_sensitive'),
 		selective: booleanAt(entry, 'selective'),
 		constant: booleanAt(entry, 'constant'),
+		useRegex: booleanAt(entry, 'use_regex'),
 		insertionOrder: typeof entry.insertion_order === 'number' ? entry.insertion_order : 0,
 		priority: numberTextAt(entry, 'priority'),
 		position: position === 'before_char' || position === 'after_char' ? position : '',
 		name: stringAt(entry, 'name'),
 		comment: stringAt(entry, 'comment'),
-		id: numberTextAt(entry, 'id'),
+		// V3 allows a string id, so numbers are shown as text and written back as-is.
+		id: idTextAt(entry, 'id'),
 		extensions: JSON.stringify(objectAt(entry, 'extensions'), null, 2)
 	};
 }
@@ -311,6 +363,8 @@ function entryFromDraft(entry: DraftEntry): JsonObject {
 	out.content = entry.content;
 	out.extensions = jsonOrRaw(entry.extensions, out.extensions);
 	out.enabled = entry.enabled;
+	// V3 requires `use_regex` to be present, so it is always written.
+	out.use_regex = entry.useRegex;
 	out.insertion_order = entry.insertionOrder;
 
 	const secondary = splitList(entry.secondaryKeys);
@@ -324,7 +378,7 @@ function entryFromDraft(entry: DraftEntry): JsonObject {
 	setOptional(out, 'name', entry.name);
 	setOptional(out, 'comment', entry.comment);
 	setNumberText(out, 'priority', entry.priority);
-	setNumberText(out, 'id', entry.id);
+	setIdText(out, 'id', entry.id);
 	return out;
 }
 
@@ -387,6 +441,29 @@ function cleanList(items: string[]): string[] {
 	return items.map((item) => item.trim()).filter((item) => item !== '');
 }
 
+/** Build the multilingual notes object, or `null` when no row is usable. */
+function notesFromRows(rows: NotesRow[]): JsonObject | null {
+	const out: JsonObject = {};
+	let written = 0;
+	for (const row of rows) {
+		const key = row.key.trim();
+		if (key === '') continue;
+		out[key] = row.value;
+		written += 1;
+	}
+	return written === 0 ? null : out;
+}
+
+/** Overlay the edited asset fields onto its original JSON. */
+function assetFromDraft(asset: DraftAsset): JsonObject {
+	const out = cloneJson(asset.base);
+	out.type = asset.type.trim();
+	out.uri = asset.uri.trim();
+	out.name = asset.name.trim();
+	out.ext = asset.ext.trim();
+	return out;
+}
+
 function numberProblems(label: string, text: string): string[] {
 	const trimmed = text.trim();
 	if (trimmed === '') return [];
@@ -397,6 +474,33 @@ function jsonProblems(label: string, text: string): string[] {
 	const trimmed = text.trim();
 	if (trimmed === '') return [];
 	return parseJsonText(text).ok ? [] : [`${label} is not valid JSON.`];
+}
+
+function creatorNotesProblems(rows: NotesRow[]): string[] {
+	const problems: string[] = [];
+
+	const duplicate = firstDuplicate(rows.map((row) => row.key.trim()));
+	if (duplicate) problems.push(`Duplicate creator notes language "${duplicate}".`);
+
+	for (const row of rows) {
+		const key = row.key.trim();
+		if (key === '' || isLanguageCode(key)) continue;
+		problems.push(`Creator notes language "${key}" must be a 2-letter ISO 639-1 code.`);
+	}
+
+	return problems;
+}
+
+/** ISO 639-1 codes are exactly two letters, with no region suffix. */
+function isLanguageCode(key: string): boolean {
+	return /^[a-z]{2}$/i.test(key);
+}
+
+function assetProblems(asset: DraftAsset, index: number): string[] {
+	// A valid extension is lowercase alphanumerics: no uppercase, no dot, no
+	// whitespace, and not empty. Anything else is reported.
+	if (/^[a-z0-9]+$/.test(asset.ext)) return [];
+	return [`Asset ${index + 1}: extension must be lowercase without a dot.`];
 }
 
 function firstDuplicate(values: string[]): string | null {
@@ -424,6 +528,27 @@ function numberTextAt(source: JsonObject, key: string): string {
 	return typeof value === 'number' ? String(value) : '';
 }
 
+// V3 entry ids may be numbers or strings, so the editor round-trips them as text
+// and only re-types them when the user actually edits the value.
+function idTextAt(source: JsonObject, key: string): string {
+	const value = source[key];
+	return typeof value === 'number' || typeof value === 'string' ? String(value) : '';
+}
+
+function setIdText(target: JsonObject, key: string, text: string): void {
+	const trimmed = text.trim();
+	if (trimmed === '') {
+		delete target[key];
+		return;
+	}
+	const current = target[key];
+	const currentText =
+		typeof current === 'number' || typeof current === 'string' ? String(current) : '';
+	// Unchanged: leave the original value (and its type) alone.
+	if (currentText === trimmed) return;
+	target[key] = /^-?\d+$/.test(trimmed) ? Number(trimmed) : trimmed;
+}
+
 function booleanAt(source: JsonObject, key: string, fallback = false): boolean {
 	const value = source[key];
 	return typeof value === 'boolean' ? value : fallback;
@@ -433,4 +558,28 @@ function stringListAt(source: JsonObject, key: string): string[] {
 	const value = source[key];
 	if (!Array.isArray(value)) return [];
 	return value.filter((item): item is string => typeof item === 'string');
+}
+
+/** Multilingual notes as ordered rows; non-string values are skipped. */
+function notesRowsAt(source: JsonObject, key: string): NotesRow[] {
+	const value = source[key];
+	if (!isObject(value)) return [];
+	const rows: NotesRow[] = [];
+	for (const [rowKey, rowValue] of Object.entries(value)) {
+		if (typeof rowValue !== 'string') continue;
+		rows.push({ key: rowKey, value: rowValue });
+	}
+	return rows;
+}
+
+function assetRowsAt(source: JsonObject, key: string): DraftAsset[] {
+	const value = source[key];
+	if (!Array.isArray(value)) return [];
+	return value.filter(isObject).map((item) => ({
+		base: cloneJson(item),
+		type: stringAt(item, 'type'),
+		uri: stringAt(item, 'uri'),
+		name: stringAt(item, 'name'),
+		ext: stringAt(item, 'ext')
+	}));
 }

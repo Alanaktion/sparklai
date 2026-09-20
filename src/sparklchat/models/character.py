@@ -1,7 +1,8 @@
 """Stored characters.
 
-The canonical V2 card JSON is the source of truth (`card_json`); the other
-columns are denormalized for listing, sorting, and display.
+The canonical card JSON is the source of truth (`card_json`); the other
+columns are denormalized for listing, sorting, and display. Cards keep the
+format they were imported as (V1/V2 normalise to V2 shape, V3 stays V3).
 """
 
 from datetime import datetime
@@ -33,6 +34,9 @@ class Character(SQLModel, table=True):
     is_public: bool = Field(default=False, index=True)
     card_json: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
     avatar_path: str | None = Field(default=None)
+    # A stored CHARX package (or PNG card) with the card's binary assets, kept so a
+    # V3 card with assets can be exported losslessly. Null for plain JSON/PNG cards.
+    package_path: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -70,6 +74,8 @@ class CharacterDetail(CharacterSummary):
     card: dict[str, Any]
     # Client-side voice hooks declared in the card's `extensions.sparklchat`.
     hooks: CharacterHooks = Field(default_factory=CharacterHooks)
+    # Non-fatal import notes, e.g. a card written to a newer spec version.
+    warnings: list[str] = Field(default_factory=list)
 
 
 class CharacterUpdate(SQLModel):

@@ -138,7 +138,7 @@ def test_missing_spec_version_is_normalised(v2_card: dict) -> None:
 
 def test_unsupported_spec_is_rejected(v2_card: dict) -> None:
     raw = copy.deepcopy(v2_card)
-    raw["spec"] = "chara_card_v3"
+    raw["spec"] = "chara_card_v4"
     with pytest.raises(CardError, match="unsupported character card spec"):
         parse_card(raw)
 

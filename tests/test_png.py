@@ -16,8 +16,10 @@ from sparklchat.services.png import (
     PNG_SIGNATURE,
     PngError,
     blank_png,
+    card_keyword,
     embed_card_json,
     is_png,
+    read_asset_chunks,
     read_card_json,
 )
 
@@ -88,6 +90,67 @@ def test_embed_then_read_round_trips(v2_card: dict) -> None:
     assert read_card_json(png) == v2_card
 
 
+def test_card_keyword_picks_ccv3_for_v3() -> None:
+    assert card_keyword({"spec": "chara_card_v3"}) == "ccv3"
+    assert card_keyword({"spec": "chara_card_v2"}) == "chara"
+    assert card_keyword({"name": "V1"}) == "chara"
+
+
+def test_embed_v3_card_under_the_ccv3_keyword() -> None:
+    card = {"spec": "chara_card_v3", "spec_version": "3.0", "data": {"name": "V3"}}
+    png = embed_card_json(blank_png(), card)
+
+    assert text_of(png, "ccv3") is not None
+    assert text_of(png, "chara") is None
+    assert read_card_json(png) == card
+
+
+def test_embed_clears_the_other_card_chunk() -> None:
+    """A stale `ccv3` must not survive a V2 export (readers prefer it)."""
+    v3 = {"spec": "chara_card_v3", "spec_version": "3.0", "data": {"name": "V3"}}
+    png = embed_card_json(blank_png(), v3)
+    assert text_of(png, "ccv3") is not None
+
+    v2 = {"spec": "chara_card_v2", "spec_version": "2.0", "data": {"name": "V2"}}
+    reexported = embed_card_json(png, v2)
+    assert text_of(reexported, "ccv3") is None
+    assert read_card_json(reexported) == v2
+
+
+def test_embed_clears_a_stale_chara_when_writing_ccv3() -> None:
+    v2 = {"spec": "chara_card_v2", "spec_version": "2.0", "data": {"name": "V2"}}
+    png = embed_card_json(blank_png(), v2)
+
+    v3 = {"spec": "chara_card_v3", "spec_version": "3.0", "data": {"name": "V3"}}
+    reexported = embed_card_json(png, v3)
+    assert text_of(reexported, "chara") is None
+    assert read_card_json(reexported) == v3
+
+
+def test_reads_asset_chunks_with_their_original_case() -> None:
+    payload = base64.b64encode(b"fake png bytes").decode("ascii")
+    png = build_png(
+        build_text_chunk("chara-ext-asset_:assets/icon/images/Main.png", payload),
+        build_text_chunk("chara-ext-asset_:assets/background/other/BG.jpg", payload),
+        build_text_chunk("Comment", "not an asset"),
+    )
+    assets = read_asset_chunks(png)
+
+    assert assets == {
+        "assets/icon/images/Main.png": b"fake png bytes",
+        "assets/background/other/BG.jpg": b"fake png bytes",
+    }
+
+
+def test_asset_chunks_skip_undecodable_payloads() -> None:
+    png = build_png(build_text_chunk("chara-ext-asset_:broken.png", "!!!not base64!!!"))
+    assert read_asset_chunks(png) == {}
+
+
+def test_no_asset_chunks_yields_an_empty_map(v2_card: dict) -> None:
+    assert read_asset_chunks(embed_card_json(blank_png(), v2_card)) == {}
+
+
 def test_embed_inserts_after_ihdr_and_keeps_other_chunks() -> None:
     original = build_png(build_text_chunk("Comment", "hello"), build_text_chunk("Author", "me"))
     png = embed_card_json(original, {"name": "Haruhi"})
@@ -113,17 +176,18 @@ def test_embed_replaces_an_existing_card_chunk() -> None:
     assert read_card_json(png) == {"name": "New"}
 
 
-def test_read_prefers_chara_over_ccv3() -> None:
+def test_read_prefers_ccv3_over_chara() -> None:
+    """The spec says the V3 chunk wins when a file carries both."""
     png = build_png(
         build_text_chunk("ccv3", encode({"name": "V3"})),
         build_text_chunk("chara", encode({"name": "V2"})),
     )
-    assert read_card_json(png) == {"name": "V2"}
-
-
-def test_read_falls_back_to_ccv3() -> None:
-    png = build_png(build_text_chunk("ccv3", encode({"name": "V3"})))
     assert read_card_json(png) == {"name": "V3"}
+
+
+def test_read_falls_back_to_chara() -> None:
+    png = build_png(build_text_chunk("chara", encode({"name": "V2"})))
+    assert read_card_json(png) == {"name": "V2"}
 
 
 def test_keyword_matching_is_case_insensitive() -> None:

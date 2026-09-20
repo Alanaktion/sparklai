@@ -304,3 +304,66 @@ These must be enforced by tests:
 8. `insertion_order` ascending = inserted higher; `priority` ascending = discarded first.
 9. `position` places entry before or after character definitions.
 10. V1 cards upconvert cleanly and re-export to V1 on request.
+
+---
+
+## 10. Character Card V3 support
+
+Added after the original plan (which stopped at V2). A V3 card is a superset of
+V2, so V3 support is layered on top of the existing V1/V2 pipeline rather than
+replacing it.
+
+### 10.1 Formats and import/export
+- [x] Detect V3 by `spec == "chara_card_v3"`; parse and keep it as V3.
+- [x] Accept V1/V2/V3 as JSON, as a PNG `tEXt` chunk (`ccv3` for V3, `chara`
+  otherwise; `ccv3` wins when both are present), or as a CHARX zip.
+- [x] Export as V1, V2, V3, PNG, or CHARX. `to_v3`/`to_v2` convert between the
+  two envelopes; the V3-only fields are dropped for a V2 export.
+- [x] `?format=v3` upgrades a V1/V2 card by filling the V3 defaults
+  (`group_only_greetings: []`).
+- [x] Unknown keys keep surviving the round trip in every envelope.
+
+### 10.2 V3 card fields
+- [x] `nickname` — used for `{{char}}`/`<char>`/`<bot>` in prompts.
+- [x] `creator_notes_multilingual` — language selection with `en`/plain-note
+  fallbacks (`creator_notes_for`).
+- [x] `source` — stored and returned; never used in prompt engineering.
+- [x] `assets` — parsed and kept; `icon`/`main` becomes the character image and
+  `ccdefault:` resolves to the avatar. Binary `embeded://` assets are stored with
+  the package and served from `GET /api/characters/{id}/assets/{path}`.
+- [x] `group_only_greetings` — offered as greeting swipes only in group chats.
+- [x] `creation_date`/`modification_date` — stamped on create/export.
+- [x] A newer `spec_version` imports with a warning instead of a 422.
+
+### 10.3 Lorebook V3
+- [x] `use_regex` keys, including `/pattern/flags` literals; an invalid pattern
+  makes the entry never match.
+- [x] Decorators (`@@…` lines, with `@@@` fallback chains): `activate`,
+  `dont_activate`, `scan_depth`, `activate_only_after`, `activate_only_every`,
+  `keep_activate_after_match`, `dont_activate_after_match`, `is_greeting`,
+  `is_user_icon`, `additional_keys`, `exclude_keys`, `ignore_on_max_context`,
+  `depth`, `role`, `position`, and `disable_ui_prompt`. The `instruct_*` and
+  `reverse_*` variants target non-chat contexts, so they are ignored here as the
+  spec allows.
+- [x] `@@depth` interleaves the entry into the chat log (with `@@role`), and
+  `@@position` places it relative to the description/personality/scenario
+  sections.
+- [x] `@@keep_activate_after_match`/`@@dont_activate_after_match` read per-session
+  match counts (`chat_sessions.lorebook_state`).
+- [x] A standalone lorebook is accepted and exported as the `lorebook_v3`
+  envelope; the world book still stores the bare book shape.
+- [x] Recursive scanning sees `{{hidden_key: …}}` values.
+
+### 10.4 Curly braced syntaxes
+- [x] `{{char}}`/`{{user}}` plus the legacy `<char>`/`<bot>`/`<user>` spellings.
+- [x] `{{random:}}`, `{{pick:}}` (stable per prompt), `{{roll:N}}`/`{{roll:dN}}`,
+  `{{// }}`, `{{hidden_key:}}`, `{{comment:}}`, `{{reverse:}}`.
+- [x] Detection is case-insensitive; unknown or unclosed macros pass through.
+
+### 10.5 Invariants added
+11. A V3 card's V3-only `data` fields never appear in a V2 export, and a V2
+    card never gains a V3-only default on a round trip.
+12. Text inside `{{// …}}`/`{{comment: …}}` never reaches the model and never
+    counts as a lorebook trigger; `{{hidden_key: …}}` counts only when scanning
+    recursively.
+13. Decorator lines are stripped from entry content before it reaches the model.

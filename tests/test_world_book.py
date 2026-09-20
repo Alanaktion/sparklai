@@ -309,6 +309,17 @@ async def test_world_book_rejects_a_broken_entry(
     assert "Invalid world book" in response.json()["detail"]
 
 
+async def test_world_book_accepts_a_lorebook_v3_envelope(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    enveloped = {"spec": "lorebook_v3", "data": WORLD_BOOK}
+    put = await client.put("/api/settings/world-book", json=enveloped, headers=auth_headers)
+    assert put.status_code == 200, put.text
+    # The envelope is unwrapped so storage stays book-shaped.
+    assert put.json() == WORLD_BOOK
+    assert (await client.get("/api/settings/world-book", headers=auth_headers)).json() == WORLD_BOOK
+
+
 async def test_sessions_default_to_the_world_book_on(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
