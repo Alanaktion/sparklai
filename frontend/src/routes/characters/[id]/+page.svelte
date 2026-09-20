@@ -8,6 +8,7 @@
 		downloadCharacterCard,
 		fetchCharacterAsset,
 		getCharacter,
+		importChat,
 		listCharacters,
 		listSessions,
 		updateCharacter,
@@ -27,6 +28,7 @@
 	let loading = $state(true);
 	let starting = $state(false);
 	let exporting = $state<CharacterExportFormat | null>(null);
+	let importing = $state(false);
 	let togglingVisibility = $state(false);
 	let error = $state<string | null>(null);
 
@@ -212,6 +214,27 @@
 		}
 	}
 
+	async function importTranscript(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file || !character) return;
+
+		const token = auth.token;
+		if (!token) return;
+
+		importing = true;
+		error = null;
+		try {
+			const imported = await importChat(token, character.id, file);
+			await goto(`/chat/${imported.id}`);
+		} catch (cause) {
+			error = errorMessage(cause);
+		} finally {
+			importing = false;
+		}
+	}
+
 	async function exportCard(format: CharacterExportFormat) {
 		const token = auth.token;
 		if (!token || !character) return;
@@ -380,7 +403,18 @@
 		{/if}
 
 		<section class="panel">
-			<h2>Sessions</h2>
+			<div class="panel-head">
+				<h2>Sessions</h2>
+				<label class="import">
+					<span>{importing ? 'Importing…' : 'Import chat (JSON)'}</span>
+					<input
+						type="file"
+						accept=".json,application/json"
+						onchange={importTranscript}
+						disabled={importing}
+					/>
+				</label>
+			</div>
 			{#if sessions.length === 0}
 				<p class="muted">No chats yet. Start one above.</p>
 			{:else}
@@ -562,6 +596,30 @@
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		color: var(--muted);
+	}
+
+	.panel-head {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.panel-head h2 {
+		margin: 0;
+	}
+
+	.import {
+		display: grid;
+		gap: 0.25rem;
+		font-size: 0.8rem;
+		color: var(--muted);
+	}
+
+	.import input {
+		max-width: 16rem;
+		font-size: 0.85rem;
 	}
 
 	.notes {

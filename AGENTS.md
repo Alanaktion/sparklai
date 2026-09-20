@@ -67,6 +67,8 @@ finalizing any `.svelte`/`.svelte.ts` change.
     matching and truncation to a token budget, multi-character "cast" blocks.
   - `chat.py` — session/message orchestration built on `prompts.py` and the
     provider clients (send, stream, regenerate, swipe).
+  - `chat_import.py` — parses an imported JSON transcript (this app's export,
+    or another client's message list) into roles, bodies, and speaker names.
   - `providers/` — one client per backend (`openai.py` also serves
     `koboldcpp`/`custom`, `anthropic.py`, `ollama.py`); `base.py` defines the
     common interface. Anthropic has no system role, so `chat.py`/the client

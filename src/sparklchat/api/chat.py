@@ -5,7 +5,7 @@ from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy import func
@@ -55,6 +55,7 @@ from sparklchat.services.chat import (
     swipe_message,
     title_from_message,
 )
+from sparklchat.services.chat_import import ChatImportError, parse_chat
 from sparklchat.services.crypto import EncryptionError
 from sparklchat.services.downloads import attachment_headers, download_filename
 from sparklchat.services.prompts import CastMember
@@ -74,6 +75,8 @@ character_router = APIRouter(prefix="/characters", tags=["chat"])
 _NO_PROVIDER = "No provider configured. Add one under Settings and make it your default."
 # How much of the latest message the dashboard preview keeps.
 PREVIEW_LENGTH = 160
+# Imported transcripts are small text files; anything bigger is a mistake.
+MAX_IMPORT_BYTES = 8 * 1024 * 1024
 
 
 async def _owned_session(db: SessionDep, session_id: int, user_id: int) -> ChatSession:
@@ -375,6 +378,108 @@ async def create_session(
     )
     messages = [greeting] if greeting is not None else []
     return _detail(session, characters, messages)
+
+
+async def _import_cast(
+    db: SessionDep, primary: Character, names: list[str], user_id: int
+) -> list[Character]:
+    """The primary character, plus any of the user's own that the file names.
+
+    A SparklChat export carries its cast by name, so a group transcript keeps its
+    speakers (and the name-based `speaker_id` mapping) without the user having to
+    pick the cast again. Matching is limited to the user's own characters.
+    """
+    wanted = {name.casefold() for name in names if name.strip()}
+    wanted.discard(character_name(primary).casefold())
+    if not wanted:
+        return [primary]
+
+    rows = (await db.exec(select(Character).where(Character.user_id == user_id))).all()
+    by_name = {character_name(row).casefold(): row for row in rows}
+    members = [primary]
+    seen = {primary.id}
+    for name in names:
+        member = by_name.get(name.strip().casefold())
+        if member is None or member.id in seen:
+            continue
+        seen.add(member.id)
+        members.append(member)
+    return members
+
+
+@character_router.post("/{character_id}/sessions/import", status_code=status.HTTP_201_CREATED)
+async def import_session(
+    character_id: int,
+    file: Annotated[UploadFile, File()],
+    db: SessionDep,
+    current_user: CurrentUserDep,
+) -> SessionDetail:
+    """Import a JSON transcript as a new session for this character.
+
+    Accepts this app's own export and the message-list JSON other clients write.
+    The path character is the session's primary; a transcript that names other
+    characters adds any of the user's own with a matching name, so a group chat
+    keeps its speakers. The transcript's own timestamps are kept, so imported
+    history lands where it belongs on the dashboard.
+    """
+    character = await readable_character(db, character_id, current_user.id)
+    data = await file.read()
+    if len(data) > MAX_IMPORT_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "File is too large")
+
+    try:
+        payload = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"Could not read the file: {exc}"
+        ) from exc
+    try:
+        chat = parse_chat(payload)
+    except ChatImportError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+
+    characters = await _import_cast(db, character, chat.character_names, current_user.id)
+    speakers = {character_name(member).casefold(): member.id for member in characters}
+    times = [message.created_at for message in chat.messages if message.created_at is not None]
+    now = utcnow()
+
+    session = ChatSession(
+        user_id=current_user.id,
+        character_id=character_id,
+        title=(chat.title or character.name)[:200] or character.name,
+        created_at=min(times) if times else now,
+        updated_at=max(times) if times else now,
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+
+    for position, member in enumerate(characters):
+        db.add(SessionCharacter(session_id=session.id, character_id=member.id, position=position))
+    await db.commit()
+
+    stored: list[Message] = []
+    previous = session.created_at
+    for item in chat.messages:
+        when = item.created_at or previous
+        previous = when
+        speaker_id = None
+        if item.role == "assistant":
+            speaker_id = speakers.get((item.speaker or "").casefold(), character_id)
+        message = Message(
+            session_id=session.id,
+            role=item.role,
+            content=item.content,
+            created_at=when,
+            # Only an assistant line can be the seeded greeting.
+            is_greeting=item.is_greeting and item.role == "assistant",
+            speaker_id=speaker_id,
+            token_count=count_tokens(item.content),
+        )
+        db.add(message)
+        stored.append(message)
+    await db.commit()
+    return _detail(session, characters, stored)
 
 
 @router.get("/{session_id}")

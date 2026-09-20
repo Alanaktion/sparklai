@@ -101,10 +101,12 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | GET | `/api/characters/{id}/export` | Export as `?format=v1`, `v2`, `v3`, `png`, or `charx` |
 | GET | `/api/characters/{id}/sessions` | Chat sessions for this character |
 | POST | `/api/characters/{id}/sessions` | Start a session (seeds the greeting) |
+| POST | `/api/characters/{id}/sessions/import` | Import a JSON chat transcript as a new session (multipart `file`) |
 | GET | `/api/sessions` | Your recent sessions, across all characters (dashboard) |
 | GET | `/api/sessions/{id}` | Session plus its messages |
 | PATCH | `/api/sessions/{id}` | Title, provider override, prompt overrides, book toggle |
 | DELETE | `/api/sessions/{id}` | Delete the session and its messages |
+| GET | `/api/sessions/{id}/export` | Download the transcript as `?format=json` or `markdown` |
 | GET | `/api/sessions/{id}/messages` | Messages in order |
 | POST | `/api/sessions/{id}/messages` | Send a message (non-streaming) |
 | POST | `/api/sessions/{id}/messages/stream` | Send a message, streamed as SSE |
@@ -301,12 +303,35 @@ the default and leaves its sessions to fall back to the new default.
 If the stream fails part-way, whatever arrived is saved before the `error` event
 so partial text is not lost.
 
+### Importing transcripts
+
+`GET /api/sessions/{id}/export?format=json|markdown` downloads a transcript, and
+`POST /api/characters/{id}/sessions/import` takes one back in as a new session
+for that character (multipart `file`). Two JSON shapes are understood:
+
+- this app's own export, which carries a `session` header plus a `characters`
+  cast, and
+- the plain message lists other clients write, where each entry has its body
+  under `msg`/`mes`/`content`/`text` and enough context to tell who spoke — a
+  `role`, an `is_user` flag, or a `characterId`/`userId` speaker pair.
+
+The path character becomes the session's primary character. A transcript that
+names its other characters (as this app's export does) pulls in any of the
+importing user's *own* characters with a matching name, so a group chat imports
+with its speakers intact; a named speaker with no match falls back to the
+primary. A `greeting` the message list left out is restored from the file (and
+matched, never duplicated, when the list already includes it), and recognised
+`createdAt`/`send_date`/epoch timestamps are kept — session `created_at`/
+`updated_at` follow the transcript, so imported history lands where it belongs
+on the dashboard.
+
 ## The Svelte app
 
 The front end covers sign in/up, the character list (search, upload, delete),
-character detail with `creator_notes`, the chat view (streaming, swipes, edit,
-delete, regenerate, provider picker, character-book toggle), and settings
-(providers with a Test button, plus display name and default prompts).
+character detail with `creator_notes` and transcript import, the chat view
+(streaming, swipes, edit, delete, regenerate, provider picker, character-book
+toggle), and settings (providers with a Test button, plus display name and
+default prompts).
 
 Avatars come from an authenticated endpoint, so the app fetches them with the
 bearer token and renders a blob URL rather than using `<img src>` directly.

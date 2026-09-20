@@ -543,6 +543,25 @@ export function createSession(
 	);
 }
 
+/**
+ * Import a JSON transcript as a new session for the character — either this
+ * app's own chat export or the message-list JSON other clients write.
+ */
+export function importChat(
+	token: string,
+	characterId: number,
+	file: File
+): Promise<SessionDetail> {
+	const body = new FormData();
+	body.append('file', file);
+	// No Content-Type: the browser sets the multipart boundary.
+	return apiFetch<SessionDetail>(`/characters/${characterId}/sessions/import`, {
+		method: 'POST',
+		headers: bearer(token),
+		body
+	});
+}
+
 export function getSession(token: string, sessionId: number): Promise<SessionDetail> {
 	return apiFetch<SessionDetail>(`/sessions/${sessionId}`, { headers: bearer(token) });
 }
