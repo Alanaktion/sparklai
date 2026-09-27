@@ -535,7 +535,6 @@
 	.tabs button.active {
 		background: var(--surface-2);
 		border-color: var(--border);
-		font-weight: 600;
 	}
 
 	.form {

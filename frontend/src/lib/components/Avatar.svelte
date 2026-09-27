@@ -67,7 +67,7 @@
 		justify-content: center;
 		width: var(--size);
 		height: var(--size);
-		border-radius: 50%;
+		border-radius: 0.5rem;
 		background: var(--accent);
 		color: var(--accent-contrast);
 		font-weight: 600;

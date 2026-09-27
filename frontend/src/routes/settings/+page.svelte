@@ -200,7 +200,7 @@
 	<title>Settings · Sparkl Chat</title>
 </svelte:head>
 
-<main class="page">
+<main class="page narrow">
 	<h1>Settings</h1>
 
 	<section class="section">
