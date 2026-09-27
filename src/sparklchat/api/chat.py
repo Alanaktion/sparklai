@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy import func
 from sqlmodel import select
@@ -20,6 +20,7 @@ from sparklchat.models.card import CharacterCard
 from sparklchat.models.character import Character
 from sparklchat.models.chat import (
     ChatSession,
+    ImageGenerateRequest,
     Message,
     MessageCreate,
     MessagePair,
@@ -39,11 +40,14 @@ from sparklchat.models.user_settings import UserSettings
 from sparklchat.services.cards import load_card
 from sparklchat.services.chat import (
     activation_counts,
+    append_image_message,
     build_session_prompt,
     cast_by_id,
     cast_public,
     character_name,
     create_greeting,
+    delete_message_images,
+    message_image_entries,
     message_public,
     prompt_context,
     record_activations,
@@ -58,6 +62,7 @@ from sparklchat.services.chat import (
 from sparklchat.services.chat_import import ChatImportError, parse_chat
 from sparklchat.services.crypto import EncryptionError
 from sparklchat.services.downloads import attachment_headers, download_filename
+from sparklchat.services.generated_images import generated_image_content_type, generated_image_file
 from sparklchat.services.prompts import CastMember
 from sparklchat.services.providers import (
     BaseClient,
@@ -527,6 +532,9 @@ async def update_session(
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(session_id: int, db: SessionDep, current_user: CurrentUserDep) -> None:
     session = await _owned_session(db, session_id, current_user.id)
+    # Messages cascade in the DB, but generated-image files on disk do not.
+    for message in await _load_messages(db, session.id):
+        delete_message_images(message)
     await db.delete(session)
     await db.commit()
 
@@ -676,6 +684,53 @@ async def stream_regenerate(
     yield _event("done", {})
 
 
+@router.post("/{session_id}/images/stream", response_class=EventSourceResponse)
+async def stream_image(
+    session_id: int,
+    payload: ImageGenerateRequest,
+    db: SessionDep,
+    current_user: CurrentUserDep,
+) -> AsyncIterable[ServerSentEvent]:
+    """Generate an image with a ComfyUI provider and attach it to a new message.
+
+    Submitting and polling ComfyUI can take anywhere from seconds to minutes, so
+    progress is streamed as `status` events (`queued` then repeated `running`
+    events) the same way token deltas are for a chat reply; the browser never
+    talks to the ComfyUI server directly, only to this endpoint.
+    """
+    session = await _owned_session(db, session_id, current_user.id)
+    provider = await _owned_provider(db, payload.provider_id, current_user.id)
+    if provider.provider_type != "comfyui":
+        yield _event("error", {"detail": "That provider is not a ComfyUI provider"})
+        yield _event("done", {})
+        return
+
+    client = _client_for(provider)
+    try:
+        async for update in client.generate(
+            payload.prompt,
+            negative_prompt=payload.negative_prompt,
+            width=payload.width,
+            height=payload.height,
+            seed=payload.seed,
+        ):
+            if update["status"] != "done":
+                yield _event("status", update)
+                continue
+            message = await append_image_message(
+                db,
+                session,
+                payload.prompt,
+                update["images"],
+                update["width"],
+                update["height"],
+            )
+            yield _event("message", {"message": message_public(message).model_dump(mode="json")})
+    except ProviderError as exc:
+        yield _event("error", {"detail": str(exc)})
+    yield _event("done", {})
+
+
 @router.get("/{session_id}/export")
 async def export_session(
     session_id: int,
@@ -737,6 +792,31 @@ async def _owned_message(db: SessionDep, session_id: int, message_id: int) -> Me
     return message
 
 
+@router.get("/{session_id}/messages/{message_id}/images/{index}")
+async def get_message_image(
+    session_id: int,
+    message_id: int,
+    index: int,
+    db: SessionDep,
+    current_user: CurrentUserDep,
+) -> FileResponse:
+    """Serve a ComfyUI-generated image attached to a message.
+
+    Authenticated and ownership-checked like the avatar/asset endpoints, so the
+    stored file path itself is never exposed to the client.
+    """
+    session = await _owned_session(db, session_id, current_user.id)
+    message = await _owned_message(db, session.id, message_id)
+    entries = message_image_entries(message)
+    if index < 0 or index >= len(entries):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Image not found")
+    path_name = entries[index].get("path")
+    path = generated_image_file(path_name) if path_name else None
+    if path is None or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Image not found")
+    return FileResponse(path, media_type=generated_image_content_type(path_name))
+
+
 @router.patch("/{session_id}/messages/{message_id}")
 async def update_message(
     session_id: int,
@@ -762,6 +842,7 @@ async def delete_message(
 ) -> None:
     session = await _owned_session(db, session_id, current_user.id)
     message = await _owned_message(db, session.id, message_id)
+    delete_message_images(message)
     await db.delete(message)
     session.updated_at = utcnow()
     db.add(session)

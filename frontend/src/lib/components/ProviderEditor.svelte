@@ -18,7 +18,14 @@
 
 	let { provider = null, onSaved, onCancel }: Props = $props();
 
-	const PROVIDER_TYPES: ProviderType[] = ['openai', 'anthropic', 'ollama', 'koboldcpp', 'custom'];
+	const PROVIDER_TYPES: ProviderType[] = [
+		'openai',
+		'anthropic',
+		'ollama',
+		'koboldcpp',
+		'custom',
+		'comfyui'
+	];
 
 	// The editor is mounted fresh for each provider, so the form fields are an
 	// intentional one-time snapshot of the given provider.
@@ -49,6 +56,11 @@
 
 	let busy = $state(false);
 	let error = $state<string | null>(null);
+
+	// A ComfyUI provider generates images, not chat replies: it has no "model"
+	// in the chat sense (the workflow's own checkpoint default is used unless
+	// overridden here), and its settings live entirely in the JSON below.
+	const isComfyUI = $derived(providerType === 'comfyui');
 
 	function numberOrNull(value: string): number | null {
 		const trimmed = value.trim();
@@ -151,15 +163,25 @@
 			<input bind:value={baseUrl} maxlength="500" placeholder="Use the type default" />
 		</label>
 		<label>
-			<span>Model</span>
-			<input bind:value={model} required maxlength="200" />
+			<span>Model {#if isComfyUI}<em>optional</em>{/if}</span>
+			<input
+				bind:value={model}
+				required={!isComfyUI}
+				maxlength="200"
+				placeholder={isComfyUI
+					? 'Checkpoint/UNet override, e.g. sd_xl_base_1.0.safetensors'
+					: ''}
+			/>
 		</label>
 	</div>
 
 	<label>
 		<span>
 			API key
-			<em>{provider?.has_api_key ? 'stored — leave blank to keep' : 'optional'}</em>
+			<em>
+				{provider?.has_api_key ? 'stored — leave blank to keep' : 'optional'}
+				{isComfyUI ? '(sent as x-api-key)' : ''}
+			</em>
 		</span>
 		<input type="password" bind:value={apiKey} autocomplete="off" maxlength="500" />
 	</label>
@@ -170,25 +192,39 @@
 		</label>
 	{/if}
 
-	<div class="row">
-		<label>
-			<span>Temperature</span>
-			<input bind:value={temperature} inputmode="decimal" />
-		</label>
-		<label>
-			<span>Max tokens</span>
-			<input bind:value={maxTokens} inputmode="numeric" />
-		</label>
-		<label>
-			<span>Top P</span>
-			<input bind:value={topP} inputmode="decimal" />
-		</label>
-	</div>
+	{#if !isComfyUI}
+		<div class="row">
+			<label>
+				<span>Temperature</span>
+				<input bind:value={temperature} inputmode="decimal" />
+			</label>
+			<label>
+				<span>Max tokens</span>
+				<input bind:value={maxTokens} inputmode="numeric" />
+			</label>
+			<label>
+				<span>Top P</span>
+				<input bind:value={topP} inputmode="decimal" />
+			</label>
+		</div>
+	{/if}
 
 	<label>
 		<span>Extra params <em>JSON object, optional</em></span>
 		<textarea bind:value={extraParams} rows="3" spellcheck="false"></textarea>
 	</label>
+	{#if isComfyUI}
+		<p class="hint">
+			Recognized keys: <code>workflow</code> (one of <code>image</code>, <code>anime</code>,
+			<code>sdxl</code>, <code>video</code>, <code>z_image_turbo</code>, or <code>custom</code> —
+			defaults to <code>image</code>), <code>workflow_json</code> (required when
+			<code>workflow</code> is <code>custom</code>: a raw ComfyUI node graph using
+			<code>__POSITIVE_PROMPT__</code>/<code>__NEGATIVE_PROMPT__</code>/<code>__WIDTH__</code>/
+			<code>__HEIGHT__</code>/<code>__SEED__</code>/<code>__MODEL__</code> placeholders),
+			<code>width</code>, <code>height</code>, <code>negative_prompt</code>,
+			<code>duration</code> (video frames), and <code>filename_prefix</code>.
+		</p>
+	{/if}
 
 	{#if error}
 		<p class="error" role="alert">{error}</p>
@@ -219,6 +255,16 @@
 
 	.row label {
 		flex: 1 1 10rem;
+	}
+
+	.hint {
+		margin: -0.3rem 0 0;
+		font-size: 0.78rem;
+		color: var(--muted);
+	}
+
+	.hint code {
+		font-size: 0.85em;
 	}
 
 	label {

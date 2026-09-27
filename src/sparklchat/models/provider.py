@@ -14,7 +14,7 @@ from sparklchat.models.base import utcnow
 
 ChatRole = Literal["system", "user", "assistant"]
 
-ProviderType = Literal["openai", "anthropic", "ollama", "koboldcpp", "custom"]
+ProviderType = Literal["openai", "anthropic", "ollama", "koboldcpp", "custom", "comfyui"]
 
 DEFAULT_BASE_URLS: dict[str, str] = {
     "openai": "https://api.openai.com/v1",
@@ -23,6 +23,9 @@ DEFAULT_BASE_URLS: dict[str, str] = {
     # KoboldCpp and `custom` are driven through the OpenAI-compatible client.
     "koboldcpp": "http://127.0.0.1:5001/v1",
     "custom": "",
+    # Image generation. Config beyond the server address (workflow, size
+    # defaults, ...) lives in `extra_params` — see `services/providers/comfyui.py`.
+    "comfyui": "http://127.0.0.1:8188",
 }
 
 
@@ -56,7 +59,10 @@ class ProviderCreate(SQLModel):
     # Left blank, the type's default endpoint is used.
     base_url: str | None = Field(default=None, max_length=500)
     api_key: str | None = Field(default=None, max_length=500)
-    model: str = Field(min_length=1, max_length=200)
+    # Required for the chat providers; a `comfyui` provider's default
+    # checkpoint/UNet is optional (falls back to the workflow's own default), so
+    # emptiness is enforced per type in the API layer instead of here.
+    model: str = Field(default="", max_length=200)
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1, le=1_000_000)
     top_p: float | None = Field(default=None, gt=0, le=1)
@@ -73,7 +79,7 @@ class ProviderUpdate(SQLModel):
     provider_type: ProviderType | None = None
     base_url: str | None = Field(default=None, max_length=500)
     api_key: str | None = Field(default=None, max_length=500)
-    model: str | None = Field(default=None, min_length=1, max_length=200)
+    model: str | None = Field(default=None, max_length=200)
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1, le=1_000_000)
     top_p: float | None = Field(default=None, gt=0, le=1)

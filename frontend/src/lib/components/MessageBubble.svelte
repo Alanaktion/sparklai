@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Message, SwipeDirection } from '$lib/api';
+	import GeneratedImage from '$lib/components/GeneratedImage.svelte';
 	import RichText from '$lib/components/RichText.svelte';
 
 	type Props = {
@@ -60,6 +61,13 @@
 		</div>
 	{:else}
 		<div class="content"><RichText text={message.content} /></div>
+		{#if message.images.length > 0}
+			<div class="images">
+				{#each message.images as image (image.index)}
+					<GeneratedImage sessionId={message.session_id} messageId={message.id} {image} />
+				{/each}
+			</div>
+		{/if}
 		<div class="actions">
 			{#if message.swipe_count > 1}
 				<button aria-label="Previous variant" onclick={() => onSwipe('prev')} disabled={busy}>
@@ -108,6 +116,12 @@
 
 	.content {
 		overflow-wrap: anywhere;
+	}
+
+	.images {
+		display: grid;
+		gap: 0.5rem;
+		margin-top: 0.5rem;
 	}
 
 	.actions {

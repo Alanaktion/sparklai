@@ -36,6 +36,10 @@ TEST_PROMPT = "Reply with the single word: ok"
 # Keep connection tests cheap regardless of the provider's configured limit, but
 # leave enough headroom that reasoning models still emit visible content.
 TEST_MAX_TOKENS = 64
+# The chat providers need a model name to send in every request; a `comfyui`
+# provider's checkpoint/UNet override is optional (see `Provider.model`'s
+# docstring), so it is exempt from the "model is required" check below.
+_MODEL_OPTIONAL_TYPES = {"comfyui"}
 
 
 async def _owned(db: SessionDep, provider_id: int, user_id: int) -> Provider:
@@ -102,6 +106,8 @@ async def create_provider(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "base_url is required for custom providers",
         )
+    if not payload.model.strip() and payload.provider_type not in _MODEL_OPTIONAL_TYPES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "model is required")
 
     provider = Provider(
         user_id=current_user.id,
@@ -177,6 +183,8 @@ async def update_provider(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "base_url is required for custom providers",
         )
+    if not provider.model.strip() and provider.provider_type not in _MODEL_OPTIONAL_TYPES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "model is required")
 
     provider.updated_at = utcnow()
     db.add(provider)

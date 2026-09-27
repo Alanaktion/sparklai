@@ -151,3 +151,7 @@ class BaseClient:
 
     def stream(self, messages: Sequence[ChatMessage]) -> AsyncIterator[str]:
         raise NotImplementedError
+
+    def generate(self, prompt: str, **kwargs: Any) -> AsyncIterator[dict[str, Any]]:
+        """Image generation; only `ComfyUIClient` implements this."""
+        raise NotImplementedError

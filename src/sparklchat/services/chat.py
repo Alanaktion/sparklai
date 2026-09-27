@@ -5,11 +5,13 @@ from collections.abc import Iterable, Mapping, Sequence
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from sparklchat.models.base import utcnow
 from sparklchat.models.card import CharacterBook, CharacterCard
 from sparklchat.models.character import Character
 from sparklchat.models.chat import (
     ChatSession,
     Message,
+    MessageImage,
     MessagePublic,
     SessionCharacter,
     SessionCharacterPublic,
@@ -22,6 +24,7 @@ from sparklchat.services.cards import (
     card_user_icon,
     load_card,
 )
+from sparklchat.services.generated_images import delete_generated_image, save_generated_image
 from sparklchat.services.prompts import (
     CastMember,
     HistoryTurn,
@@ -30,6 +33,7 @@ from sparklchat.services.prompts import (
     substitute_macros,
 )
 from sparklchat.services.providers import ChatMessage
+from sparklchat.services.providers.comfyui import GeneratedImage
 from sparklchat.services.tokens import count_tokens
 
 TITLE_MAX_LENGTH = 60
@@ -118,6 +122,21 @@ def swipe_list(message: Message) -> list[str]:
     return [str(item) for item in swipes]
 
 
+def message_image_entries(message: Message) -> list[dict]:
+    """The raw `meta.images` entries (stored file name + size), for internal use."""
+    images = (message.meta or {}).get("images")
+    if not isinstance(images, list):
+        return []
+    return [item for item in images if isinstance(item, dict)]
+
+
+def message_images(message: Message) -> list[MessageImage]:
+    return [
+        MessageImage(index=index, width=item.get("width"), height=item.get("height"))
+        for index, item in enumerate(message_image_entries(message))
+    ]
+
+
 def message_public(message: Message) -> MessagePublic:
     return MessagePublic(
         id=message.id or 0,
@@ -129,7 +148,53 @@ def message_public(message: Message) -> MessagePublic:
         swipe_index=message.swipe_index,
         swipe_count=max(1, len(swipe_list(message))),
         speaker_id=message.speaker_id,
+        images=message_images(message),
     )
+
+
+async def append_image_message(
+    db: AsyncSession,
+    session: ChatSession,
+    prompt: str,
+    images: Sequence[GeneratedImage],
+    width: int,
+    height: int,
+) -> Message:
+    """Persist a ComfyUI generation as a message.
+
+    The prompt is the message's text and the generated file(s) are attached via
+    `meta.images`; `meta.kind = "image"` marks it as a generated attachment
+    rather than character dialogue, since `speaker_id` is left null the same
+    way a user/system message would be (see `Message.speaker_id`'s docstring
+    on the legacy-row ambiguity of a null value).
+    """
+    stored = [
+        {
+            "path": save_generated_image(image.data, image.content_type),
+            "width": width,
+            "height": height,
+        }
+        for image in images
+    ]
+    message = Message(
+        session_id=session.id,
+        role="assistant",
+        content=prompt,
+        token_count=count_tokens(prompt),
+        meta={"kind": "image", "images": stored},
+    )
+    db.add(message)
+    session.updated_at = utcnow()
+    db.add(session)
+    await db.commit()
+    await db.refresh(message)
+    return message
+
+
+def delete_message_images(message: Message) -> None:
+    """Remove any files a generated-image message's `meta.images` points at."""
+    for entry in message_image_entries(message):
+        delete_generated_image(entry.get("path"))
 
 
 def greeting_variants(

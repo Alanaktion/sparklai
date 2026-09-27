@@ -11,6 +11,7 @@ from sparklchat.services.providers.base import (
     ProviderConfig,
     ProviderError,
 )
+from sparklchat.services.providers.comfyui import ComfyUIClient
 from sparklchat.services.providers.ollama import OllamaClient
 from sparklchat.services.providers.openai import OpenAIClient
 
@@ -21,6 +22,7 @@ _CLIENTS: dict[str, type[BaseClient]] = {
     "ollama": OllamaClient,
     "koboldcpp": OpenAIClient,
     "custom": OpenAIClient,
+    "comfyui": ComfyUIClient,
 }
 
 __all__ = [

@@ -9,6 +9,7 @@
 		getCharacter,
 		getSession,
 		listProviders,
+		streamImage,
 		streamMessage,
 		streamRegenerate,
 		swipeMessage,
@@ -16,6 +17,7 @@
 		type ChatExportFormat,
 		type ChatStreamHandlers,
 		type CharacterDetail,
+		type ImageStreamHandlers,
 		type Message,
 		type Provider,
 		type SessionDetail,
@@ -56,6 +58,18 @@
 	let controller: AbortController | null = null;
 	let scroller = $state<HTMLDivElement | null>(null);
 
+	// Image generation (ComfyUI providers), a separate flow from the chat reply.
+	let imagePanelOpen = $state(false);
+	let imagePrompt = $state('');
+	let imageNegativePrompt = $state('');
+	let imageWidth = $state('');
+	let imageHeight = $state('');
+	let imageProviderId = $state<number | null>(null);
+	let imageBusy = $state(false);
+	let imageStatus = $state('');
+	let imageError = $state<string | null>(null);
+	let imageController: AbortController | null = null;
+
 	const sessionId = $derived(Number(page.params.sessionId));
 
 	const lastAssistantId = $derived(
@@ -72,6 +86,9 @@
 	// Voice features are opt-in per card and only shown when the browser can do them.
 	const ttsEnabled = $derived(Boolean(character?.hooks?.tts?.enabled) && canSpeak());
 	const sttEnabled = $derived(Boolean(character?.hooks?.stt?.enabled) && canListen());
+
+	// The image-generation panel is only offered when a ComfyUI provider exists.
+	const comfyuiProviders = $derived(providers.filter((item) => item.provider_type === 'comfyui'));
 
 	$effect(() => {
 		void load(sessionId);
@@ -240,6 +257,76 @@
 
 	function stop() {
 		controller?.abort();
+	}
+
+	function toggleImagePanel() {
+		imagePanelOpen = !imagePanelOpen;
+		if (imagePanelOpen && imageProviderId === null) {
+			imageProviderId = comfyuiProviders[0]?.id ?? null;
+		}
+	}
+
+	function positiveIntOrUndefined(value: string): number | undefined {
+		const trimmed = value.trim();
+		if (!trimmed) return undefined;
+		const parsed = Number(trimmed);
+		return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+	}
+
+	function imageStreamHandlers(): ImageStreamHandlers {
+		return {
+			onStatus: (status) => {
+				imageStatus = status.status === 'queued' ? 'Queued…' : `Generating… (${Math.round(status.elapsed ?? 0)}s)`;
+			},
+			onMessage: (message) => {
+				upsert(message);
+				imagePanelOpen = false;
+				imagePrompt = '';
+				imageNegativePrompt = '';
+				void scrollToBottom();
+			},
+			onError: (detail) => {
+				imageError = detail;
+			}
+		};
+	}
+
+	async function generateImage(event: SubmitEvent) {
+		event.preventDefault();
+		const token = auth.token;
+		const prompt = imagePrompt.trim();
+		if (!token || !session || !prompt || imageProviderId === null || imageBusy) return;
+
+		imageError = null;
+		imageStatus = '';
+		imageBusy = true;
+		imageController = new AbortController();
+
+		try {
+			await streamImage(
+				token,
+				session.id,
+				{
+					provider_id: imageProviderId,
+					prompt,
+					negative_prompt: imageNegativePrompt.trim() || undefined,
+					width: positiveIntOrUndefined(imageWidth),
+					height: positiveIntOrUndefined(imageHeight)
+				},
+				imageStreamHandlers(),
+				imageController.signal
+			);
+		} catch (cause) {
+			if (!isAbort(cause)) imageError = errorMessage(cause);
+		} finally {
+			imageBusy = false;
+			imageStatus = '';
+			imageController = null;
+		}
+	}
+
+	function cancelImage() {
+		imageController?.abort();
 	}
 
 	async function swipe(message: Message, direction: SwipeDirection) {
@@ -534,6 +621,54 @@
 		<p class="hearing muted" role="status">{hearing}</p>
 	{/if}
 
+	{#if imagePanelOpen}
+		<form class="image-panel" onsubmit={generateImage}>
+			<label>
+				<span>Provider</span>
+				<select bind:value={imageProviderId} disabled={imageBusy}>
+					{#each comfyuiProviders as provider (provider.id)}
+						<option value={provider.id}>{provider.name}</option>
+					{/each}
+				</select>
+			</label>
+			<textarea
+				bind:value={imagePrompt}
+				rows="2"
+				placeholder="Describe the image to generate…"
+				aria-label="Image prompt"
+				disabled={imageBusy}
+			></textarea>
+			<div class="image-panel-row">
+				<label>
+					<span>Negative prompt <em>optional</em></span>
+					<input bind:value={imageNegativePrompt} disabled={imageBusy} />
+				</label>
+				<label class="narrow">
+					<span>Width</span>
+					<input bind:value={imageWidth} inputmode="numeric" placeholder="auto" disabled={imageBusy} />
+				</label>
+				<label class="narrow">
+					<span>Height</span>
+					<input bind:value={imageHeight} inputmode="numeric" placeholder="auto" disabled={imageBusy} />
+				</label>
+			</div>
+			{#if imageError}
+				<p class="error" role="alert">{imageError}</p>
+			{/if}
+			<div class="image-panel-actions">
+				{#if imageBusy}
+					<span class="muted" role="status">{imageStatus}</span>
+					<button type="button" class="danger" onclick={cancelImage}>Cancel</button>
+				{:else}
+					<button class="primary" type="submit" disabled={!imagePrompt.trim() || !imageProviderId}>
+						Generate
+					</button>
+					<button type="button" onclick={() => (imagePanelOpen = false)}>Close</button>
+				{/if}
+			</div>
+		</form>
+	{/if}
+
 	<form class="composer" onsubmit={submitComposer}>
 		<textarea
 			bind:value={composer}
@@ -543,6 +678,17 @@
 			aria-label="Message"
 			disabled={loading || !session}
 		></textarea>
+		{#if comfyuiProviders.length > 0}
+			<button
+				type="button"
+				class:listening={imagePanelOpen}
+				onclick={toggleImagePanel}
+				disabled={streaming || !session}
+				title="Generate an image"
+			>
+				Image
+			</button>
+		{/if}
 		{#if sttEnabled}
 			<button
 				type="button"
@@ -694,6 +840,47 @@
 		margin: 0;
 		padding: 0.4rem 1rem;
 		font-size: 0.9rem;
+	}
+
+	.image-panel {
+		display: grid;
+		gap: 0.5rem;
+		padding: 0.75rem 1rem;
+		background: var(--surface);
+		border-top: 1px dashed var(--accent);
+	}
+
+	.image-panel label {
+		display: grid;
+		gap: 0.25rem;
+		font-size: 0.85rem;
+	}
+
+	.image-panel label em {
+		margin-left: 0.35rem;
+		font-style: normal;
+		font-size: 0.75rem;
+		color: var(--muted);
+	}
+
+	.image-panel-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+	}
+
+	.image-panel-row label {
+		flex: 1 1 10rem;
+	}
+
+	.image-panel-row .narrow {
+		flex: 0 1 6rem;
+	}
+
+	.image-panel-actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.composer {

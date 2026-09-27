@@ -25,6 +25,7 @@ def isolated_uploads(tmp_path, monkeypatch) -> None:
     """Keep uploads out of the real tree and token counting offline/deterministic."""
     monkeypatch.setenv("AVATAR_DIR", str(tmp_path / "avatars"))
     monkeypatch.setenv("PACKAGE_DIR", str(tmp_path / "packages"))
+    monkeypatch.setenv("GENERATED_IMAGE_DIR", str(tmp_path / "generated_images"))
     # tiktoken downloads its BPE data on first use; tests stay offline.
     monkeypatch.setenv("TOKENIZER", "heuristic")
     get_settings.cache_clear()

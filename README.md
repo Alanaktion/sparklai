@@ -116,6 +116,8 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | POST | `/api/sessions/{id}/greeting/swipe` | Cycle the greeting alternatives |
 | POST | `/api/sessions/{id}/regenerate` | New alternative for the last reply |
 | POST | `/api/sessions/{id}/regenerate/stream` | The same, streamed |
+| POST | `/api/sessions/{id}/images/stream` | Generate an image with a `comfyui` provider, streamed as SSE; attaches it to a new message |
+| GET | `/api/sessions/{id}/messages/{mid}/images/{index}` | A generated image attached to a message |
 | GET | `/api/health` | Liveness |
 | GET | `/api/health/ready` | Readiness (checks the database) |
 
@@ -203,6 +205,7 @@ settings, and an optional API key.
 | `ollama` | Ollama native `/api/chat` | `http://127.0.0.1:11434` |
 | `koboldcpp` | OpenAI-compatible client | `http://127.0.0.1:5001/v1` |
 | `custom` | OpenAI-compatible client | required from you |
+| `comfyui` | ComfyUI image generation | `http://127.0.0.1:8188` |
 
 OpenAI-compatible, Anthropic, and Ollama each have a real client; `koboldcpp`
 and `custom` are served by the OpenAI-compatible one (KoboldCpp's
@@ -214,6 +217,22 @@ in when unset, since Anthropic requires it.
 (for example Ollama's `keep_alive`, OpenAI's `frequency_penalty`). The dedicated
 columns and the request envelope (`model`, `messages`, `stream`) take precedence,
 so extras cannot accidentally break a request.
+
+### ComfyUI (image generation)
+
+A `comfyui` provider has no chat-completion protocol; `model` is instead an
+optional checkpoint/UNet filename override, and `extra_params` carries the
+generation config: `workflow` (`image`, `anime`, `sdxl`, `video`,
+`z_image_turbo`, or `custom`; defaults to `image`), `workflow_json` (a raw
+ComfyUI node graph, required when `workflow` is `custom`), plus `width`,
+`height`, `negative_prompt`, `duration` (video frames), and `filename_prefix`
+defaults. The API key, when set, is sent as `x-api-key` rather than a bearer
+token. `POST /api/providers/{id}/test` and `/complete` just check that the
+server answers (`GET /system_stats`); actual generation goes through
+`POST /api/sessions/{id}/images/stream`, which submits the workflow, polls
+ComfyUI's `/history` endpoint, downloads the output file(s), and attaches them
+to a new chat message — the browser never talks to ComfyUI directly. Generated
+files are stored under `data/generated_images/` (`GENERATED_IMAGE_DIR`).
 
 **API keys are encrypted at rest** with Fernet and are never returned — the API
 exposes only `has_api_key`. The key comes from `ENCRYPTION_KEY` when set, and is
@@ -270,12 +289,12 @@ src/sparklchat/
   api/                       HTTP routers (`/api` prefix), auth deps, health checks
   models/                    SQLModel tables (users, providers, characters, chat)
   services/                  Card parsing, PNG/CHARX I/O, macros, providers, prompts
-    providers/               OpenAI-compatible, Anthropic, and Ollama clients
+    providers/               OpenAI-compatible, Anthropic, Ollama, and ComfyUI clients
   cli.py                     `sparklchat` console entry point
   config.py                  Settings, package paths, frontend build location
   db.py                      Async engine, session dependency, schema helpers
   main.py                    App factory, API routing, SPA serving
-data/                        Local uploads (avatars, CHARX packages); gitignored
+data/                        Local uploads (avatars, CHARX packages, generated images); gitignored
 tests/                       pytest suite
 ```
 
@@ -308,6 +327,21 @@ the default and leaves its sessions to fall back to the new default.
 If the stream fails part-way, whatever arrived is saved before the `error` event
 so partial text is not lost.
 
+`POST /api/sessions/{id}/images/stream` follows the same shape for a `comfyui`
+provider, but progress replaces token deltas (submitting and polling ComfyUI can
+take anywhere from seconds to minutes):
+
+```
+event: status   data {"status": "queued" | "running", "elapsed": 4.0, "warning": null}
+event: message  data {"message": Message}   the persisted message, with `images`
+event: error    data {"detail": "..."}
+event: done     data {}
+```
+
+The resulting message's `content` is the prompt and `images` lists
+`{"index", "width", "height"}` entries, fetched from
+`GET /api/sessions/{id}/messages/{mid}/images/{index}`.
+
 ### Importing transcripts
 
 `GET /api/sessions/{id}/export?format=json|markdown` downloads a transcript, and
@@ -335,8 +369,9 @@ on the dashboard.
 The front end covers sign in/up, the character list (search, upload, delete),
 character detail with `creator_notes` and transcript import, the chat view
 (streaming, swipes, edit, delete, regenerate, provider picker, character-book
-toggle), and settings (providers with a Test button, plus display name and
-default prompts).
+toggle, and an image-generation panel when a `comfyui` provider is configured),
+and settings (providers with a Test button, plus display name and default
+prompts).
 
 Avatars come from an authenticated endpoint, so the app fetches them with the
 bearer token and renders a blob URL rather than using `<img src>` directly.

@@ -75,6 +75,18 @@ class Message(SQLModel, table=True):
     )
 
 
+class MessageImage(SQLModel):
+    """A ComfyUI-generated image attached to a message.
+
+    `index` addresses `GET /sessions/{id}/messages/{id}/images/{index}`; the
+    stored file name itself is never exposed to the client.
+    """
+
+    index: int
+    width: int | None
+    height: int | None
+
+
 class MessagePublic(SQLModel):
     id: int
     session_id: int
@@ -85,6 +97,9 @@ class MessagePublic(SQLModel):
     swipe_index: int
     swipe_count: int
     speaker_id: int | None
+    # Non-empty, with `kind: "image"` in `meta`, only for a ComfyUI generation —
+    # see `services/chat.py::append_image_message`.
+    images: list[MessageImage] = Field(default_factory=list)
 
 
 class MessagePair(SQLModel):
@@ -161,3 +176,15 @@ class MessageUpdate(SQLModel):
 
 class SwipeRequest(SQLModel):
     direction: SwipeDirection = "next"
+
+
+class ImageGenerateRequest(SQLModel):
+    """Ask a `comfyui`-type provider to generate an image for this session."""
+
+    provider_id: int
+    prompt: str = Field(min_length=1)
+    negative_prompt: str = ""
+    # None defers to the provider's `extra_params` defaults.
+    width: int | None = Field(default=None, ge=64, le=4096)
+    height: int | None = Field(default=None, ge=64, le=4096)
+    seed: int | None = None

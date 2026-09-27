@@ -29,7 +29,9 @@ from sparklchat.models.character import (
 )
 from sparklchat.models.chat import (
     ChatSession,
+    ImageGenerateRequest,
     Message,
+    MessageImage,
     MessagePair,
     MessagePublic,
     MessageUpdate,
@@ -69,8 +71,10 @@ __all__ = [
     "CharacterUploadResult",
     "ChatSession",
     "DEFAULT_ASSETS",
+    "ImageGenerateRequest",
     "LorebookEnvelope",
     "Message",
+    "MessageImage",
     "MessagePair",
     "MessagePublic",
     "MessageUpdate",

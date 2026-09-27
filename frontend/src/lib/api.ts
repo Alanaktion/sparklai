@@ -147,7 +147,7 @@ export function deleteWorldBook(token: string): Promise<void> {
 
 // --- Providers ------------------------------------------------------------
 
-export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'koboldcpp' | 'custom';
+export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'koboldcpp' | 'custom' | 'comfyui';
 
 export type Provider = {
 	id: number;
@@ -449,6 +449,23 @@ export function fetchAvatar(token: string, id: number): Promise<Blob> {
 	);
 }
 
+export function fetchMessageImage(
+	token: string,
+	sessionId: number,
+	messageId: number,
+	index: number
+): Promise<Blob> {
+	return fetch(`${API_BASE}/sessions/${sessionId}/messages/${messageId}/images/${index}`, {
+		headers: bearer(token)
+	}).then(async (response) => {
+		if (!response.ok) {
+			reportUnauthorized(response.status);
+			throw new ApiError(response.status, await errorDetail(response));
+		}
+		return response.blob();
+	});
+}
+
 /**
  * Assets are addressed as `embeded://<path>` and `<path>` may contain `/`, so
  * each segment is encoded while the separators are left intact.
@@ -473,6 +490,13 @@ export function fetchCharacterAsset(token: string, id: number, path: string): Pr
 
 export type MessageRole = 'system' | 'user' | 'assistant';
 
+/** A ComfyUI-generated image attached to a message, fetched from `fetchMessageImage`. */
+export type MessageImage = {
+	index: number;
+	width: number | null;
+	height: number | null;
+};
+
 export type Message = {
 	id: number;
 	session_id: number;
@@ -484,6 +508,8 @@ export type Message = {
 	swipe_count: number;
 	/** Which character spoke an assistant line; null for user/system turns. */
 	speaker_id: number | null;
+	/** Non-empty only for a ComfyUI generation (see `streamImage`). */
+	images: MessageImage[];
 };
 
 export type SessionSummary = {
@@ -795,5 +821,68 @@ export function streamRegenerate(
 		{},
 		signal,
 		(event) => dispatchChatEvent(event, handlers)
+	);
+}
+
+// --- Image generation (ComfyUI providers) ----------------------------------
+
+export type ImageGenerateRequest = {
+	provider_id: number;
+	prompt: string;
+	negative_prompt?: string;
+	width?: number | null;
+	height?: number | null;
+	seed?: number | null;
+};
+
+/** Progress while a ComfyUI job is queued/running, from the `status` SSE event. */
+export type ImageGenerateStatus = {
+	status: 'queued' | 'running';
+	elapsed?: number;
+	warning?: string | null;
+};
+
+export type ImageStreamHandlers = {
+	onStatus?: (status: ImageGenerateStatus) => void;
+	onMessage?: (message: Message) => void;
+	onError?: (detail: string) => void;
+	onDone?: () => void;
+};
+
+function dispatchImageEvent(event: SseEvent, handlers: ImageStreamHandlers): void {
+	switch (event.event) {
+		case 'status':
+			handlers.onStatus?.(payloadOf(event) as ImageGenerateStatus);
+			break;
+		case 'message': {
+			const message = payloadOf(event).message as Message | undefined;
+			if (message) handlers.onMessage?.(message);
+			break;
+		}
+		case 'error': {
+			const detail = payloadOf(event).detail;
+			handlers.onError?.(typeof detail === 'string' ? detail : 'Image generation failed');
+			break;
+		}
+		case 'done':
+			handlers.onDone?.();
+			break;
+	}
+}
+
+/** Generate an image with a `comfyui` provider and attach it to a new message. */
+export function streamImage(
+	token: string,
+	sessionId: number,
+	request: ImageGenerateRequest,
+	handlers: ImageStreamHandlers,
+	signal?: AbortSignal
+): Promise<void> {
+	return openEventStream(
+		`/sessions/${sessionId}/images/stream`,
+		token,
+		request,
+		signal,
+		(event) => dispatchImageEvent(event, handlers)
 	);
 }
