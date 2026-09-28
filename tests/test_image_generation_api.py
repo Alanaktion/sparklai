@@ -46,10 +46,52 @@ class StubImageClient:
         }
 
 
-def install_stub(monkeypatch, **kwargs) -> StubImageClient:
-    stub = StubImageClient(**kwargs)
-    monkeypatch.setattr("sparklchat.api.chat.build_client", lambda config: stub)
-    return stub
+class StubTextClient:
+    """Stands in for the session's text provider, for automatic-prompt tests."""
+
+    def __init__(
+        self, *, reply: str = "a cat astronaut, digital art, vivid colors", error: str | None = None
+    ) -> None:
+        self.calls: list[list] = []
+        self._reply = reply
+        self._error = error
+
+    async def complete(self, messages):
+        self.calls.append(list(messages))
+        if self._error:
+            raise ProviderError(self._error)
+        return self._reply
+
+
+def install_stub(monkeypatch, *, text: StubTextClient | None = None, **kwargs) -> StubImageClient:
+    """Replace the chat router's client factory: a `comfyui` provider gets the
+    image stub, anything else (the session's text provider, used to derive an
+    automatic prompt) gets `text`."""
+    image = StubImageClient(**kwargs)
+    text_client = text or StubTextClient()
+    monkeypatch.setattr(
+        "sparklchat.api.chat.build_client",
+        lambda config: image if config.provider_type == "comfyui" else text_client,
+    )
+    return image
+
+
+async def make_text_provider(client: AsyncClient, headers: dict[str, str], **overrides) -> dict:
+    body: dict[str, Any] = {
+        "name": "Text provider",
+        "provider_type": "openai",
+        "base_url": "https://api.example/v1",
+        "api_key": "sk-test",
+        "model": "test-model",
+    }
+    body.update(overrides)
+    response = await client.post("/api/providers", json=body, headers=headers)
+    assert response.status_code == 201, response.text
+    provider = response.json()
+    await client.patch(
+        "/api/settings", json={"default_provider_id": provider["id"]}, headers=headers
+    )
+    return provider
 
 
 async def make_comfyui_provider(client: AsyncClient, headers: dict[str, str], **overrides) -> dict:
@@ -246,3 +288,90 @@ async def test_deleting_a_message_removes_its_generated_image_file(
     )
     assert delete_response.status_code == 204
     assert not path.is_file()
+
+
+async def test_stream_image_writes_a_prompt_automatically_when_none_given(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    await make_text_provider(client, auth_headers)
+    provider = await make_comfyui_provider(client, auth_headers)
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    text = StubTextClient(reply="a cat astronaut, digital art, vivid colors")
+    install_stub(monkeypatch, text=text)
+
+    async with client.stream(
+        "POST",
+        f"/api/sessions/{session['id']}/images/stream",
+        json={"provider_id": provider["id"]},
+        headers=auth_headers,
+    ) as response:
+        assert response.status_code == 200
+        payload = "".join([chunk async for chunk in response.aiter_text()])
+
+    assert "event: status" in payload
+    assert "writing_prompt" in payload
+    assert "a cat astronaut, digital art, vivid colors" in payload
+    assert "event: message" in payload
+    assert "event: done" in payload
+
+    # The derived prompt reached the text provider with some conversation context.
+    assert text.calls, "expected the text provider to be asked for a prompt"
+    context = text.calls[0]
+    assert any(message.role == "system" for message in context)
+    assert any(message.role == "assistant" for message in context)
+
+    messages = (
+        await client.get(f"/api/sessions/{session['id']}/messages", headers=auth_headers)
+    ).json()
+    image_message = next(message for message in messages if message["images"])
+    assert image_message["content"] == "a cat astronaut, digital art, vivid colors"
+
+
+async def test_stream_image_auto_prompt_requires_a_text_provider(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    # No text provider configured, only the comfyui one.
+    provider = await make_comfyui_provider(client, auth_headers)
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    install_stub(monkeypatch)
+
+    async with client.stream(
+        "POST",
+        f"/api/sessions/{session['id']}/images/stream",
+        json={"provider_id": provider["id"], "prompt": ""},
+        headers=auth_headers,
+    ) as response:
+        payload = "".join([chunk async for chunk in response.aiter_text()])
+
+    assert "event: error" in payload
+    assert "No provider configured" in payload
+    assert "event: done" in payload
+
+    messages = (
+        await client.get(f"/api/sessions/{session['id']}/messages", headers=auth_headers)
+    ).json()
+    assert not any(message["images"] for message in messages)
+
+
+async def test_stream_image_reports_auto_prompt_failures(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    await make_text_provider(client, auth_headers)
+    provider = await make_comfyui_provider(client, auth_headers)
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    install_stub(monkeypatch, text=StubTextClient(error="the model is overloaded"))
+
+    async with client.stream(
+        "POST",
+        f"/api/sessions/{session['id']}/images/stream",
+        json={"provider_id": provider["id"]},
+        headers=auth_headers,
+    ) as response:
+        payload = "".join([chunk async for chunk in response.aiter_text()])
+
+    assert "event: error" in payload
+    assert "the model is overloaded" in payload
+    assert "event: done" in payload

@@ -353,11 +353,21 @@ provider, but progress replaces token deltas (submitting and polling ComfyUI can
 take anywhere from seconds to minutes):
 
 ```
-event: status   data {"status": "queued" | "running", "elapsed": 4.0, "warning": null}
+event: status   data {"status": "writing_prompt" | "prompt_ready" | "queued" | "running", ...}
 event: message  data {"message": Message}   the persisted message, with `images`
 event: error    data {"detail": "..."}
 event: done     data {}
 ```
+
+`prompt` in the request body is optional: leave it out (or blank) and the
+session's text provider is asked to write one from a handful of recent
+messages, illustrating the latest one — the "generate an image for this
+conversation" mode, driven by `services/chat.py::derive_image_prompt`. That
+adds `writing_prompt` then `prompt_ready` (carrying the derived text) status
+events before `queued`; a resolved prompt either way, since it becomes the
+saved message's `content`. Auto mode needs a text provider configured (the
+same one chat replies use), separately from the `comfyui` provider doing the
+actual generation.
 
 The resulting message's `content` is the prompt and `images` lists
 `{"index", "width", "height"}` entries, fetched from
@@ -390,9 +400,10 @@ on the dashboard.
 The front end covers sign in/up, the character list (search, upload, delete),
 character detail with `creator_notes` and transcript import, the chat view
 (streaming, swipes, edit, delete, regenerate, provider picker, character-book
-toggle, and an image-generation panel when a `comfyui` provider is configured),
-and settings (providers with a Test button, plus display name and default
-prompts).
+toggle, and an image-generation panel when a `comfyui` provider is configured —
+type a prompt, or click "Generate for this conversation" to have it written
+from context automatically), and settings (providers with a Test button, plus
+display name and default prompts).
 
 Avatars come from an authenticated endpoint, so the app fetches them with the
 bearer token and renders a blob URL rather than using `<img src>` directly.

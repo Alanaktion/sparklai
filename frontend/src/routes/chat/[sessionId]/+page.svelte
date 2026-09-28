@@ -276,7 +276,19 @@
 	function imageStreamHandlers(): ImageStreamHandlers {
 		return {
 			onStatus: (status) => {
-				imageStatus = status.status === 'queued' ? 'Queued…' : `Generating… (${Math.round(status.elapsed ?? 0)}s)`;
+				switch (status.status) {
+					case 'writing_prompt':
+						imageStatus = 'Writing a prompt from the conversation…';
+						break;
+					case 'prompt_ready':
+						imageStatus = status.prompt ? `Generating: ${status.prompt}` : 'Queued…';
+						break;
+					case 'queued':
+						imageStatus = 'Queued…';
+						break;
+					default:
+						imageStatus = `Generating… (${Math.round(status.elapsed ?? 0)}s)`;
+				}
 			},
 			onMessage: (message) => {
 				upsert(message);
@@ -291,11 +303,10 @@
 		};
 	}
 
-	async function generateImage(event: SubmitEvent) {
-		event.preventDefault();
+	/** `prompt` omitted asks the backend to write one from the conversation. */
+	async function runImageGeneration(prompt: string | undefined) {
 		const token = auth.token;
-		const prompt = imagePrompt.trim();
-		if (!token || !session || !prompt || imageProviderId === null || imageBusy) return;
+		if (!token || !session || imageProviderId === null || imageBusy) return;
 
 		imageError = null;
 		imageStatus = '';
@@ -323,6 +334,17 @@
 			imageStatus = '';
 			imageController = null;
 		}
+	}
+
+	function generateImage(event: SubmitEvent) {
+		event.preventDefault();
+		const prompt = imagePrompt.trim();
+		if (!prompt) return;
+		void runImageGeneration(prompt);
+	}
+
+	function generateImageForConversation() {
+		void runImageGeneration(undefined);
 	}
 
 	function cancelImage() {
@@ -634,7 +656,7 @@
 			<textarea
 				bind:value={imagePrompt}
 				rows="2"
-				placeholder="Describe the image to generate…"
+				placeholder="Describe the image to generate, or leave blank and use “Generate for this conversation” below…"
 				aria-label="Image prompt"
 				disabled={imageBusy}
 			></textarea>
@@ -662,6 +684,13 @@
 				{:else}
 					<button class="primary" type="submit" disabled={!imagePrompt.trim() || !imageProviderId}>
 						Generate
+					</button>
+					<button
+						type="button"
+						onclick={generateImageForConversation}
+						disabled={!imageProviderId}
+					>
+						Generate for this conversation
 					</button>
 					<button type="button" onclick={() => (imagePanelOpen = false)}>Close</button>
 				{/if}
@@ -879,6 +908,7 @@
 
 	.image-panel-actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.5rem;
 		align-items: center;
 	}

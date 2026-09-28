@@ -32,7 +32,7 @@ from sparklchat.services.prompts import (
     build_prompt,
     substitute_macros,
 )
-from sparklchat.services.providers import ChatMessage
+from sparklchat.services.providers import BaseClient, ChatMessage, ProviderError
 from sparklchat.services.providers.comfyui import GeneratedImage
 from sparklchat.services.tokens import count_tokens
 
@@ -195,6 +195,53 @@ def delete_message_images(message: Message) -> None:
     """Remove any files a generated-image message's `meta.images` points at."""
     for entry in message_image_entries(message):
         delete_generated_image(entry.get("path"))
+
+
+# A handful of recent turns is enough to establish the scene for an
+# auto-generated image prompt without ballooning the request.
+AUTO_IMAGE_CONTEXT_TURNS = 8
+MAX_AUTO_IMAGE_PROMPT_LENGTH = 500
+
+AUTO_IMAGE_PROMPT_SYSTEM = (
+    "You write prompts for an AI image generator based on a roleplay conversation. "
+    "Read the conversation and reply with ONLY a single line of comma-separated "
+    "visual descriptors (subject, appearance, pose or action, setting, lighting, "
+    "art style) that illustrate the most recent message. Use the earlier messages "
+    "only for context (who/where/what). Do not include dialogue, narration, "
+    "character names as prose, quotation marks, or any explanation of what you "
+    "are doing -- just the descriptors."
+)
+
+
+async def derive_image_prompt(
+    client: BaseClient,
+    card: CharacterCard,
+    messages: Sequence[Message],
+    speakers: Mapping[int, str] | None,
+) -> str:
+    """Ask the session's text provider to write an image prompt for the latest
+    message, using a little recent context so the scene stays consistent.
+
+    Raises `ProviderError` if there is nothing to illustrate yet or the
+    provider's reply is unusable, the same way a failed generation would.
+    """
+    turns = history_turns(messages, speakers)[-AUTO_IMAGE_CONTEXT_TURNS:]
+    if not turns:
+        raise ProviderError("There is nothing in this conversation to illustrate yet")
+
+    context = [ChatMessage(role="system", content=AUTO_IMAGE_PROMPT_SYSTEM)]
+    description = (card.data.description or "").strip()
+    if description:
+        context.append(
+            ChatMessage(role="system", content=f"{card_nickname(card)}'s appearance: {description}")
+        )
+    context.extend(ChatMessage(role=turn.role, content=turn.content) for turn in turns)
+
+    reply = await client.complete(context)
+    prompt = " ".join(reply.split()).strip(" \"'")
+    if not prompt:
+        raise ProviderError("The provider returned an empty image prompt")
+    return prompt[:MAX_AUTO_IMAGE_PROMPT_LENGTH]
 
 
 def greeting_variants(

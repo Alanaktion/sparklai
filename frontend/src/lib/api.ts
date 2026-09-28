@@ -831,16 +831,21 @@ export function streamRegenerate(
 
 export type ImageGenerateRequest = {
 	provider_id: number;
-	prompt: string;
+	/** Omitted/blank asks the session's text provider to write one from recent
+	 * chat context instead, illustrating the latest message. */
+	prompt?: string;
 	negative_prompt?: string;
 	width?: number | null;
 	height?: number | null;
 	seed?: number | null;
 };
 
-/** Progress while a ComfyUI job is queued/running, from the `status` SSE event. */
+/** Progress from the `status` SSE event: writing an automatic prompt (if the
+ * request omitted one), then ComfyUI queuing/running the job. */
 export type ImageGenerateStatus = {
-	status: 'queued' | 'running';
+	status: 'writing_prompt' | 'prompt_ready' | 'queued' | 'running';
+	/** Set on `prompt_ready`: the prompt written from conversation context. */
+	prompt?: string;
 	elapsed?: number;
 	warning?: string | null;
 };

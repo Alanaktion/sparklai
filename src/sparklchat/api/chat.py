@@ -47,6 +47,7 @@ from sparklchat.services.chat import (
     character_name,
     create_greeting,
     delete_message_images,
+    derive_image_prompt,
     message_image_entries,
     message_public,
     prompt_context,
@@ -696,7 +697,9 @@ async def stream_image(
     Submitting and polling ComfyUI can take anywhere from seconds to minutes, so
     progress is streamed as `status` events (`queued` then repeated `running`
     events) the same way token deltas are for a chat reply; the browser never
-    talks to the ComfyUI server directly, only to this endpoint.
+    talks to the ComfyUI server directly, only to this endpoint. A blank
+    `prompt` writes one from recent chat context first (`writing_prompt`),
+    using the session's text provider, before handing off to ComfyUI.
     """
     session = await _owned_session(db, session_id, current_user.id)
     provider = await _owned_provider(db, payload.provider_id, current_user.id)
@@ -705,10 +708,22 @@ async def stream_image(
         yield _event("done", {})
         return
 
-    client = _client_for(provider)
+    prompt = (payload.prompt or "").strip()
     try:
+        if not prompt:
+            yield _event("status", {"status": "writing_prompt"})
+            generation = await _generation_context(db, session_id, current_user.id)
+            prompt = await derive_image_prompt(
+                generation.client,
+                generation.card,
+                await _load_messages(db, session.id),
+                generation.speakers or None,
+            )
+            yield _event("status", {"status": "prompt_ready", "prompt": prompt})
+
+        client = _client_for(provider)
         async for update in client.generate(
-            payload.prompt,
+            prompt,
             negative_prompt=payload.negative_prompt,
             width=payload.width,
             height=payload.height,
@@ -720,7 +735,7 @@ async def stream_image(
             message = await append_image_message(
                 db,
                 session,
-                payload.prompt,
+                prompt,
                 update["images"],
                 update["width"],
                 update["height"],
@@ -728,6 +743,11 @@ async def stream_image(
             yield _event("message", {"message": message_public(message).model_dump(mode="json")})
     except ProviderError as exc:
         yield _event("error", {"detail": str(exc)})
+    except HTTPException as exc:
+        # `_generation_context` raises this (e.g. no text provider configured)
+        # when deriving an automatic prompt; the stream has already started, so
+        # it is surfaced as an `error` event rather than an HTTP status change.
+        yield _event("error", {"detail": str(exc.detail)})
     yield _event("done", {})
 
 

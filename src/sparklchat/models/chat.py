@@ -179,10 +179,15 @@ class SwipeRequest(SQLModel):
 
 
 class ImageGenerateRequest(SQLModel):
-    """Ask a `comfyui`-type provider to generate an image for this session."""
+    """Ask a `comfyui`-type provider to generate an image for this session.
+
+    An omitted/blank `prompt` asks the session's text provider to write one
+    from recent chat context instead (see `services/chat.py::derive_image_prompt`),
+    illustrating the latest message.
+    """
 
     provider_id: int
-    prompt: str = Field(min_length=1)
+    prompt: str | None = Field(default=None, max_length=2000)
     negative_prompt: str = ""
     # None defers to the provider's `extra_params` defaults.
     width: int | None = Field(default=None, ge=64, le=4096)
