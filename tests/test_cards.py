@@ -54,6 +54,41 @@ def test_v1_upconverts_with_v2_defaults(v1_card: dict) -> None:
     assert card.data.character_book is None
 
 
+def test_v1_upconvert_nests_flat_v2_field_names_under_data() -> None:
+    """A flat card that reuses V2 `data` field names (a hand-written card, or
+    the character-creator assistant's own patch shape) means them as those
+    fields, not as arbitrary unknown V1 extras."""
+    card, source = parse_card(
+        {
+            "name": "Rook",
+            "description": "A retired dragon-slayer turned baker.",
+            "tags": ["fantasy"],
+            "character_version": "1.0",
+            "creator_notes": "Made for tests.",
+            "alternate_greetings": ["Oh, hello."],
+        }
+    )
+
+    assert source == "v1"
+    assert card.data.name == "Rook"
+    assert card.data.tags == ["fantasy"]
+    assert card.data.character_version == "1.0"
+    assert card.data.creator_notes == "Made for tests."
+    assert card.data.alternate_greetings == ["Oh, hello."]
+    # Promoted into `data`, so they are gone from the envelope's own extras.
+    assert card.model_extra == {}
+
+
+def test_v1_upconvert_still_keeps_truly_unknown_keys_as_extras() -> None:
+    card, _source = parse_card({"name": "Rook", "custom_v1_key": {"keep": "me"}})
+    assert card.model_extra == {"custom_v1_key": {"keep": "me"}}
+
+
+def test_v1_upconvert_rejects_a_promoted_field_of_the_wrong_type() -> None:
+    with pytest.raises(CardError):
+        parse_card({"name": "Rook", "tags": "not-a-list"})
+
+
 def test_v1_reexports_unchanged(v1_card: dict) -> None:
     card, _ = parse_card(v1_card)
     assert dump_v1(card) == v1_card

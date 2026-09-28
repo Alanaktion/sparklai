@@ -134,8 +134,11 @@ button.danger {
 	padding: 1.5rem;
 }
 
-.narrow {
+.page.narrow {
 	max-width: 40rem;
+}
+.page.full {
+	max-width: none;
 }
 
 .muted {

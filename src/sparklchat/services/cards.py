@@ -17,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sparklchat.models.card import (
     DEFAULT_ASSETS,
     CardAsset,
+    CardFields,
     CharacterBook,
     CharacterCard,
     CharacterCardData,
@@ -52,6 +53,13 @@ _V3_ONLY_KEYS = frozenset(
         "modification_date",
     }
 )
+
+# V2 `data` fields beyond the six V1 shares. A flat/V1-shaped import that
+# happens to reuse one of these names (a hand-written card, or another tool's
+# export) means it as the corresponding `data` field, not an arbitrary V1
+# extension, so `upconvert_v1` nests it under `data` instead of leaving it as a
+# stray top-level key that nothing reads.
+_V2_DATA_FIELDS = frozenset(CharacterCardData.model_fields) - frozenset(CardFields.model_fields)
 
 
 class CardError(ValueError):
@@ -123,24 +131,33 @@ def upconvert_v1(raw: dict[str, Any]) -> TavernCardV2:
     """Wrap a V1 card into V2 shape, filling the V2 defaults.
 
     Unknown top-level V1 keys are kept on the V2 card so exporting back to V1
-    returns them unchanged.
+    returns them unchanged. A key that names a V2 `data` field instead (e.g.
+    `tags`, `character_version`) is nested under `data` rather than kept as a
+    stray top-level extra: real-world flat cards, and the character-creator
+    assistant's own patch shape, both write V2 field names at the top level.
     """
     try:
         v1 = TavernCardV1.model_validate(raw)
     except ValidationError as exc:
         raise CardError(_describe(exc)) from exc
 
-    data = CharacterCardData(
-        name=v1.name,
-        description=v1.description,
-        personality=v1.personality,
-        scenario=v1.scenario,
-        first_mes=v1.first_mes,
-        mes_example=v1.mes_example,
-    )
     extra = {
         key: value for key, value in (v1.model_extra or {}).items() if key not in _RESERVED_KEYS
     }
+    promoted = {key: extra.pop(key) for key in list(extra) if key in _V2_DATA_FIELDS}
+
+    try:
+        data = CharacterCardData(
+            name=v1.name,
+            description=v1.description,
+            personality=v1.personality,
+            scenario=v1.scenario,
+            first_mes=v1.first_mes,
+            mes_example=v1.mes_example,
+            **promoted,
+        )
+    except ValidationError as exc:
+        raise CardError(_describe(exc)) from exc
     return TavernCardV2(spec="chara_card_v2", spec_version="2.0", data=data, **extra)
 
 

@@ -295,6 +295,34 @@ describe('round trips', () => {
 	});
 });
 
+describe('draftFromCard: flat/patch-shaped JSON', () => {
+	it('reads V2 field names straight off the top level when there is no `data`', () => {
+		// A V1 card, or the character-creator assistant's own patch shape, both
+		// write V2 field names (`tags`, `character_version`, ...) directly at the
+		// top level rather than nesting them under `data`.
+		const draft = draftFromCard({
+			name: 'Rook',
+			description: 'A retired dragon-slayer turned baker.',
+			tags: ['fantasy'],
+			character_version: '1.0',
+			creator_notes: 'Made for tests.',
+			alternate_greetings: ['Oh, hello.']
+		});
+
+		expect(draft.name).toBe('Rook');
+		expect(draft.description).toBe('A retired dragon-slayer turned baker.');
+		expect(draft.tags).toEqual(['fantasy']);
+		expect(draft.characterVersion).toBe('1.0');
+		expect(draft.creatorNotes).toBe('Made for tests.');
+		expect(draft.alternateGreetings).toEqual(['Oh, hello.']);
+	});
+
+	it('still prefers a proper nested `data` object when one is present', () => {
+		const draft = draftFromCard({ name: 'Ignored', data: { name: 'Rook' } });
+		expect(draft.name).toBe('Rook');
+	});
+});
+
 describe('V3 fields', () => {
 	it('reads nickname, group greetings, multilingual notes, source, assets and use_regex', () => {
 		const draft = draftFromCard(fullCard());

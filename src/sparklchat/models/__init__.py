@@ -27,6 +27,11 @@ from sparklchat.models.character import (
     CharacterUpdate,
     CharacterUploadResult,
 )
+from sparklchat.models.character_creator import (
+    CreatorMessageRequest,
+    CreatorMessageResult,
+    CreatorTurn,
+)
 from sparklchat.models.chat import (
     ChatSession,
     ImageGenerateRequest,
@@ -70,6 +75,9 @@ __all__ = [
     "CharacterUpdate",
     "CharacterUploadResult",
     "ChatSession",
+    "CreatorMessageRequest",
+    "CreatorMessageResult",
+    "CreatorTurn",
     "DEFAULT_ASSETS",
     "ImageGenerateRequest",
     "LorebookEnvelope",

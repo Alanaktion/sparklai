@@ -187,7 +187,7 @@ export function emptyBook(): DraftBook {
 }
 
 export function draftFromCard(card: JsonObject): Draft {
-	const data = objectAt(card, 'data');
+	const data = dataOf(card);
 	const bookJson = isObject(data.character_book) ? data.character_book : null;
 
 	return {
@@ -516,6 +516,17 @@ function firstDuplicate(values: string[]): string | null {
 function objectAt(source: JsonObject, key: string): JsonObject {
 	const value = source[key];
 	return isObject(value) ? { ...value } : {};
+}
+
+/**
+ * The card's `data` object, falling back to the card's own top level when
+ * `data` is absent. A flat/V1-shaped card, or the character-creator
+ * assistant's own patch shape, both write V2 field names (`tags`,
+ * `character_version`, ...) directly at the top level; mirrors the backend's
+ * `upconvert_v1`, which nests those same names under `data` on import.
+ */
+function dataOf(card: JsonObject): JsonObject {
+	return isObject(card.data) ? { ...card.data } : { ...card };
 }
 
 function stringAt(source: JsonObject, key: string): string {

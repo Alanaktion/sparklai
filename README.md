@@ -90,6 +90,7 @@ returns an access token to send as `Authorization: Bearer <token>`.
 | POST | `/api/providers/{id}/test` | Send a tiny prompt to verify the connection |
 | POST | `/api/providers/{id}/complete` | One-off completion |
 | POST | `/api/providers/{id}/complete/stream` | The same, streamed as Server-Sent Events |
+| POST | `/api/character-creator/message/stream` | Interactive character-creator assistant: one turn, streamed as SSE (see below) |
 | POST | `/api/characters` | Create from a V1, V2, or V3 card (JSON body) |
 | POST | `/api/characters/upload` | Import one or more PNG cards, CHARX packages, or JSON files (repeatable multipart `files`; returns a per-file result) |
 | GET | `/api/characters` | List your characters (`q`, `limit`, `offset`; rows carry the viewer's `last_message_at`) |
@@ -146,7 +147,13 @@ Fidelity rules, straight from the spec:
   `name` and `spec_version` are denormalized purely for listing and sorting.
 - Unknown keys survive a round trip — both `extensions` (card, book, and entry
   level) and unrecognised top-level keys. Unknown top-level keys from a V1 card
-  ride along on the V2 card so a V1 export stays lossless.
+  ride along on the V2 card so a V1 export stays lossless. A top-level key that
+  instead *names* a V2 `data` field (`tags`, `character_version`, ...) is
+  understood as that field and nested under `data` on import — real-world flat
+  cards, and the character-creator assistant's own patch shape, both write V2
+  field names directly at the top level. Re-exporting such a card as `?format=v1`
+  drops that field again, the same inherent, documented loss as downgrading a
+  V3 card to V2.
 - `character_book` entries support every documented field, including
   `selective`/`secondary_keys`, `constant`, `position`, `insertion_order`,
   `priority`, `case_sensitive`, and the V3 `use_regex` (whose `keys` are then
@@ -192,6 +199,20 @@ Decorator lines are stripped before a lorebook entry's content reaches the
 model. `@@keep_activate_after_match`/`@@dont_activate_after_match` need to know
 whether an entry matched before; that count is kept per session in
 `chat_sessions.lorebook_state` and refreshed on every generation.
+
+### Character creator assistant
+
+`POST /api/character-creator/message/stream` is a stateless, LLM-backed
+brainstorming partner for going from a one-line concept to a full card: the
+browser sends the whole conversation plus the draft card built up so far, the
+model replies with a short conversational turn and (delimited by a fixed
+marker, `services/character_creator.py`'s `DRAFT_MARKER`) a JSON patch of the
+fields it's adding or changing. There is no tool-calling involved — providers
+vary in support for it — so the patch rides along as plain text and is parsed
+out the same lenient way the spec's other curly/`@@` conventions are. Nothing
+is persisted server-side; the conversation and draft live in the SvelteKit
+page (`routes/characters/new`) until the user hands the draft to the regular
+`CharacterEditor` to review and save.
 
 ## Providers
 

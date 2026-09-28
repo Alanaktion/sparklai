@@ -886,3 +886,65 @@ export function streamImage(
 		(event) => dispatchImageEvent(event, handlers)
 	);
 }
+
+// --- Character creator assistant -------------------------------------------
+
+export type CreatorTurn = { role: 'user' | 'assistant'; content: string };
+
+export type CreatorMessageRequest = {
+	provider_id?: number | null;
+	// The card JSON built up so far (V2 shape), or `{}` before the first reply.
+	draft: Record<string, unknown>;
+	// The full conversation so far, ending with the newest user turn.
+	messages: CreatorTurn[];
+};
+
+export type CreatorStreamHandlers = {
+	onDelta?: (delta: string) => void;
+	onMessage?: (content: string) => void;
+	onDraft?: (draft: Record<string, unknown>) => void;
+	onError?: (detail: string) => void;
+	onDone?: () => void;
+};
+
+function dispatchCreatorEvent(event: SseEvent, handlers: CreatorStreamHandlers): void {
+	switch (event.event) {
+		case 'delta': {
+			const delta = payloadOf(event).delta;
+			if (typeof delta === 'string') handlers.onDelta?.(delta);
+			break;
+		}
+		case 'message': {
+			const message = payloadOf(event).message;
+			if (typeof message === 'string') handlers.onMessage?.(message);
+			break;
+		}
+		case 'draft': {
+			const draft = payloadOf(event).draft;
+			if (draft && typeof draft === 'object') {
+				handlers.onDraft?.(draft as Record<string, unknown>);
+			}
+			break;
+		}
+		case 'error': {
+			const detail = payloadOf(event).detail;
+			handlers.onError?.(typeof detail === 'string' ? detail : 'Stream failed');
+			break;
+		}
+		case 'done':
+			handlers.onDone?.();
+			break;
+	}
+}
+
+/** Send the conversation so far and stream the assistant's next turn. */
+export function streamCreatorMessage(
+	token: string,
+	request: CreatorMessageRequest,
+	handlers: CreatorStreamHandlers,
+	signal?: AbortSignal
+): Promise<void> {
+	return openEventStream('/character-creator/message/stream', token, request, signal, (event) =>
+		dispatchCreatorEvent(event, handlers)
+	);
+}
