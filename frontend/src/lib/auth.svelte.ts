@@ -4,6 +4,7 @@
 // whole session. This module keeps that in runes-backed state so components can
 // react to sign-in and sign-out.
 import {
+	ApiError,
 	getMe,
 	login as apiLogin,
 	logout as apiLogout,
@@ -23,6 +24,22 @@ function persist(value: string | null): void {
 	else localStorage.setItem(TOKEN_KEY, value);
 }
 
+// The dev backend restarts constantly (auto-reload on every save), and a page
+// load that lands in that window fails `getMe` with a network error, not a
+// 401/403. That's not a rejected token, so it gets one short retry before we
+// give up on reaching the server — only an actual 401/403 counts as "signed
+// out".
+async function fetchCurrentUser(candidate: string, attempt = 0): Promise<User | 'invalid'> {
+	try {
+		return await getMe(candidate);
+	} catch (err) {
+		if (err instanceof ApiError && (err.status === 401 || err.status === 403)) return 'invalid';
+		if (attempt > 0) throw err;
+		await new Promise((resolve) => setTimeout(resolve, 1500));
+		return fetchCurrentUser(candidate, attempt + 1);
+	}
+}
+
 async function bootstrap(): Promise<void> {
 	const stored = localStorage.getItem(TOKEN_KEY);
 	if (!stored) {
@@ -32,12 +49,19 @@ async function bootstrap(): Promise<void> {
 
 	token = stored;
 	try {
-		user = await getMe(stored);
+		const result = await fetchCurrentUser(stored);
+		if (result === 'invalid') {
+			// Expired or revoked: drop it and fall back to the signed-out state.
+			token = null;
+			user = null;
+			persist(null);
+		} else {
+			user = result;
+		}
 	} catch {
-		// Expired or revoked: drop it and fall back to the signed-out state.
-		token = null;
-		user = null;
-		persist(null);
+		// Still unreachable after a retry: keep the token. `user` stays unset
+		// until a request succeeds; a genuine 401/403 later on still signs the
+		// user out via `setUnauthorizedHandler`.
 	}
 	ready = true;
 }

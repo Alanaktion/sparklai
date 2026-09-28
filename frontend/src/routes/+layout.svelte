@@ -24,7 +24,8 @@
 	const isChatRoute = $derived(page.url.pathname.startsWith('/chat'));
 
 	onMount(() => {
-		// Any authenticated request that comes back 401 means the token is stale.
+		// Any authenticated request that comes back 401/403 means the token is
+		// stale (403 is this app's "inactive user" response — see api.ts).
 		setUnauthorizedHandler(() => {
 			if (auth.isAuthenticated) void auth.signOut();
 		});

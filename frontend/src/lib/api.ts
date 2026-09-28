@@ -15,8 +15,8 @@ export class ApiError extends Error {
 	}
 }
 
-// Components register a handler here so a 401 from any request can drop the
-// stale token; navigation is left to the caller.
+// Components register a handler here so a 401/403 from any request can drop
+// the stale token; navigation is left to the caller.
 let unauthorizedHandler: (() => void) | null = null;
 
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
@@ -24,7 +24,10 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 }
 
 function reportUnauthorized(status: number): void {
-	if (status === 401) unauthorizedHandler?.();
+	// 401 is an invalid/expired token; 403 is this app's "inactive user"
+	// response (the only 403 it ever returns — ownership checks 404 instead
+	// so as not to leak existence). Both mean the session is over.
+	if (status === 401 || status === 403) unauthorizedHandler?.();
 }
 
 async function errorDetail(response: Response): Promise<string> {
