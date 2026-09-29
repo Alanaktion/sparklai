@@ -155,16 +155,41 @@ _TRANSLATE_SYSTEM = (
     "other commentary."
 )
 
+_TRANSLATE_TEXT_PLACEHOLDER = "{text}"
+
 
 async def translate_to_english(text: str, model: str | None = None) -> str:
-    """Used by comments and chat messages."""
+    """Used by comments and chat messages.
+
+    Model resolution: the dedicated translation model wins when configured
+    (`settings.translation_model`, env `TRANSLATION_MODEL`); otherwise `model` (the caller's
+    text-generation default, resolved from the chat-model preference cookie) passes through,
+    and `resolve_model()` inside `completion()` finally falls back to `settings.chat_model`.
+
+    The system prompt comes from `settings.translation_prompt` (env `TRANSLATION_PROMPT`),
+    falling back to the built-in translation prompt when unset. If the prompt contains
+    `{text}`, the text is substituted inline and no separate user message is sent — that
+    instruction+text template matches what dedicated translation models (e.g. Hy-MT2-1.8B)
+    expect.
+    """
     source = text.strip()
     if not source:
         return ""
 
-    messages: list[LlamaMessage] = [
-        {"role": "system", "content": _TRANSLATE_SYSTEM},
-        {"role": "user", "content": source},
-    ]
-    translated = await completion(None, messages, model=model)
+    effective_model = _normalize_model(settings.translation_model) or model
+    system_prompt = (settings.translation_prompt or "").strip() or _TRANSLATE_SYSTEM
+
+    if _TRANSLATE_TEXT_PLACEHOLDER in system_prompt:
+        messages: list[LlamaMessage] = [
+            {
+                "role": "system",
+                "content": system_prompt.replace(_TRANSLATE_TEXT_PLACEHOLDER, source),
+            }
+        ]
+    else:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": source},
+        ]
+    translated = await completion(None, messages, model=effective_model)
     return translated.strip()

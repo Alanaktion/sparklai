@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     chat_model: str = ""
     chat_api_key: str = "no-key"
 
+    # Translation gets its own model/prompt so a translation-tuned model (e.g. Hy-MT2-1.8B) can
+    # be used instead of the general text-generation model. When `translation_model` is empty,
+    # translation falls back to the default text-generation model (CHAT_MODEL / the chat-model
+    # preference cookie). The prompt is a template: if it contains `{text}`, the text to
+    # translate is substituted inline and no separate user message is sent, matching the
+    # instruction+text format translation models expect.
+    translation_model: str = ""
+    translation_prompt: str = ""
+
     # Stable Diffusion (Automatic1111 or ComfyUI — see `app/services/sd/`). `sd_url` is the base
     # URL for whichever backend is selected: an Automatic1111 `.../sdapi/v1/` root, or a bare
     # ComfyUI server root (e.g. `http://host:8188/`).
