@@ -24,7 +24,11 @@ from sparklchat.services.cards import (
     card_user_icon,
     load_card,
 )
-from sparklchat.services.generated_images import delete_generated_image, save_generated_image
+from sparklchat.services.generated_images import (
+    copy_generated_image,
+    delete_generated_image,
+    save_generated_image,
+)
 from sparklchat.services.prompts import (
     CastMember,
     HistoryTurn,
@@ -195,6 +199,82 @@ def delete_message_images(message: Message) -> None:
     """Remove any files a generated-image message's `meta.images` points at."""
     for entry in message_image_entries(message):
         delete_generated_image(entry.get("path"))
+
+
+def _duplicate_message_meta(message: Message) -> dict:
+    """A copy of `meta`, duplicating any generated-image files it points at so
+    the new message's images are independent files (see `copy_generated_image`)."""
+    meta = dict(message.meta or {})
+    entries = message_image_entries(message)
+    if not entries:
+        return meta
+    copied = []
+    for entry in entries:
+        path = copy_generated_image(entry.get("path"))
+        if path is not None:
+            copied.append({**entry, "path": path})
+    meta["images"] = copied
+    return meta
+
+
+BRANCH_TITLE_SUFFIX = " (branch)"
+
+
+def branch_title(title: str, fallback: str) -> str:
+    base = (title or fallback).strip() or fallback
+    base = base[: TITLE_MAX_LENGTH - len(BRANCH_TITLE_SUFFIX)].rstrip()
+    return f"{base}{BRANCH_TITLE_SUFFIX}"
+
+
+async def duplicate_session(
+    db: AsyncSession,
+    session: ChatSession,
+    characters: Sequence[Character],
+    messages: Sequence[Message],
+    *,
+    title: str,
+) -> ChatSession:
+    """Create a new session carrying over `session`'s settings and cast, seeded
+    with `messages` (a prefix of the original transcript, or all of it for a
+    plain duplicate). Used for branching a conversation at a chosen point.
+    """
+    branch = ChatSession(
+        user_id=session.user_id,
+        character_id=session.character_id,
+        provider_id=session.provider_id,
+        title=title,
+        system_prompt_override=session.system_prompt_override,
+        post_history_override=session.post_history_override,
+        use_character_book=session.use_character_book,
+        use_world_book=session.use_world_book,
+        lorebook_state=dict(session.lorebook_state or {}),
+    )
+    db.add(branch)
+    await db.commit()
+    await db.refresh(branch)
+
+    for position, character in enumerate(characters):
+        if character.id is None:
+            continue
+        db.add(SessionCharacter(session_id=branch.id, character_id=character.id, position=position))
+
+    for message in messages:
+        db.add(
+            Message(
+                session_id=branch.id,
+                role=message.role,
+                content=message.content,
+                created_at=message.created_at,
+                token_count=message.token_count,
+                is_greeting=message.is_greeting,
+                swipe_index=message.swipe_index,
+                speaker_id=message.speaker_id,
+                meta=_duplicate_message_meta(message),
+            )
+        )
+    await db.commit()
+    await db.refresh(branch)
+    return branch
 
 
 # A handful of recent turns is enough to establish the scene for an

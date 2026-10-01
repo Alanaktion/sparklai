@@ -620,6 +620,22 @@ export function deleteSession(token: string, sessionId: number): Promise<void> {
 	return apiFetch<void>(`/sessions/${sessionId}`, { method: 'DELETE', headers: bearer(token) });
 }
 
+/**
+ * Duplicate a session into a new, independent one. `messageId` keeps
+ * everything up to and including that message and drops whatever came after;
+ * omitted, the whole conversation is duplicated.
+ */
+export function branchSession(
+	token: string,
+	sessionId: number,
+	messageId?: number
+): Promise<SessionDetail> {
+	return apiFetch<SessionDetail>(
+		`/sessions/${sessionId}/branch`,
+		jsonInit('POST', messageId === undefined ? {} : { message_id: messageId }, token)
+	);
+}
+
 export function listMessages(token: string, sessionId: number): Promise<Message[]> {
 	return apiFetch<Message[]>(`/sessions/${sessionId}/messages`, { headers: bearer(token) });
 }

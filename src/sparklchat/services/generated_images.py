@@ -43,3 +43,22 @@ def delete_generated_image(name: str | None) -> None:
     if not name:
         return
     generated_image_file(name).unlink(missing_ok=True)
+
+
+def copy_generated_image(name: str | None) -> str | None:
+    """Duplicate a stored file under a new name, e.g. when branching a session,
+    so the copy can later be deleted without taking the original's file with it.
+
+    Returns None (silently) if the source is already gone, matching how a
+    missing image is otherwise treated as absent rather than an error.
+    """
+    if not name:
+        return None
+    source = generated_image_file(name)
+    if not source.is_file():
+        return None
+    directory = get_settings().generated_image_dir
+    directory.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{source.suffix}"
+    (directory / filename).write_bytes(source.read_bytes())
+    return filename

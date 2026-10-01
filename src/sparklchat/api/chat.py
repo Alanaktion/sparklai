@@ -19,6 +19,7 @@ from sparklchat.models.base import utcnow
 from sparklchat.models.card import CharacterCard
 from sparklchat.models.character import Character
 from sparklchat.models.chat import (
+    BranchRequest,
     ChatSession,
     ImageGenerateRequest,
     Message,
@@ -41,6 +42,7 @@ from sparklchat.services.cards import load_card
 from sparklchat.services.chat import (
     activation_counts,
     append_image_message,
+    branch_title,
     build_session_prompt,
     cast_by_id,
     cast_public,
@@ -48,6 +50,7 @@ from sparklchat.services.chat import (
     create_greeting,
     delete_message_images,
     derive_image_prompt,
+    duplicate_session,
     message_image_entries,
     message_public,
     prompt_context,
@@ -538,6 +541,39 @@ async def delete_session(session_id: int, db: SessionDep, current_user: CurrentU
         delete_message_images(message)
     await db.delete(session)
     await db.commit()
+
+
+@router.post("/{session_id}/branch", status_code=status.HTTP_201_CREATED)
+async def branch_session(
+    session_id: int,
+    payload: BranchRequest,
+    db: SessionDep,
+    current_user: CurrentUserDep,
+) -> SessionDetail:
+    """Duplicate a session, optionally cut off at a chosen message.
+
+    `message_id` keeps everything up to and including that message and drops
+    whatever came after, so picking an earlier point in the conversation starts
+    a fresh branch from there; omitting it duplicates the whole conversation.
+    The new session is otherwise an independent copy (its own cast rows,
+    messages, and generated-image files), so neither session affects the other
+    from here on.
+    """
+    session = await _owned_session(db, session_id, current_user.id)
+    characters = await session_cast(db, session)
+    messages = await _load_messages(db, session.id)
+
+    if payload.message_id is not None:
+        cut = next((i for i, m in enumerate(messages) if m.id == payload.message_id), None)
+        if cut is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Message not found")
+        messages = messages[: cut + 1]
+
+    fallback = character_name(characters[0]) if characters else "Chat"
+    branch = await duplicate_session(
+        db, session, characters, messages, title=branch_title(session.title, fallback)
+    )
+    return _detail(branch, characters, await _load_messages(db, branch.id))
 
 
 @router.get("/{session_id}/messages")

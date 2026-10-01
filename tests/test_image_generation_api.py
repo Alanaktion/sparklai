@@ -375,3 +375,57 @@ async def test_stream_image_reports_auto_prompt_failures(
     assert "event: error" in payload
     assert "the model is overloaded" in payload
     assert "event: done" in payload
+
+
+async def test_branching_duplicates_generated_image_files(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    """A branch's image message must point at its own file, not the original's,
+    so deleting one session's message never deletes the other's picture."""
+    provider = await make_comfyui_provider(client, auth_headers)
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    install_stub(monkeypatch)
+
+    async with client.stream(
+        "POST",
+        f"/api/sessions/{session['id']}/images/stream",
+        json={"provider_id": provider["id"], "prompt": "a cat astronaut"},
+        headers=auth_headers,
+    ) as response:
+        assert response.status_code == 200
+        [_ async for _ in response.aiter_text()]
+
+    image_message = next(
+        message
+        for message in (
+            await client.get(f"/api/sessions/{session['id']}/messages", headers=auth_headers)
+        ).json()
+        if message["images"]
+    )
+
+    branch = (
+        await client.post(
+            f"/api/sessions/{session['id']}/branch", json={}, headers=auth_headers
+        )
+    ).json()
+    branch_image_message = next(message for message in branch["messages"] if message["images"])
+
+    branch_image = await client.get(
+        f"/api/sessions/{branch['id']}/messages/{branch_image_message['id']}/images/0",
+        headers=auth_headers,
+    )
+    assert branch_image.status_code == 200
+    assert branch_image.content == b"PNGDATA"
+
+    # Deleting the branch's copy must leave the original's file in place.
+    await client.delete(
+        f"/api/sessions/{branch['id']}/messages/{branch_image_message['id']}",
+        headers=auth_headers,
+    )
+    original_image = await client.get(
+        f"/api/sessions/{session['id']}/messages/{image_message['id']}/images/0",
+        headers=auth_headers,
+    )
+    assert original_image.status_code == 200
+    assert original_image.content == b"PNGDATA"

@@ -178,6 +178,14 @@ class SwipeRequest(SQLModel):
     direction: SwipeDirection = "next"
 
 
+class BranchRequest(SQLModel):
+    """Where to cut the copy. Omitted keeps the whole conversation (a plain
+    duplicate); otherwise everything up to and including this message carries
+    over, and anything after it is left behind."""
+
+    message_id: int | None = None
+
+
 class ImageGenerateRequest(SQLModel):
     """Ask a `comfyui`-type provider to generate an image for this session.
 

@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import {
+		branchSession,
 		deleteMessage,
 		downloadChatTranscript,
 		editMessage,
@@ -384,6 +386,22 @@
 		}
 	}
 
+	let branching = $state(false);
+
+	async function branch(message: Message) {
+		const token = auth.token;
+		if (!token || !session || branching) return;
+		branching = true;
+		try {
+			const copy = await branchSession(token, session.id, message.id);
+			await goto(`/chat/${copy.id}`);
+		} catch (cause) {
+			streamError = errorMessage(cause);
+		} finally {
+			branching = false;
+		}
+	}
+
 	async function changeProvider(event: Event) {
 		const token = auth.token;
 		if (!token || !session) return;
@@ -618,12 +636,13 @@
 			<MessageBubble
 				{message}
 				speaker={speakerOf(message)}
-				busy={streaming}
+				busy={streaming || branching}
 				showRegenerate={message.id === lastAssistantId && !streaming}
 				onSwipe={(direction) => swipe(message, direction)}
 				onEdit={(content) => edit(message, content)}
 				onDelete={() => remove(message)}
 				onRegenerate={regenerate}
+				onBranch={() => branch(message)}
 			/>
 		{/each}
 

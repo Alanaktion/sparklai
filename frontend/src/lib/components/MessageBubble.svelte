@@ -12,6 +12,7 @@
 		onEdit: (content: string) => Promise<void>;
 		onDelete: () => void;
 		onRegenerate: () => void;
+		onBranch: () => void;
 	};
 
 	let {
@@ -22,7 +23,8 @@
 		onSwipe,
 		onEdit,
 		onDelete,
-		onRegenerate
+		onRegenerate,
+		onBranch
 	}: Props = $props();
 
 	let editing = $state(false);
@@ -82,6 +84,13 @@
 				<button onclick={onRegenerate} disabled={busy}>Regenerate</button>
 			{/if}
 			<button onclick={startEdit} disabled={busy}>Edit</button>
+			<button
+				onclick={onBranch}
+				disabled={busy}
+				title="Start a new chat that copies this conversation up to here"
+			>
+				Branch
+			</button>
 			<button class="danger" onclick={onDelete} disabled={busy}>Delete</button>
 		</div>
 	{/if}

@@ -612,3 +612,88 @@ async def test_message_payloads_are_json_serialisable(
         for line in block.splitlines():
             if line.startswith("data:"):
                 json.loads(line[len("data:") :].strip())
+
+
+async def test_branch_copies_messages_up_to_the_chosen_point(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    await make_provider(client, auth_headers)
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    install_stub(monkeypatch, reply="Hello there.")
+
+    sent = await client.post(
+        f"/api/sessions/{session['id']}/messages",
+        json={"content": "Hi Haruhi"},
+        headers=auth_headers,
+    )
+    user_message = sent.json()["user"]
+
+    response = await client.post(
+        f"/api/sessions/{session['id']}/branch",
+        json={"message_id": user_message["id"]},
+        headers=auth_headers,
+    )
+    assert response.status_code == 201, response.text
+    branch = response.json()
+
+    assert branch["id"] != session["id"]
+    assert branch["title"] == "Hi Haruhi (branch)"
+    assert branch["character_id"] == session["character_id"]
+    assert [member["id"] for member in branch["characters"]] == [
+        member["id"] for member in session["characters"]
+    ]
+    assert [message["content"] for message in branch["messages"]] == ["Hi!", "Hi Haruhi"]
+
+    # The original session still has its own reply; the branch never got one.
+    original = (
+        await client.get(f"/api/sessions/{session['id']}", headers=auth_headers)
+    ).json()
+    assert [message["role"] for message in original["messages"]] == [
+        "assistant",
+        "user",
+        "assistant",
+    ]
+
+    # Editing a message in the branch must not touch the original.
+    branch_user_message = branch["messages"][-1]
+    await client.patch(
+        f"/api/sessions/{branch['id']}/messages/{branch_user_message['id']}",
+        json={"content": "Edited in the branch"},
+        headers=auth_headers,
+    )
+    original_again = (
+        await client.get(f"/api/sessions/{session['id']}", headers=auth_headers)
+    ).json()
+    assert original_again["messages"][1]["content"] == "Hi Haruhi"
+
+
+async def test_branch_without_message_id_duplicates_the_whole_session(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
+) -> None:
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+
+    response = await client.post(
+        f"/api/sessions/{session['id']}/branch", json={}, headers=auth_headers
+    )
+    assert response.status_code == 201, response.text
+    branch = response.json()
+    assert len(branch["messages"]) == len(session["messages"])
+    assert branch["id"] != session["id"]
+
+
+async def test_branch_rejects_a_message_from_another_session(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
+) -> None:
+    character = await make_character(client, auth_headers, v2_card)
+    session_a = await make_session(client, auth_headers, character["id"])
+    session_b = await make_session(client, auth_headers, character["id"])
+    other_message_id = session_b["messages"][0]["id"]
+
+    response = await client.post(
+        f"/api/sessions/{session_a['id']}/branch",
+        json={"message_id": other_message_id},
+        headers=auth_headers,
+    )
+    assert response.status_code == 404
