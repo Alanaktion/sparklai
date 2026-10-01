@@ -612,29 +612,30 @@ async def stream_message(
     yield _event("done", {})
 
 
-def _last_assistant(messages: list[Message]) -> Message:
-    target = next((message for message in reversed(messages) if message.role == "assistant"), None)
-    if target is None:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "There is no assistant message to regenerate",
-        )
-    return target
-
-
 async def _regenerate_context(
     db: SessionDep, session_id: int, user_id: int
-) -> tuple[_Generation, list[Message], Message]:
+) -> tuple[_Generation, list[Message], Message | None]:
     """The generation context, the prompt history, and the message to replace.
 
     The character being regenerated is the one that spoke the target message, so a
-    group reply is retried in the same voice.
+    group reply is retried in the same voice. When the last turn is the user's —
+    e.g. a prior attempt errored before any text arrived, so no assistant message
+    was ever persisted — there is nothing to replace; the caller appends a fresh
+    reply instead of swiping one, which is how a failed send is retried.
     """
     session = await _owned_session(db, session_id, user_id)
     messages = await _load_messages(db, session.id)
-    target = _last_assistant(messages)
+    if not messages:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "There is nothing to respond to",
+        )
+    if messages[-1].role != "assistant":
+        generation = await _generation_context(db, session_id, user_id)
+        return generation, messages, None
+    target = messages[-1]
     generation = await _generation_context(db, session_id, user_id, target.speaker_id)
-    context = [message for message in messages if message.id != target.id]
+    context = messages[:-1]
     return generation, context, target
 
 
@@ -659,7 +660,12 @@ async def regenerate(
         reply = await generation.client.complete(_prompt(generation, context))
     except ProviderError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
-    message = await _store_swipe(db, generation.session, target, reply)
+    if target is None:
+        message = await _append_assistant_message(
+            db, generation.session, reply, generation.acting.id
+        )
+    else:
+        message = await _store_swipe(db, generation.session, target, reply)
     return RegenerateResult(assistant=message_public(message))
 
 
@@ -680,7 +686,12 @@ async def stream_regenerate(
         yield _event("done", {})
         return
 
-    message = await _store_swipe(db, generation.session, target, "".join(collected))
+    if target is None:
+        message = await _append_assistant_message(
+            db, generation.session, "".join(collected), generation.acting.id
+        )
+    else:
+        message = await _store_swipe(db, generation.session, target, "".join(collected))
     yield _event("message", {"message": message_public(message).model_dump(mode="json")})
     yield _event("done", {})
 

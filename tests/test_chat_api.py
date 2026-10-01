@@ -354,6 +354,41 @@ async def test_streaming_reports_provider_errors(
     assert "event: done" in payload
 
 
+async def test_regenerate_retries_a_send_that_failed_before_any_text_arrived(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    """A stream that errors before any delta leaves no assistant message, so
+    there is nothing to swipe; regenerate must fall back to appending a fresh
+    reply for the existing user turn instead of 422ing."""
+    await make_provider(client, auth_headers)
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    install_stub(monkeypatch, error="upstream is down")
+
+    async with client.stream(
+        "POST",
+        f"/api/sessions/{session['id']}/messages/stream",
+        json={"content": "hi"},
+        headers=auth_headers,
+    ) as response:
+        await response.aread()
+
+    messages = (
+        await client.get(f"/api/sessions/{session['id']}/messages", headers=auth_headers)
+    ).json()
+    assert [message["content"] for message in messages] == ["Hi!", "hi"]
+
+    install_stub(monkeypatch, reply="recovered reply")
+    retried = await client.post(f"/api/sessions/{session['id']}/regenerate", headers=auth_headers)
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["assistant"]["content"] == "recovered reply"
+
+    messages = (
+        await client.get(f"/api/sessions/{session['id']}/messages", headers=auth_headers)
+    ).json()
+    assert [message["content"] for message in messages] == ["Hi!", "hi", "recovered reply"]
+
+
 async def test_regenerate_keeps_the_original_as_a_swipe(
     client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
 ) -> None:

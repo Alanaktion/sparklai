@@ -148,3 +148,7 @@ button.danger {
 .error {
 	color: var(--danger);
 }
+
+.error .retry {
+	margin-left: 0.6rem;
+}

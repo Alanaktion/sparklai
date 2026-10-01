@@ -636,7 +636,10 @@
 	</div>
 
 	{#if streamError}
-		<p class="composer-error error" role="alert">{streamError}</p>
+		<p class="composer-error error" role="alert">
+			{streamError}
+			<button type="button" class="retry" onclick={regenerate} disabled={streaming}>Retry</button>
+		</p>
 	{/if}
 
 	{#if hearing}
