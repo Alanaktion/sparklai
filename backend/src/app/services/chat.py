@@ -85,13 +85,29 @@ async def fetch_models() -> list[str]:
     return [m.id for m in response.data]
 
 
-async def resolve_model(requested: str | None = None) -> str:
+async def resolve_model(requested: str | None = None, *, trust_requested: bool = False) -> str:
+    """Pick the model id to send to the chat backend.
+
+    Normally `requested` must appear in the backend's live `/v1/models` listing, falling back to
+    `models[0]` otherwise — this is what lets a stale `chat_model` preference cookie (pointing at
+    a model that's no longer loaded) degrade gracefully instead of erroring.
+
+    `trust_requested=True` skips that membership check and returns `requested` as-is. Use it for
+    an explicit server-side model configuration (e.g. `settings.translation_model`) rather than a
+    user preference: the backend may not list it until it's actually requested (common for
+    on-demand/JIT model loading), and silently substituting a different model the admin didn't
+    ask for is worse than just sending the configured id straight through.
+    """
+    normalized = _normalize_model(requested)
+    if trust_requested and normalized:
+        return normalized
+
     models = await fetch_models()
     if not models:
         raise RuntimeError(
             "No chat models available from CHAT_URL. Load a model in the backend or set CHAT_MODEL."
         )
-    candidate = _normalize_model(requested) or _normalize_model(settings.chat_model)
+    candidate = normalized or _normalize_model(settings.chat_model)
     if candidate and candidate in models:
         return candidate
     return models[0]
@@ -135,12 +151,14 @@ async def completion(
     user_prompt: str | None = None,
     messages: list[LlamaMessage] | None = None,
     model: str | None = None,
+    *,
+    trust_model: bool = False,
 ) -> str:
     all_messages: list[dict] = list(messages or [])
     if user_prompt is not None:
         all_messages.append({"role": "user", "content": user_prompt})
 
-    active_model = await resolve_model(model)
+    active_model = await resolve_model(model, trust_requested=trust_model)
     response = await _client.chat.completions.create(
         model=active_model,
         messages=all_messages,
@@ -162,9 +180,12 @@ async def translate_to_english(text: str, model: str | None = None) -> str:
     """Used by comments and chat messages.
 
     Model resolution: the dedicated translation model wins when configured
-    (`settings.translation_model`, env `TRANSLATION_MODEL`); otherwise `model` (the caller's
-    text-generation default, resolved from the chat-model preference cookie) passes through,
-    and `resolve_model()` inside `completion()` finally falls back to `settings.chat_model`.
+    (`settings.translation_model`, env `TRANSLATION_MODEL`) and is trusted as-is — it's not
+    required to appear in the backend's live `/v1/models` listing, since a dedicated
+    translation model is often not loaded until first requested. Otherwise `model` (the
+    caller's text-generation default, resolved from the chat-model preference cookie) passes
+    through, and `resolve_model()` inside `completion()` finally falls back to
+    `settings.chat_model`.
 
     The system prompt comes from `settings.translation_prompt` (env `TRANSLATION_PROMPT`),
     falling back to the built-in translation prompt when unset. If the prompt contains
@@ -176,7 +197,8 @@ async def translate_to_english(text: str, model: str | None = None) -> str:
     if not source:
         return ""
 
-    effective_model = _normalize_model(settings.translation_model) or model
+    dedicated_model = _normalize_model(settings.translation_model)
+    effective_model = dedicated_model or model
     system_prompt = (settings.translation_prompt or "").strip() or _TRANSLATE_SYSTEM
 
     if _TRANSLATE_TEXT_PLACEHOLDER in system_prompt:
@@ -191,5 +213,7 @@ async def translate_to_english(text: str, model: str | None = None) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": source},
         ]
-    translated = await completion(None, messages, model=effective_model)
+    translated = await completion(
+        None, messages, model=effective_model, trust_model=bool(dedicated_model)
+    )
     return translated.strip()
