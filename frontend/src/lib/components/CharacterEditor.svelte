@@ -3,11 +3,15 @@
 
 	import {
 		createCharacter,
+		deleteCharacterAvatar,
 		fetchCharacterAsset,
 		updateCharacter,
+		uploadCharacterAvatar,
 		type CharacterDetail
 	} from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
+	import { forgetAvatar } from '$lib/avatars';
+	import Avatar from './Avatar.svelte';
 	import {
 		cardFromDraft,
 		draftFromCard,
@@ -29,11 +33,13 @@
 		card?: JsonObject | null;
 		/** Character id when editing; null/omitted means create. */
 		characterId?: number | null;
+		/** Whether the character being edited already has an avatar. */
+		hasAvatar?: boolean;
 		onSaved: (detail: CharacterDetail) => void;
 		onCancel: () => void;
 	};
 
-	let { card = null, characterId = null, onSaved, onCancel }: Props = $props();
+	let { card = null, characterId = null, hasAvatar = false, onSaved, onCancel }: Props = $props();
 
 	const TABS: { id: Tab; label: string }[] = [
 		{ id: 'identity', label: 'Identity' },
@@ -120,6 +126,119 @@
 		};
 	});
 
+	// --- Images -------------------------------------------------------------
+	// Image changes are staged and applied when the card is saved, so creating
+	// and editing behave the same way.
+	const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+	const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
+	const ASSET_TYPES: { value: string; label: string }[] = [
+		{ value: 'icon', label: 'Icon' },
+		{ value: 'user_icon', label: 'Persona image' },
+		{ value: 'background', label: 'Background' },
+		{ value: 'emotion', label: 'Emotion' }
+	];
+
+	let createdId = $state<number | null>(null);
+	let avatarFile = $state<File | null>(null);
+	let avatarPreview = $state<string | null>(null);
+	let avatarRemoved = $state(false);
+	let imageError = $state<string | null>(null);
+	const showsStoredAvatar = $derived(hasAvatar && !avatarRemoved && !avatarFile);
+	const hasShownAvatar = $derived(showsStoredAvatar || avatarFile !== null);
+
+	function stageAvatar(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file) return;
+		if (!file.type.startsWith('image/')) {
+			imageError = `${file.name} is not an image.`;
+			return;
+		}
+		if (file.size > MAX_AVATAR_BYTES) {
+			imageError = `${file.name} is larger than 10 MB.`;
+			return;
+		}
+		imageError = null;
+		if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+		avatarPreview = URL.createObjectURL(file);
+		avatarFile = file;
+		avatarRemoved = false;
+	}
+
+	function clearAvatar() {
+		if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+		avatarPreview = null;
+		avatarFile = null;
+		avatarRemoved = hasAvatar;
+	}
+
+	$effect(() => {
+		return () => {
+			if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+		};
+	});
+
+	function readAsDataUrl(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(String(reader.result));
+			reader.onerror = () => reject(reader.error);
+			reader.readAsDataURL(file);
+		});
+	}
+
+	function extensionOf(file: File): string {
+		const fromName = file.name.split('.').pop()?.toLowerCase() ?? '';
+		if (/^[a-z0-9]+$/.test(fromName) && fromName !== file.name.toLowerCase()) return fromName;
+		return file.type.split('/')[1]?.replace(/[^a-z0-9]/g, '') || 'png';
+	}
+
+	async function addImages(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const files = [...(input.files ?? [])];
+		input.value = '';
+		imageError = null;
+		for (const file of files) {
+			if (!file.type.startsWith('image/')) {
+				imageError = `${file.name} is not an image.`;
+				continue;
+			}
+			if (file.size > MAX_IMAGE_BYTES) {
+				imageError = `${file.name} is larger than 3 MB; card images are stored inside the card.`;
+				continue;
+			}
+			try {
+				draft.assets.push({
+					base: {},
+					type: 'icon',
+					uri: await readAsDataUrl(file),
+					name: file.name.replace(/\.[^.]*$/, '') || 'image',
+					ext: extensionOf(file)
+				});
+			} catch {
+				imageError = `Could not read ${file.name}.`;
+			}
+		}
+	}
+
+	function inlinePreview(uri: string): string | null {
+		return uri.startsWith('data:image/') ? uri : null;
+	}
+
+	async function applyAvatarChange(token: string, id: number): Promise<CharacterDetail | null> {
+		let updated: CharacterDetail;
+		if (avatarFile) {
+			updated = await uploadCharacterAvatar(token, id, avatarFile);
+		} else if (avatarRemoved) {
+			updated = await deleteCharacterAvatar(token, id);
+		} else {
+			return null;
+		}
+		forgetAvatar(id);
+		return updated;
+	}
+
 	function selectTab(next: Tab) {
 		if (next === tab) return;
 
@@ -174,10 +293,15 @@
 
 		busy = true;
 		try {
-			const detail =
-				characterId === null
+			// A create whose avatar upload failed is retried as an update, so
+			// pressing Save again cannot produce a duplicate character.
+			const id = characterId ?? createdId;
+			let detail =
+				id === null
 					? await createCharacter(token, payload)
-					: await updateCharacter(token, characterId, { card: payload });
+					: await updateCharacter(token, id, { card: payload });
+			createdId = detail.id;
+			detail = (await applyAvatarChange(token, detail.id)) ?? detail;
 			saved = true;
 			onSaved(detail);
 		} catch (cause) {
@@ -403,69 +527,138 @@
 			</div>
 		{:else if tab === 'assets'}
 			<div class="fields">
-				<p class="hint">
-					<code>uri</code> may be <code>embeded://path</code>, <code>ccdefault:</code>, an https URL, or a
-					data URL. <code>ext</code> is a lowercase extension without a dot. Use <code>icon</code> or
-					<code>main</code> for the card icon and <code>user_icon</code> for a persona image.
-				</p>
+				<section class="image-section">
+					<h3>Character image</h3>
+					<p class="hint">The picture shown in lists and next to the character's messages.</p>
+					<div class="avatar-row">
+						{#if hasShownAvatar}
+							<Avatar
+								characterId={characterId ?? createdId ?? 0}
+								name={draft.name || 'Character'}
+								hasAvatar={showsStoredAvatar}
+								url={avatarPreview}
+								size={96}
+								expandable
+							/>
+						{:else}
+							<span class="avatar-empty">No image</span>
+						{/if}
+						<div class="avatar-actions">
+							<label class="file-button">
+								<input type="file" accept="image/*" onchange={stageAvatar} hidden />
+								<span>{hasShownAvatar ? 'Replace image' : 'Upload image'}</span>
+							</label>
+							{#if hasShownAvatar}
+								<button type="button" class="ghost" onclick={clearAvatar}>Remove</button>
+							{/if}
+							{#if avatarFile || avatarRemoved}
+								<span class="muted">Applied when you save.</span>
+							{/if}
+						</div>
+					</div>
+				</section>
 
-				{#each draft.assets as asset, index (index)}
-					{@const preview = previewFor(asset.uri)}
-					<div class="ext-row">
-						<div class="grid">
+				<section class="image-section">
+					<h3>Other images</h3>
+					<p class="hint">
+						Extra pictures stored in the card, such as a persona image or backgrounds.
+					</p>
+
+					<div class="image-grid">
+						{#each draft.assets as asset, index (index)}
+							{@const preview = inlinePreview(asset.uri) ?? previewFor(asset.uri)}
+							<div class="image-card">
+								{#if preview}
+									<img class="asset-preview" src={preview} alt={asset.name || `Asset ${index + 1}`} />
+								{:else}
+									<div class="asset-preview placeholder muted">No preview</div>
+								{/if}
+								<label>
+									<span>Use as</span>
+									<select bind:value={asset.type} aria-label={`Asset ${index + 1} use`}>
+										{#each ASSET_TYPES as option (option.value)}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+										{#if !ASSET_TYPES.some((option) => option.value === asset.type)}
+											<option value={asset.type}>{asset.type || 'Unspecified'}</option>
+										{/if}
+									</select>
+								</label>
+								<label>
+									<span>Name</span>
+									<input bind:value={asset.name} aria-label={`Asset ${index + 1} name`} />
+								</label>
+								<button
+									type="button"
+									class="ghost"
+									onclick={() => draft.assets.splice(index, 1)}
+									aria-label={`Remove asset ${index + 1}`}
+								>
+									Remove
+								</button>
+							</div>
+						{/each}
+					</div>
+
+					{#if draft.assets.length === 0}
+						<p class="muted">No extra images.</p>
+					{/if}
+
+					<label class="file-button">
+						<input type="file" accept="image/*" multiple onchange={addImages} hidden />
+						<span>Add images</span>
+					</label>
+				</section>
+
+				{#if imageError}
+					<p class="error" role="alert">{imageError}</p>
+				{/if}
+
+				<details class="advanced">
+					<summary>Advanced: edit asset entries directly</summary>
+					<p class="hint">
+						<code>uri</code> may be <code>embeded://path</code>, <code>ccdefault:</code>, an https URL,
+						or a data URL. <code>ext</code> is a lowercase extension without a dot.
+					</p>
+
+					{#each draft.assets as asset, index (index)}
+						<div class="ext-row">
+							<div class="grid">
+								<label>
+									<span>Type</span>
+									<input
+										bind:value={asset.type}
+										placeholder="icon"
+										aria-label={`Asset ${index + 1} type`}
+									/>
+								</label>
+								<label>
+									<span>Extension</span>
+									<input
+										bind:value={asset.ext}
+										placeholder="png"
+										aria-label={`Asset ${index + 1} extension`}
+									/>
+								</label>
+							</div>
 							<label>
-								<span>Type</span>
+								<span>URI</span>
 								<input
-									bind:value={asset.type}
-									placeholder="icon"
-									aria-label={`Asset ${index + 1} type`}
-								/>
-							</label>
-							<label>
-								<span>Name</span>
-								<input bind:value={asset.name} aria-label={`Asset ${index + 1} name`} />
-							</label>
-							<label>
-								<span>Extension</span>
-								<input
-									bind:value={asset.ext}
-									placeholder="png"
-									aria-label={`Asset ${index + 1} extension`}
+									bind:value={asset.uri}
+									placeholder="embeded://assets/icon/main.png"
+									aria-label={`Asset ${index + 1} URI`}
 								/>
 							</label>
 						</div>
-						<label>
-							<span>URI</span>
-							<input
-								bind:value={asset.uri}
-								placeholder="embeded://assets/icon/main.png"
-								aria-label={`Asset ${index + 1} URI`}
-							/>
-						</label>
-						{#if preview}
-							<img class="asset-preview" src={preview} alt={`Asset ${index + 1} preview`} />
-						{/if}
-						<button
-							type="button"
-							class="ghost"
-							onclick={() => draft.assets.splice(index, 1)}
-							aria-label={`Remove asset ${index + 1}`}
-						>
-							Remove
-						</button>
-					</div>
-				{/each}
+					{/each}
 
-				{#if draft.assets.length === 0}
-					<p class="muted">No assets.</p>
-				{/if}
-
-				<button
-					type="button"
-					onclick={() => draft.assets.push({ base: {}, type: '', uri: '', name: '', ext: '' })}
-				>
-					Add asset
-				</button>
+					<button
+						type="button"
+						onclick={() => draft.assets.push({ base: {}, type: '', uri: '', name: '', ext: '' })}
+					>
+						Add entry
+					</button>
+				</details>
 			</div>
 		{:else}
 			<div class="fields">
@@ -601,6 +794,76 @@
 		display: grid;
 		gap: 0.4rem;
 		grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+	}
+
+	.image-section h3 {
+		margin: 0 0 0.25rem;
+		font-size: 1rem;
+	}
+
+	.avatar-row {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.avatar-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.avatar-empty {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 96px;
+		height: 96px;
+		border: 1px dashed var(--border);
+		border-radius: 0.5rem;
+		color: var(--muted);
+		font-size: 0.8rem;
+	}
+
+	.file-button {
+		display: inline-block;
+		padding: 0.3rem 0.7rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		cursor: pointer;
+	}
+
+	.image-grid {
+		display: grid;
+		gap: 0.75rem;
+		margin-bottom: 0.6rem;
+		grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+	}
+
+	.image-card {
+		display: grid;
+		gap: 0.4rem;
+		align-content: start;
+		padding: 0.6rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+	}
+
+	.image-card > button {
+		justify-self: start;
+	}
+
+	.placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.8rem;
+	}
+
+	.advanced {
+		margin-top: 0.5rem;
 	}
 
 	.asset-preview {

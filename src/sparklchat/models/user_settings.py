@@ -23,6 +23,10 @@ class UserSettings(SQLModel, table=True):
     world_book: dict[str, Any] | None = Field(
         default=None, sa_column=Column("world_book", JSON, nullable=True)
     )
+    # File name of the user's profile image (a WebP) in the avatar directory.
+    avatar_path: str | None = Field(default=None)
+    # The image as uploaded, for viewing full-size.
+    avatar_original_path: str | None = Field(default=None)
 
 
 class UserSettingsUpdate(SQLModel):
@@ -42,3 +46,4 @@ class UserSettingsPublic(SQLModel):
     default_provider_id: int | None
     # Stored verbatim, so it is returned as plain JSON rather than a validated book.
     world_book: dict[str, Any] | None = None
+    has_avatar: bool = False

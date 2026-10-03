@@ -164,6 +164,14 @@ async def test_upload_png_card(
     assert avatar.headers["content-type"] == "image/webp"
     assert avatar.content.startswith(b"RIFF")
 
+    # The full-size view gets the original upload, not the downscaled copy.
+    original = await client.get(
+        f"/api/characters/{body['id']}/avatar/original", headers=auth_headers
+    )
+    assert original.status_code == 200
+    assert original.headers["content-type"] == "image/png"
+    assert original.content.startswith(b"\x89PNG")
+
     # ...while the original PNG card is kept for export.
     exported = await client.get(
         f"/api/characters/{body['id']}/export",
@@ -249,6 +257,16 @@ async def test_avatar_missing_when_none_uploaded(
 ) -> None:
     created = await create(client, auth_headers, v2_card)
     response = await client.get(f"/api/characters/{created['id']}/avatar", headers=auth_headers)
+    assert response.status_code == 404
+
+
+async def test_original_avatar_missing_when_none_uploaded(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
+) -> None:
+    created = await create(client, auth_headers, v2_card)
+    response = await client.get(
+        f"/api/characters/{created['id']}/avatar/original", headers=auth_headers
+    )
     assert response.status_code == 404
 
 
@@ -370,3 +388,59 @@ async def test_last_message_time_is_per_user(
     other = await login_as("other@example.com")
     listing = await client.get("/api/characters?scope=public", headers=other)
     assert listing.json()[0]["last_message_at"] is None
+
+
+def _png_bytes() -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (8, 8), "blue").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+async def test_avatar_can_be_set_replaced_and_removed(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
+) -> None:
+    created = await create(client, auth_headers, v2_card)
+    url = f"/api/characters/{created['id']}/avatar"
+    assert created["has_avatar"] is False
+
+    png = _png_bytes()
+    response = await client.put(
+        url, files={"file": ("a.png", png, "image/png")}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    assert response.json()["has_avatar"] is True
+
+    shown = await client.get(url, headers=auth_headers)
+    assert shown.headers["content-type"] == "image/webp"
+    assert shown.headers["cache-control"] == "private, max-age=3600"
+    original = await client.get(f"{url}/original", headers=auth_headers)
+    assert original.content == png
+
+    removed = await client.delete(url, headers=auth_headers)
+    assert removed.json()["has_avatar"] is False
+    assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
+async def test_avatar_upload_validates_and_requires_ownership(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    login_as,
+    v2_card: dict,
+) -> None:
+    created = await create(client, auth_headers, v2_card)
+    url = f"/api/characters/{created['id']}/avatar"
+
+    bad = await client.put(
+        url, files={"file": ("a.png", b"nope", "image/png")}, headers=auth_headers
+    )
+    assert bad.status_code == 422
+
+    other = await login_as("other@example.com")
+    foreign = await client.put(
+        url, files={"file": ("a.png", _png_bytes(), "image/png")}, headers=other
+    )
+    assert foreign.status_code == 404

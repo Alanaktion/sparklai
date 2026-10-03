@@ -1,23 +1,40 @@
 """Per-user prompt defaults and the user-level world book."""
 
+import mimetypes
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlmodel import select
 
 from sparklchat.api.deps import CurrentUserDep
 from sparklchat.db import SessionDep
 from sparklchat.models.provider import Provider
-from sparklchat.models.user_settings import UserSettingsPublic, UserSettingsUpdate
+from sparklchat.models.user_settings import UserSettings, UserSettingsPublic, UserSettingsUpdate
+from sparklchat.services.avatars import (
+    IMAGE_CACHE_HEADERS,
+    MAX_AVATAR_BYTES,
+    avatar_file,
+    delete_avatar,
+    image_suffix,
+    save_avatar,
+    save_display_avatar,
+)
 from sparklchat.services.cards import CardError, parse_lorebook
 from sparklchat.services.user_settings import get_or_create_settings
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
+def _public(settings: UserSettings) -> UserSettingsPublic:
+    result = UserSettingsPublic.model_validate(settings)
+    result.has_avatar = settings.avatar_path is not None
+    return result
+
+
 @router.get("")
 async def read_settings(db: SessionDep, current_user: CurrentUserDep) -> UserSettingsPublic:
-    return await get_or_create_settings(db, current_user.id)
+    return _public(await get_or_create_settings(db, current_user.id))
 
 
 @router.patch("")
@@ -54,7 +71,61 @@ async def update_settings(
     db.add(settings)
     await db.commit()
     await db.refresh(settings)
-    return settings
+    return _public(settings)
+
+
+@router.get("/avatar")
+async def read_avatar(db: SessionDep, current_user: CurrentUserDep) -> FileResponse:
+    settings = await get_or_create_settings(db, current_user.id)
+    path = avatar_file(settings.avatar_path) if settings.avatar_path else None
+    if path is None or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No profile image")
+    return FileResponse(path, media_type="image/webp", headers=IMAGE_CACHE_HEADERS)
+
+
+@router.get("/avatar/original")
+async def read_original_avatar(db: SessionDep, current_user: CurrentUserDep) -> FileResponse:
+    settings = await get_or_create_settings(db, current_user.id)
+    name = settings.avatar_original_path or settings.avatar_path
+    path = avatar_file(name) if name else None
+    if path is None or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No profile image")
+    media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(path, media_type=media_type, headers=IMAGE_CACHE_HEADERS)
+
+
+@router.put("/avatar")
+async def replace_avatar(
+    file: UploadFile, db: SessionDep, current_user: CurrentUserDep
+) -> UserSettingsPublic:
+    data = await file.read(MAX_AVATAR_BYTES + 1)
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Image is too large")
+    stored = save_display_avatar(data)
+    if stored is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Not a readable image")
+    settings = await get_or_create_settings(db, current_user.id)
+    previous = (settings.avatar_path, settings.avatar_original_path)
+    settings.avatar_path = stored
+    settings.avatar_original_path = save_avatar(data, image_suffix(data))
+    db.add(settings)
+    await db.commit()
+    await db.refresh(settings)
+    for name in previous:
+        delete_avatar(name)
+    return _public(settings)
+
+
+@router.delete("/avatar", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_avatar(db: SessionDep, current_user: CurrentUserDep) -> None:
+    settings = await get_or_create_settings(db, current_user.id)
+    previous = (settings.avatar_path, settings.avatar_original_path)
+    settings.avatar_path = None
+    settings.avatar_original_path = None
+    db.add(settings)
+    await db.commit()
+    for name in previous:
+        delete_avatar(name)
 
 
 @router.get("/world-book")

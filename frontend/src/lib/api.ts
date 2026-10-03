@@ -111,6 +111,7 @@ export type UserSettings = {
 	default_ujb: string;
 	default_provider_id: number | null;
 	world_book: Record<string, unknown> | null;
+	has_avatar: boolean;
 };
 
 export type UserSettingsUpdate = {
@@ -126,6 +127,32 @@ export function getSettings(token: string): Promise<UserSettings> {
 
 export function updateSettings(token: string, patch: UserSettingsUpdate): Promise<UserSettings> {
 	return apiFetch<UserSettings>('/settings', jsonInit('PATCH', patch, token));
+}
+
+export async function uploadUserAvatar(token: string, file: File): Promise<UserSettings> {
+	const body = new FormData();
+	body.append('file', file);
+	const updated = await apiFetch<UserSettings>('/settings/avatar', {
+		method: 'PUT',
+		headers: bearer(token),
+		body
+	});
+	await refreshCachedOriginal('/settings/avatar/original', token);
+	return updated;
+}
+
+export function deleteUserAvatar(token: string): Promise<void> {
+	return apiFetch<void>('/settings/avatar', { method: 'DELETE', headers: bearer(token) });
+}
+
+export function fetchUserAvatar(token: string, original = false): Promise<Blob> {
+	return fetch(`${API_BASE}/settings/avatar${original ? '/original' : ''}`, { headers: bearer(token) }).then(async (response) => {
+		if (!response.ok) {
+			reportUnauthorized(response.status);
+			throw new ApiError(response.status, await errorDetail(response));
+		}
+		return response.blob();
+	});
 }
 
 // --- World book -----------------------------------------------------------
@@ -383,6 +410,43 @@ export function updateCharacter(
 	return apiFetch<CharacterDetail>(`/characters/${id}`, jsonInit('PATCH', update, token));
 }
 
+/** Set a character's avatar from an image file. */
+export async function uploadCharacterAvatar(
+	token: string,
+	id: number,
+	file: File
+): Promise<CharacterDetail> {
+	const body = new FormData();
+	body.append('file', file);
+	const detail = await apiFetch<CharacterDetail>(`/characters/${id}/avatar`, {
+		method: 'PUT',
+		headers: bearer(token),
+		body
+	});
+	await refreshCachedOriginal(`/characters/${id}/avatar/original`, token);
+	return detail;
+}
+
+export function deleteCharacterAvatar(token: string, id: number): Promise<CharacterDetail> {
+	return apiFetch<CharacterDetail>(`/characters/${id}/avatar`, {
+		method: 'DELETE',
+		headers: bearer(token)
+	});
+}
+
+/**
+ * Image responses are cached for an hour. The PUT/DELETE itself evicts the
+ * cached display copy at the same URL, but the sibling `/original` URL needs an
+ * explicit refetch to drop its stale entry.
+ */
+async function refreshCachedOriginal(path: string, token: string): Promise<void> {
+	try {
+		await fetch(`${API_BASE}${path}`, { headers: bearer(token), cache: 'reload' });
+	} catch {
+		// Best effort: a stale full-size view is not worth failing the save.
+	}
+}
+
 export function deleteCharacter(token: string, id: number): Promise<void> {
 	return apiFetch<void>(`/characters/${id}`, { method: 'DELETE', headers: bearer(token) });
 }
@@ -440,8 +504,8 @@ function filenameFrom(disposition: string | null): string | null {
 	return disposition?.match(/filename="([^"]+)"/)?.[1] ?? null;
 }
 
-export function fetchAvatar(token: string, id: number): Promise<Blob> {
-	return fetch(`${API_BASE}/characters/${id}/avatar`, { headers: bearer(token) }).then(
+export function fetchAvatar(token: string, id: number, original = false): Promise<Blob> {
+	return fetch(`${API_BASE}/characters/${id}/avatar${original ? '/original' : ''}`, { headers: bearer(token) }).then(
 		async (response) => {
 			if (!response.ok) {
 				reportUnauthorized(response.status);

@@ -27,8 +27,11 @@ from sparklchat.models.character import (
 )
 from sparklchat.models.chat import ChatSession, Message
 from sparklchat.services.avatars import (
+    IMAGE_CACHE_HEADERS,
+    MAX_AVATAR_BYTES,
     avatar_file,
     delete_avatar,
+    image_suffix,
     save_avatar,
     save_display_avatar,
 )
@@ -168,7 +171,7 @@ async def _import_upload(file: UploadFile, db: SessionDep, user_id: int) -> Char
         card,
         source,
         user_id,
-        save_avatar(avatar, _image_suffix(avatar)) if avatar else None,
+        save_avatar(avatar, image_suffix(avatar)) if avatar else None,
         save_package(package, package_suffix) if package else None,
         save_display_avatar(avatar) if avatar else None,
     )
@@ -288,6 +291,47 @@ async def delete_character(character_id: int, db: SessionDep, current_user: Curr
     await db.commit()
 
 
+@router.put("/{character_id}/avatar")
+async def replace_avatar(
+    character_id: int, file: UploadFile, db: SessionDep, current_user: CurrentUserDep
+) -> CharacterDetail:
+    """Set the character's avatar from an uploaded image."""
+    character = await owned_character(db, character_id, current_user.id)
+    data = await file.read(MAX_AVATAR_BYTES + 1)
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Image is too large")
+    display = save_display_avatar(data)
+    if display is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Not a readable image")
+    previous = (character.avatar_path, character.avatar_webp_path)
+    character.avatar_path = save_avatar(data, image_suffix(data))
+    character.avatar_webp_path = display
+    character.updated_at = utcnow()
+    db.add(character)
+    await db.commit()
+    await db.refresh(character)
+    for name in previous:
+        delete_avatar(name)
+    return character_detail(character, current_user.id)
+
+
+@router.delete("/{character_id}/avatar")
+async def remove_avatar(
+    character_id: int, db: SessionDep, current_user: CurrentUserDep
+) -> CharacterDetail:
+    character = await owned_character(db, character_id, current_user.id)
+    previous = (character.avatar_path, character.avatar_webp_path)
+    character.avatar_path = None
+    character.avatar_webp_path = None
+    character.updated_at = utcnow()
+    db.add(character)
+    await db.commit()
+    await db.refresh(character)
+    for name in previous:
+        delete_avatar(name)
+    return character_detail(character, current_user.id)
+
+
 @router.get("/{character_id}/avatar")
 async def get_avatar(
     character_id: int, db: SessionDep, current_user: CurrentUserDep
@@ -297,7 +341,21 @@ async def get_avatar(
     path = _display_avatar(character)
     if path is None or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Character has no avatar")
-    return FileResponse(path, media_type=_guess_type(path.name))
+    return FileResponse(path, media_type=_guess_type(path.name), headers=IMAGE_CACHE_HEADERS)
+
+
+@router.get("/{character_id}/avatar/original")
+async def get_original_avatar(
+    character_id: int, db: SessionDep, current_user: CurrentUserDep
+) -> FileResponse:
+    """Serve the avatar exactly as uploaded, for full-size viewing."""
+    character = await readable_character(db, character_id, current_user.id)
+    path = (
+        avatar_file(character.avatar_path) if character.avatar_path else _display_avatar(character)
+    )
+    if path is None or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Character has no avatar")
+    return FileResponse(path, media_type=_guess_type(path.name), headers=IMAGE_CACHE_HEADERS)
 
 
 @router.get("/{character_id}/assets/{asset_path:path}")
@@ -326,7 +384,7 @@ async def get_asset(
     return Response(
         payload,
         media_type=media_type,
-        headers={"Cache-Control": "private, max-age=3600"},
+        headers=IMAGE_CACHE_HEADERS,
     )
 
 
@@ -444,21 +502,6 @@ def _display_avatar(character: Character) -> Path | None:
     if character.avatar_path:
         return avatar_file(character.avatar_path)
     return None
-
-
-def _image_suffix(data: bytes | None) -> str:
-    """Pick a file suffix from an image's magic bytes."""
-    if data is None:
-        return ".png"
-    if data.startswith(b"\xff\xd8\xff"):
-        return ".jpg"
-    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
-        return ".webp"
-    if data[4:12] in (b"ftypavif", b"ftypavis"):
-        return ".avif"
-    if data.startswith(b"GIF8"):
-        return ".gif"
-    return ".png"
 
 
 def _guess_type(path: str) -> str:

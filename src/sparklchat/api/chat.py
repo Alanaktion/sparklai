@@ -38,6 +38,7 @@ from sparklchat.models.chat import (
 )
 from sparklchat.models.provider import Provider
 from sparklchat.models.user_settings import UserSettings
+from sparklchat.services.avatars import IMAGE_CACHE_HEADERS
 from sparklchat.services.cards import load_card
 from sparklchat.services.chat import (
     activation_counts,
@@ -881,7 +882,11 @@ async def get_message_image(
     path = generated_image_file(path_name) if path_name else None
     if path is None or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Image not found")
-    return FileResponse(path, media_type=generated_image_content_type(path_name))
+    return FileResponse(
+        path,
+        media_type=generated_image_content_type(path_name),
+        headers=IMAGE_CACHE_HEADERS,
+    )
 
 
 @router.patch("/{session_id}/messages/{message_id}")

@@ -8,6 +8,8 @@
 		deleteMessage,
 		downloadChatTranscript,
 		editMessage,
+		fetchUserAvatar,
+		getSettings,
 		getCharacter,
 		getSession,
 		listProviders,
@@ -42,6 +44,46 @@
 
 	let session = $state<SessionDetail | null>(null);
 	let character = $state<CharacterDetail | null>(null);
+	// The signed-in user's profile image as a blob URL (the endpoint needs a bearer token).
+	let userAvatarUrl = $state<string | null>(null);
+
+	$effect(() => {
+		const token = auth.token;
+		if (!token) return;
+		let objectUrl: string | null = null;
+		let active = true;
+		getSettings(token)
+			.then((settings) => (settings.has_avatar ? fetchUserAvatar(token) : null))
+			.then((blob) => {
+				if (!blob) return;
+				objectUrl = URL.createObjectURL(blob);
+				if (active) userAvatarUrl = objectUrl;
+				else URL.revokeObjectURL(objectUrl);
+			})
+			.catch(() => {
+				// No profile image is fine; bubbles fall back to an initial.
+			});
+		return () => {
+			active = false;
+			if (objectUrl) URL.revokeObjectURL(objectUrl);
+		};
+	});
+
+	function avatarOf(message: Message) {
+		if (message.role === 'system') return null;
+		if (message.role === 'user') {
+			return {
+				characterId: 0,
+				hasAvatar: false,
+				url: userAvatarUrl,
+				loadOriginal: (token: string) => fetchUserAvatar(token, true)
+			};
+		}
+		const member =
+			cast.find((item) => item.id === message.speaker_id) ??
+			cast.find((item) => item.is_primary);
+		return member ? { characterId: member.id, hasAvatar: member.has_avatar } : null;
+	}
 	let messages = $state<Message[]>([]);
 	let providers = $state<Provider[]>([]);
 	let loading = $state(true);
@@ -543,6 +585,7 @@
 				name={character.name}
 				hasAvatar={character.has_avatar}
 				size={32}
+				expandable
 			/>
 		{/if}
 		<div class="title">
@@ -636,6 +679,7 @@
 			<MessageBubble
 				{message}
 				speaker={speakerOf(message)}
+				avatar={avatarOf(message)}
 				busy={streaming || branching}
 				showRegenerate={message.id === lastAssistantId && !streaming}
 				onSwipe={(direction) => swipe(message, direction)}

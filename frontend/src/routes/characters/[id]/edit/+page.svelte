@@ -64,6 +64,7 @@
 		<CharacterEditor
 			card={isObject(character.card) ? character.card : {}}
 			characterId={character.id}
+			hasAvatar={character.has_avatar}
 			{onSaved}
 			{onCancel}
 		/>

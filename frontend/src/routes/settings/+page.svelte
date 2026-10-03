@@ -1,6 +1,8 @@
 <script lang="ts">
 	import {
 		deleteProvider,
+		deleteUserAvatar,
+		fetchUserAvatar,
 		deleteWorldBook,
 		getSettings,
 		getWorldBook,
@@ -8,12 +10,14 @@
 		saveWorldBook,
 		testProvider,
 		updateSettings,
+		uploadUserAvatar,
 		type Provider,
 		type ProviderTestResult,
 		type UserSettings
 	} from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { bookFromDraft, bookFromJson, bookProblems, emptyBook, type DraftBook } from '$lib/cardDraft';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import CharacterBookEditor from '$lib/components/CharacterBookEditor.svelte';
 	import ProviderEditor from '$lib/components/ProviderEditor.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -29,6 +33,54 @@
 	let systemPrompt = $state('');
 	let ujb = $state('');
 	let savingBasics = $state(false);
+	let avatarUrl = $state<string | null>(null);
+	let avatarBusy = $state(false);
+
+	async function showAvatar(has: boolean) {
+		const token = auth.token;
+		if (avatarUrl) URL.revokeObjectURL(avatarUrl);
+		avatarUrl = null;
+		if (!token || !has) return;
+		try {
+			avatarUrl = URL.createObjectURL(await fetchUserAvatar(token));
+		} catch {
+			// Falls back to the initial.
+		}
+	}
+
+	async function chooseAvatar(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		const token = auth.token;
+		if (!file || !token) return;
+		avatarBusy = true;
+		error = null;
+		try {
+			settings = await uploadUserAvatar(token, file);
+			await showAvatar(settings.has_avatar);
+		} catch (cause) {
+			error = errorMessage(cause);
+		} finally {
+			avatarBusy = false;
+		}
+	}
+
+	async function removeAvatar() {
+		const token = auth.token;
+		if (!token) return;
+		avatarBusy = true;
+		error = null;
+		try {
+			await deleteUserAvatar(token);
+			if (settings) settings = { ...settings, has_avatar: false };
+			await showAvatar(false);
+		} catch (cause) {
+			error = errorMessage(cause);
+		} finally {
+			avatarBusy = false;
+		}
+	}
 
 	let worldBook = $state<DraftBook | null>(null);
 	let editingWorldBook = $state(false);
@@ -61,6 +113,7 @@
 			displayName = loadedSettings.display_name;
 			systemPrompt = loadedSettings.default_system_prompt;
 			ujb = loadedSettings.default_ujb;
+			void showAvatar(loadedSettings.has_avatar);
 			worldBook = loadedWorldBook ? bookFromJson(loadedWorldBook) : null;
 		} catch (cause) {
 			error = errorMessage(cause);
@@ -224,6 +277,25 @@
 	{:else}
 		<section class="section">
 			<h2>Account &amp; defaults</h2>
+			<div class="profile-image">
+				<Avatar
+					characterId={0}
+					name={displayName || auth.user?.email || 'You'}
+					url={avatarUrl}
+					size={72}
+					expandable
+					loadOriginal={(token) => fetchUserAvatar(token, true)}
+				/>
+				<div class="actions">
+					<label class="file-button">
+						<input type="file" accept="image/*" onchange={chooseAvatar} disabled={avatarBusy} hidden />
+						<span>{avatarBusy ? 'Working…' : 'Upload profile image'}</span>
+					</label>
+					{#if settings?.has_avatar}
+						<button type="button" onclick={removeAvatar} disabled={avatarBusy}>Remove</button>
+					{/if}
+				</div>
+			</div>
 			<form class="basics" onsubmit={saveBasics}>
 				<label>
 					<span>Display name</span>
@@ -373,6 +445,21 @@
 </main>
 
 <style>
+	.profile-image {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.file-button {
+		display: inline-block;
+		padding: 0.3rem 0.7rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		cursor: pointer;
+	}
+
 	.section {
 		margin-top: 1.75rem;
 	}

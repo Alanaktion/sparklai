@@ -72,3 +72,51 @@ async def test_settings_are_isolated_per_user(
 
     response = await client.get("/api/settings", headers=other_headers)
     assert response.json()["default_ujb"] == ""
+
+
+def _png() -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (8, 8), "red").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+async def test_profile_image_upload_serve_and_delete(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    assert (await client.get("/api/settings/avatar", headers=auth_headers)).status_code == 404
+
+    response = await client.put(
+        "/api/settings/avatar",
+        headers=auth_headers,
+        files={"file": ("me.png", _png(), "image/png")},
+    )
+    assert response.status_code == 200
+    assert response.json()["has_avatar"] is True
+    assert (await client.get("/api/settings", headers=auth_headers)).json()["has_avatar"] is True
+
+    served = await client.get("/api/settings/avatar", headers=auth_headers)
+    assert served.status_code == 200
+    assert served.headers["content-type"] == "image/webp"
+
+    original = await client.get("/api/settings/avatar/original", headers=auth_headers)
+    assert original.status_code == 200
+    assert original.headers["content-type"] == "image/png"
+    assert original.content == _png()
+
+    assert (await client.delete("/api/settings/avatar", headers=auth_headers)).status_code == 204
+    assert (await client.get("/api/settings", headers=auth_headers)).json()["has_avatar"] is False
+
+
+async def test_profile_image_rejects_non_images(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    response = await client.put(
+        "/api/settings/avatar",
+        headers=auth_headers,
+        files={"file": ("me.png", b"not an image", "image/png")},
+    )
+    assert response.status_code == 422

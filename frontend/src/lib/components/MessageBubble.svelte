@@ -1,11 +1,19 @@
 <script lang="ts">
 	import type { Message, SwipeDirection } from '$lib/api';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import GeneratedImage from '$lib/components/GeneratedImage.svelte';
 	import RichText from '$lib/components/RichText.svelte';
 
 	type Props = {
 		message: Message;
 		speaker: string;
+		/** Who to draw next to the bubble; null for system lines. */
+		avatar?: {
+			characterId: number;
+			hasAvatar: boolean;
+			url?: string | null;
+			loadOriginal?: ((token: string) => Promise<Blob>) | null;
+		} | null;
 		busy?: boolean;
 		showRegenerate?: boolean;
 		onSwipe: (direction: SwipeDirection) => void;
@@ -18,6 +26,7 @@
 	let {
 		message,
 		speaker,
+		avatar = null,
 		busy = false,
 		showRegenerate = false,
 		onSwipe,
@@ -47,6 +56,20 @@
 	}
 </script>
 
+<div class="row" class:user={message.role === 'user'} class:system={message.role === 'system'}>
+{#if avatar}
+	<div class="portrait">
+		<Avatar
+			characterId={avatar.characterId}
+			name={speaker}
+			hasAvatar={avatar.hasAvatar}
+			url={avatar.url ?? null}
+			loadOriginal={avatar.loadOriginal ?? null}
+			size={40}
+			expandable
+		/>
+	</div>
+{/if}
 <article
 	class="message"
 	class:user={message.role === 'user'}
@@ -95,8 +118,29 @@
 		</div>
 	{/if}
 </article>
+</div>
 
 <style>
+	.row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.6rem;
+		max-width: 100%;
+	}
+
+	.row.user {
+		align-self: flex-end;
+		flex-direction: row-reverse;
+	}
+
+	.row.system {
+		align-self: center;
+	}
+
+	.portrait {
+		flex: none;
+	}
+
 	.message {
 		max-width: 44rem;
 		padding: 0.6rem 0.75rem;
@@ -106,12 +150,10 @@
 	}
 
 	.user {
-		align-self: flex-end;
 		background: var(--surface-2);
 	}
 
 	.system {
-		align-self: center;
 		font-style: italic;
 	}
 

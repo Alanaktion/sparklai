@@ -30,3 +30,10 @@ export function loadAvatar(id: number, token: string): Promise<string> {
 	inflight.set(id, request);
 	return request;
 }
+
+/** Forget a character's cached avatar after it was replaced or removed. */
+export function forgetAvatar(id: number): void {
+	const url = urls.get(id);
+	if (url) URL.revokeObjectURL(url);
+	urls.delete(id);
+}
