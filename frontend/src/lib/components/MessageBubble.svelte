@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { Message, SwipeDirection } from '$lib/api';
-	import Avatar from '$lib/components/Avatar.svelte';
-	import GeneratedImage from '$lib/components/GeneratedImage.svelte';
-	import RichText from '$lib/components/RichText.svelte';
+	import type { Message, SwipeDirection } from '#lib/api.js';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import GeneratedImage from '#lib/components/GeneratedImage.svelte';
+	import RichText from '#lib/components/RichText.svelte';
 
 	type Props = {
 		message: Message;

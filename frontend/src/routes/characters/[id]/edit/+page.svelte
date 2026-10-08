@@ -2,11 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import { getCharacter, type CharacterDetail } from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import CharacterEditor from '$lib/components/CharacterEditor.svelte';
-	import { isObject } from '$lib/cardDraft';
-	import { errorMessage } from '$lib/errors';
+	import { getCharacter, type CharacterDetail } from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import CharacterEditor from '#lib/components/CharacterEditor.svelte';
+	import { isObject } from '#lib/cardDraft.js';
+	import { errorMessage } from '#lib/errors.js';
 
 	let character = $state<CharacterDetail | null>(null);
 	let loading = $state(true);

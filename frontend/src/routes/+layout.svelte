@@ -4,10 +4,10 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import { setUnauthorizedHandler } from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import favicon from '$lib/assets/favicon.svg';
-	import { themeStore } from '$lib/theme.svelte';
+	import { setUnauthorizedHandler } from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import favicon from '#lib/assets/favicon.svg';
+	import { themeStore } from '#lib/theme.svelte.js';
 	import '../app.css';
 
 	let { children }: { children: Snippet } = $props();

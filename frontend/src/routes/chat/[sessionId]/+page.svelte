@@ -26,12 +26,12 @@
 		type Provider,
 		type SessionDetail,
 		type SwipeDirection
-	} from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
-	import MessageBubble from '$lib/components/MessageBubble.svelte';
-	import RichText from '$lib/components/RichText.svelte';
-	import { errorMessage } from '$lib/errors';
+	} from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import MessageBubble from '#lib/components/MessageBubble.svelte';
+	import RichText from '#lib/components/RichText.svelte';
+	import { errorMessage } from '#lib/errors.js';
 	import {
 		canListen,
 		canSpeak,
@@ -40,7 +40,7 @@
 		speak,
 		stopSpeaking,
 		type SpeechRecognitionLike
-	} from '$lib/speech';
+	} from '#lib/speech.js';
 
 	let session = $state<SessionDetail | null>(null);
 	let character = $state<CharacterDetail | null>(null);

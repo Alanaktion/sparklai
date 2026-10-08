@@ -14,14 +14,14 @@
 		type Provider,
 		type ProviderTestResult,
 		type UserSettings
-	} from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import { bookFromDraft, bookFromJson, bookProblems, emptyBook, type DraftBook } from '$lib/cardDraft';
-	import Avatar from '$lib/components/Avatar.svelte';
-	import CharacterBookEditor from '$lib/components/CharacterBookEditor.svelte';
-	import ProviderEditor from '$lib/components/ProviderEditor.svelte';
-	import { errorMessage } from '$lib/errors';
-	import { themeStore } from '$lib/theme.svelte';
+	} from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import { bookFromDraft, bookFromJson, bookProblems, emptyBook, type DraftBook } from '#lib/cardDraft.js';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import CharacterBookEditor from '#lib/components/CharacterBookEditor.svelte';
+	import ProviderEditor from '#lib/components/ProviderEditor.svelte';
+	import { errorMessage } from '#lib/errors.js';
+	import { themeStore } from '#lib/theme.svelte.js';
 
 	let settings = $state<UserSettings | null>(null);
 	let providers = $state<Provider[]>([]);

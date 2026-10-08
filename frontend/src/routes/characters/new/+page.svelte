@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
-	import type { CharacterDetail } from '$lib/api';
-	import type { JsonObject } from '$lib/cardDraft';
-	import CharacterCreatorAssistant from '$lib/components/CharacterCreatorAssistant.svelte';
-	import CharacterEditor from '$lib/components/CharacterEditor.svelte';
+	import type { CharacterDetail } from '#lib/api.js';
+	import type { JsonObject } from '#lib/cardDraft.js';
+	import CharacterCreatorAssistant from '#lib/components/CharacterCreatorAssistant.svelte';
+	import CharacterEditor from '#lib/components/CharacterEditor.svelte';
 
 	type Mode = 'assistant' | 'blank';
 

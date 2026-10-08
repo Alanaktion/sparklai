@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import { auth } from '$lib/auth.svelte';
+	import { auth } from '#lib/auth.svelte.js';
 
 	let email = $state('');
 	let password = $state('');
@@ -13,12 +13,12 @@
 	function redirectTarget(): string {
 		const target = page.url.searchParams.get('redirectTo');
 		// Only ever redirect to an in-app path.
-		return target && target.startsWith('/') ? target : '/';
+		return target && target.startsWith('/') && !target.startsWith('//') ? target : '/';
 	}
 
 	$effect(() => {
 		if (auth.ready && auth.isAuthenticated) {
-			void goto(redirectTarget(), { replaceState: true });
+			goto(redirectTarget(), { replaceState: true }).catch(() => goto('/', { replaceState: true }));
 		}
 	});
 

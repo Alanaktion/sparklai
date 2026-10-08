@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { auth } from '$lib/auth.svelte';
-	import { cachedMessageImage, loadMessageImage } from '$lib/messageImages';
-	import type { MessageImage } from '$lib/api';
+	import { auth } from '#lib/auth.svelte.js';
+	import { cachedMessageImage, loadMessageImage } from '#lib/messageImages.js';
+	import type { MessageImage } from '#lib/api.js';
 
 	type Props = {
 		sessionId: number;

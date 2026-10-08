@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { parseMessage, type Span } from '$lib/markdown';
+	import { parseMessage, type Span } from '#lib/markdown.js';
 
 	type Props = { text: string };
 

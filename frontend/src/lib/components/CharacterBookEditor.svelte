@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { emptyEntry, type DraftBook } from '$lib/cardDraft';
+	import { emptyEntry, type DraftBook } from '#lib/cardDraft.js';
 	import LorebookEntryRow from './LorebookEntryRow.svelte';
 
 	type Props = { book: DraftBook };

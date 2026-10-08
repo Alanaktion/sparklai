@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DraftEntry } from '$lib/cardDraft';
+	import type { DraftEntry } from '#lib/cardDraft.js';
 
 	type Props = {
 		entry: DraftEntry;

@@ -6,10 +6,10 @@
 		streamCreatorMessage,
 		type CreatorTurn,
 		type Provider
-	} from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import { draftFromCard, type JsonObject } from '$lib/cardDraft';
-	import { errorMessage } from '$lib/errors';
+	} from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import { draftFromCard, type JsonObject } from '#lib/cardDraft.js';
+	import { errorMessage } from '#lib/errors.js';
 
 	type Props = {
 		/** The user picked up the assistant's draft; hand it to the full editor. */

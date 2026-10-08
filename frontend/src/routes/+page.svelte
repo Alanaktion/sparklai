@@ -7,11 +7,11 @@
 		listRecentSessions,
 		type CharacterSummary,
 		type SessionListItem
-	} from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
-	import { errorMessage } from '$lib/errors';
-	import { formatDate } from '$lib/format';
+	} from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import { errorMessage } from '#lib/errors.js';
+	import { formatDate } from '#lib/format.js';
 
 	const RECENT_SESSION_LIMIT = 10;
 	const RECENT_CHARACTER_LIMIT = 8;

@@ -5,9 +5,9 @@
 		type Provider,
 		type ProviderInput,
 		type ProviderType
-	} from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import { errorMessage } from '$lib/errors';
+	} from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import { errorMessage } from '#lib/errors.js';
 	import { untrack } from 'svelte';
 
 	type Props = {

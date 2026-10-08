@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { auth } from '$lib/auth.svelte';
-	import Lightbox from '$lib/components/Lightbox.svelte';
-	import { fetchAvatar } from '$lib/api';
-	import { cachedAvatar, loadAvatar } from '$lib/avatars';
+	import { auth } from '#lib/auth.svelte.js';
+	import Lightbox from '#lib/components/Lightbox.svelte';
+	import { fetchAvatar } from '#lib/api.js';
+	import { cachedAvatar, loadAvatar } from '#lib/avatars.js';
 
 	type Props = {
 		characterId: number;

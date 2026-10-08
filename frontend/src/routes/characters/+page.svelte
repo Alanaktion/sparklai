@@ -8,10 +8,10 @@
 		uploadCharacters,
 		type CharacterSort,
 		type CharacterSummary
-	} from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
-	import { errorMessage } from '$lib/errors';
+	} from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import { errorMessage } from '#lib/errors.js';
 
 	let characters = $state<CharacterSummary[]>([]);
 	let loading = $state(true);
@@ -78,7 +78,7 @@
 	});
 
 	function scopeHref(scope: Scope): string {
-		const params = new URLSearchParams(page.url.searchParams);
+		const params = new URLSearchParams(page.url.search);
 		if (scope === 'public') params.set('scope', 'public');
 		else params.delete('scope');
 		const qs = params.toString();
@@ -147,7 +147,7 @@
 	function changeSort(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement).value as CharacterSort;
 		sortInput = value;
-		const params = new URLSearchParams(page.url.searchParams);
+		const params = new URLSearchParams(page.url.search);
 		if (value === 'name') params.delete('sort');
 		else params.set('sort', value);
 		const qs = params.toString();

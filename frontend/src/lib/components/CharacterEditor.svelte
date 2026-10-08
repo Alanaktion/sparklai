@@ -8,9 +8,9 @@
 		updateCharacter,
 		uploadCharacterAvatar,
 		type CharacterDetail
-	} from '$lib/api';
-	import { auth } from '$lib/auth.svelte';
-	import { forgetAvatar } from '$lib/avatars';
+	} from '#lib/api.js';
+	import { auth } from '#lib/auth.svelte.js';
+	import { forgetAvatar } from '#lib/avatars.js';
 	import Avatar from './Avatar.svelte';
 	import {
 		cardFromDraft,
@@ -21,8 +21,8 @@
 		readJsonObject,
 		type Draft,
 		type JsonObject
-	} from '$lib/cardDraft';
-	import { errorMessage } from '$lib/errors';
+	} from '#lib/cardDraft.js';
+	import { errorMessage } from '#lib/errors.js';
 	import CharacterBookEditor from './CharacterBookEditor.svelte';
 	import StringListEditor from './StringListEditor.svelte';
 
