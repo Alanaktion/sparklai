@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import type { ImageType, UserType } from '$lib/types';
+import type { ImageType, UserType } from '#lib/types.js';
 
 export type UserProfileState = {
 	user: UserType;

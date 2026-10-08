@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { CreatorType } from '$lib/types';
-	import Dialog from '$lib/components/base/dialog.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import type { CreatorType } from '#lib/types.js';
+	import Dialog from '#lib/components/base/dialog.svelte';
+	import { refreshAll } from '$app/navigation';
 	import UserIcon from 'virtual:icons/octicon/person-16';
 	import LogOut from 'virtual:icons/octicon/sign-out-16';
 	import Plus from 'virtual:icons/octicon/plus-16';
@@ -51,7 +51,7 @@
 			if (res.ok) {
 				loginDialogOpen = false;
 				pin = '';
-				await invalidateAll();
+				await refreshAll();
 			} else {
 				const body = await res.json().catch(() => ({}));
 				loginError = body.message ?? 'Invalid PIN';
@@ -63,7 +63,7 @@
 
 	const logout = async () => {
 		await fetch('/api/creators/session', { method: 'DELETE' });
-		await invalidateAll();
+		await refreshAll();
 	};
 
 	const createCreator = async (e: Event) => {
@@ -90,7 +90,7 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ pin: savedPin })
 				});
-				await invalidateAll();
+				await refreshAll();
 			} else {
 				const body = await res.json().catch(() => ({}));
 				createError = body.message ?? 'Failed to create account';

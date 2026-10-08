@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { formatDate, localDateTime } from '$lib';
-	import { looksNonEnglish } from '$lib/language';
-	import { parseInlineItalics } from '$lib/text';
+	import { formatDate, localDateTime } from '#lib';
+	import { looksNonEnglish } from '#lib/language.js';
+	import { parseInlineItalics } from '#lib/text.js';
 	import CommentMultiple from 'virtual:icons/octicon/comment-discussion-24';
 	import ChevronDown from 'virtual:icons/octicon/chevron-down-16';
 	import { onMount, tick } from 'svelte';
@@ -49,16 +49,14 @@
 </script>
 
 <div class="mb-4 flex items-start gap-4 px-4 sm:px-0 lg:mb-6">
-	<a class="min-w-12" href={resolve(`/users/${post.user_id}`)}>
-		<Avatar {user} />
-	</a>
+	<a class="min-w-12" href={resolve(`users/${post.user_id}`)}><Avatar {user} /></a>
+
 	<div>
 		<a
 			class="font-medium text-blue-600 hover:underline dark:text-blue-400"
-			href={resolve(`/users/${post.user_id}`)}
+			href={resolve(`users/${post.user_id}`)}>{user?.name}</a
 		>
-			{user?.name}
-		</a>
+
 		{#if post.image_id}
 			<div class="my-3">
 				<PostImage
@@ -113,16 +111,13 @@
 				<button
 					type="button"
 					class="absolute inset-x-0 bottom-0 flex cursor-pointer items-center justify-center hover:text-blue-500"
-					onclick={() => (expanded = !expanded)}
+					onclick={() => (expanded = !expanded)}><ChevronDown />Show more</button
 				>
-					<ChevronDown />
-					Show more
-				</button>
 			{/if}
 		</div>
 		<div class="flex items-center gap-2 border-t border-gray-200 py-2 dark:border-gray-700">
 			<a
-				href={resolve(`/posts/${post.id}`)}
+				href={resolve(`posts/${post.id}`)}
 				class="mr-auto pr-4 text-sm text-gray-400"
 				title={localDateTime(post.created_at)}
 			>
@@ -130,7 +125,7 @@
 			</a>
 			{#if !full}
 				<a
-					href={resolve(`/posts/${post.id}`)}
+					href={resolve(`posts/${post.id}`)}
 					class="flex items-center gap-1 rounded px-2 py-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900 dark:hover:text-blue-300"
 				>
 					<CommentMultiple class="size-4" />

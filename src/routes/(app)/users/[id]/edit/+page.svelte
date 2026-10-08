@@ -2,7 +2,7 @@
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 	import type { PageProps } from './$types';
-	import { getUserProfileContext } from '$lib/user-profile-context';
+	import { getUserProfileContext } from '#lib/user-profile-context.js';
 
 	let { data }: PageProps = $props();
 	const profileState = getUserProfileContext();

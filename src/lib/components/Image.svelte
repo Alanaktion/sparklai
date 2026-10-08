@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { escapeKey } from '$lib/actions/escape-key.svelte';
-	import { hotkey } from '$lib/actions/hotkey.svelte';
+	import { escapeKey } from '#lib/actions/escape-key.svelte.js';
+	import { hotkey } from '#lib/actions/hotkey.svelte.js';
 	import EyeClosed from 'virtual:icons/octicon/eye-closed-16';
 	import Trash from 'virtual:icons/octicon/trash-16';
 	import { fade, slide } from 'svelte/transition';

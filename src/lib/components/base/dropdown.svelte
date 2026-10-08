@@ -2,10 +2,10 @@
 	import { type Snippet } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 	import { fade } from 'svelte/transition';
-	import { escapeKey } from '$lib/actions/escape-key.svelte';
-	import { focusTrap } from '$lib/actions/focus-trap.svelte';
-	import { outsideClick } from '$lib/actions/outside-click.svelte';
-	import { verticalNavigation } from '$lib/actions/vertical-navigation.svelte';
+	import { escapeKey } from '#lib/actions/escape-key.svelte.js';
+	import { focusTrap } from '#lib/actions/focus-trap.svelte.js';
+	import { outsideClick } from '#lib/actions/outside-click.svelte.js';
+	import { verticalNavigation } from '#lib/actions/vertical-navigation.svelte.js';
 
 	type Props = {
 		children?: Snippet;

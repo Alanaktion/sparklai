@@ -4,8 +4,8 @@
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import TriangleAlert from 'virtual:icons/octicon/alert-16';
 	import X from 'virtual:icons/octicon/x-16';
-	import { dismissImageJob, imageJobs, initImageJobTracker } from '$lib/stores/image-jobs';
-	import type { ImageJobStatus, TrackedImageJob } from '$lib/stores/image-jobs';
+	import { dismissImageJob, imageJobs, initImageJobTracker } from '#lib/stores/image-jobs.js';
+	import type { ImageJobStatus, TrackedImageJob } from '#lib/stores/image-jobs.js';
 
 	let collapsed = $state(false);
 

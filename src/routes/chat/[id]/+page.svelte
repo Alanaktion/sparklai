@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
-	import { hasActiveConversation } from '$lib/chat/conversations';
-	import type { ChatType, UserType } from '$lib/types';
+	import { hasActiveConversation } from '#lib/chat/conversations.js';
+	import type { ChatType, UserType } from '#lib/types.js';
 	import type { PageProps } from './$types';
 
-	import Avatar from '$lib/components/Avatar.svelte';
-	import ChatMessage from '$lib/components/ChatMessage.svelte';
-	import Dialog from '$lib/components/base/dialog.svelte';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import ChatMessage from '#lib/components/ChatMessage.svelte';
+	import Dialog from '#lib/components/base/dialog.svelte';
 	import Info from 'virtual:icons/octicon/info-24';
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Send from 'virtual:icons/octicon/paper-airplane-24';
@@ -32,7 +32,9 @@
 	let canStartNewConversation = $derived(hasActiveConversation(chats));
 
 	// Populate chats on initial load and after navigation between conversations
-	afterNavigate(() => {
+	afterNavigate(({ shallow, type }) => {
+		if (shallow && type === 'goto') return;
+
 		chats = [];
 		message = '';
 		loadingChats = true;
@@ -45,7 +47,9 @@
 			});
 	});
 
-	beforeNavigate(() => {
+	beforeNavigate(({ shallow, type }) => {
+		if (shallow && type === 'goto') return;
+
 		clearTimeout(timeoutId);
 	});
 
@@ -140,7 +144,7 @@
 		class="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-gray-100/80 p-2 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80"
 	>
 		<a
-			href={resolve('/chat')}
+			href={resolve('chat')}
 			class="rounded p-1 text-blue-600 hover:bg-blue-100 sm:hidden dark:text-blue-400 dark:hover:bg-blue-900"
 			aria-label="Back to conversations"
 		>
@@ -156,8 +160,11 @@
 				<path d="m15 18-6-6 6-6"></path>
 			</svg>
 		</a>
+
 		<Avatar {user} class="size-10" />
-		<a href={resolve(`/users/${user.id}`)} class="font-medium hover:underline">{user.name}</a>
+
+		<a href={resolve(`users/${user.id}`)} class="font-medium hover:underline">{user.name}</a>
+
 		<button
 			type="button"
 			class="ml-auto cursor-pointer rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -200,9 +207,9 @@
 							stroke-linejoin="round"
 							class="animate-typing size-6"
 						>
-							<circle cx="5" cy="12" r="1" />
-							<circle cx="12" cy="12" r="1" />
-							<circle cx="19" cy="12" r="1" />
+							<circle cx="5" cy="12" r="1"></circle>
+							<circle cx="12" cy="12" r="1"></circle>
+							<circle cx="19" cy="12" r="1"></circle>
 						</svg>
 					</div>
 				{/if}

@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import Avatar from '$lib/components/Avatar.svelte';
-	import AvatarPicker from '$lib/components/AvatarPicker.svelte';
-	import TabsItem from '$lib/components/base/tabs-item.svelte';
-	import type { ImageType, UserType } from '$lib/types';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import AvatarPicker from '#lib/components/AvatarPicker.svelte';
+	import TabsItem from '#lib/components/base/tabs-item.svelte';
+	import type { ImageType, UserType } from '#lib/types.js';
 	import Chat from 'virtual:icons/octicon/comment-discussion-24';
 	import type { LayoutProps } from './$types';
-	import { setUserProfileContext, type UserProfileState } from '$lib/user-profile-context';
+	import { setUserProfileContext, type UserProfileState } from '#lib/user-profile-context.js';
 
 	let { data, children }: LayoutProps = $props();
 
@@ -125,7 +125,7 @@
 					});
 			if (response.ok) {
 				cancelEditRelationship();
-				await invalidateAll();
+				await refreshAll();
 			} else {
 				const body = await response.json().catch(() => null);
 				relationshipError = body?.detail || 'Failed to save relationship.';
@@ -146,7 +146,7 @@
 			{ method: 'DELETE' }
 		);
 		if (response.ok) {
-			await invalidateAll();
+			await refreshAll();
 		}
 	}
 
@@ -178,11 +178,10 @@
 	>
 		<div class="flex items-center gap-4">
 			<AvatarPicker {user} {images} onAvatarChange={handleAvatarChange} />
+
 			<div class="ms-auto text-end">
 				<h1 class="text-xl font-semibold text-gray-800 dark:text-gray-200">{user.name}</h1>
-				<p class="text-sm text-gray-400">
-					{user.pronouns} &middot; {user.occupation}
-				</p>
+				<p class="text-sm text-gray-400">{user.pronouns} · {user.occupation}</p>
 			</div>
 			{#if activeCreator && isOwner}
 				<span
@@ -191,7 +190,7 @@
 				>
 			{/if}
 			<a
-				href={resolve(`/chat/${user.id}`)}
+				href={resolve(`chat/${user.id}`)}
 				class="rounded p-1 text-sm text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
 			>
 				<span class="sr-only">Messages</span>
@@ -238,7 +237,7 @@
 										class="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
 									>
 										<a
-											href={resolve(`/users/${relationship.id}`)}
+											href={resolve(`users/${relationship.id}`)}
 											class="flex flex-1 items-center gap-2"
 										>
 											<Avatar user={relationship} class="size-8" />
@@ -384,12 +383,14 @@
 		<div
 			class="mb-4 flex items-center gap-3 text-xl font-semibold text-gray-800 dark:text-gray-200"
 		>
-			<a href={resolve(`/users/${data.id}`)} class={routeTabClass(!isImagesRoute && !isEditRoute)}
+			<a href={resolve(`users/${data.id}`)} class={routeTabClass(!isImagesRoute && !isEditRoute)}
 				>Posts</a
 			>
-			<a href={resolve(`/users/${data.id}/images`)} class={routeTabClass(isImagesRoute)}>Images</a>
+
+			<a href={resolve(`users/${data.id}/images`)} class={routeTabClass(isImagesRoute)}>Images</a>
+
 			{#if isOwner}
-				<a href={resolve(`/users/${data.id}/edit`)} class={routeTabClass(isEditRoute)}>Edit</a>
+				<a href={resolve(`users/${data.id}/edit`)} class={routeTabClass(isEditRoute)}>Edit</a>
 			{/if}
 		</div>
 

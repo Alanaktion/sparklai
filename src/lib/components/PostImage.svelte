@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { escapeKey } from '$lib/actions/escape-key.svelte';
+	import { escapeKey } from '#lib/actions/escape-key.svelte.js';
 	import { fade, slide } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 

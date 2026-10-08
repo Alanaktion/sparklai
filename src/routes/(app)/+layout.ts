@@ -1,9 +1,9 @@
-import type { CreatorType } from '$lib/types';
+import type { CreatorType } from '#lib/types.js';
 import type { LayoutLoad } from './$types';
 
 // Universal (client-side) load, replacing the old `+layout.server.ts` — it now hits the FastAPI
 // backend over `fetch` instead of querying the DB directly. Runs in the browser under
-// adapter-static's SPA mode, same as everywhere else; `invalidateAll()` (used by
+// adapter-static's SPA mode, same as everywhere else; `refreshAll()` (used by
 // CreatorSwitcher.svelte after login/logout/create) still works exactly as it did before.
 export const load: LayoutLoad = async ({ fetch }) => {
 	const [creatorsRes, meRes] = await Promise.all([

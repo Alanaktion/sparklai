@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import Avatar from '$lib/components/Avatar.svelte';
+	import { refreshAll } from '$app/navigation';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import CheckCircle from 'virtual:icons/octicon/check-circle-24';
 	import Alert from 'virtual:icons/octicon/alert-24';
 	import type { PageProps } from './$types';
@@ -66,7 +66,7 @@
 			if (response.ok) {
 				feedbackMsg = 'Profile updated successfully!';
 				hasError = false;
-				await invalidateAll();
+				await refreshAll();
 			} else {
 				feedbackMsg = 'Failed to update profile. Please try again.';
 				hasError = true;
@@ -322,13 +322,13 @@
 				<div class="flex items-center justify-between pt-2">
 					<div class="flex items-center gap-4">
 						<a
-							href={resolve('/')}
+							href={resolve('/(app)')}
 							class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
 						>
 							Back to Home
 						</a>
 						<a
-							href={resolve('/settings/auto-mode')}
+							href={resolve('settings/auto-mode')}
 							class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
 						>
 							Auto Mode

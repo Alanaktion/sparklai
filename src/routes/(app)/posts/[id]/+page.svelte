@@ -1,22 +1,22 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { looksNonEnglish } from '$lib/language';
-	import { parseInlineItalics } from '$lib/text';
+	import { browser } from '$app/env';
+	import { looksNonEnglish } from '#lib/language.js';
+	import { parseInlineItalics } from '#lib/text.js';
 	import { goto } from '$app/navigation';
-	import { hotkey } from '$lib/actions/hotkey.svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
-	import DropdownOption from '$lib/components/base/dropdown-option.svelte';
-	import Dropdown from '$lib/components/base/dropdown.svelte';
-	import ImagePicker from '$lib/components/ImagePicker.svelte';
-	import MediaPicker from '$lib/components/MediaPicker.svelte';
-	import Post from '$lib/components/Post.svelte';
+	import { hotkey } from '#lib/actions/hotkey.svelte.js';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import DropdownOption from '#lib/components/base/dropdown-option.svelte';
+	import Dropdown from '#lib/components/base/dropdown.svelte';
+	import ImagePicker from '#lib/components/ImagePicker.svelte';
+	import MediaPicker from '#lib/components/MediaPicker.svelte';
+	import Post from '#lib/components/Post.svelte';
 	import DismissCircle from 'virtual:icons/octicon/x-circle-16';
 	import ImageOff from 'virtual:icons/octicon/boolean-off-16';
 	import CommentAi from 'virtual:icons/octicon/comment-ai-16';
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 
-	import type { CommentType, PostType, UserType } from '$lib/types';
+	import type { CommentType, PostType, UserType } from '#lib/types.js';
 	import type { PageProps } from './$types';
 	import { resolve } from '$app/paths';
 
@@ -86,7 +86,7 @@
 	}
 
 	function deletePost() {
-		fetch(`/api/posts/${data.id}`, { method: 'DELETE' }).then(() => goto(resolve('/')));
+		fetch(`/api/posts/${data.id}`, { method: 'DELETE' }).then(() => goto(resolve('/(app)')));
 	}
 	function deleteComment(id: number) {
 		fetch(`/api/posts/${data.id}/comments/${id}`, { method: 'DELETE' }).then(() => {
@@ -222,15 +222,16 @@
 			{#each comments as comment (comment.id)}
 				{@const bodySegments = parseInlineItalics(comment.body)}
 				<div class="group my-4 flex items-start gap-3">
-					<a class="min-w-10" href={resolve(`/users/${comment.user_id}`)}>
-						<Avatar user={comment.user} class="size-10" />
-					</a>
+					<a class="min-w-10" href={resolve(`users/${comment.user_id}`)}
+						><Avatar user={comment.user} class="size-10" /></a
+					>
+
 					<div class="flex-1">
 						<div class="flex justify-between text-sm leading-tight">
 							{#if comment.user}
 								<a
 									class="text-blue-600 hover:underline dark:text-blue-400"
-									href={resolve(`/users/${comment.user_id}`)}>{comment.user.name}</a
+									href={resolve(`users/${comment.user_id}`)}>{comment.user.name}</a
 								>
 							{:else}
 								<span class="text-gray-500">User</span>

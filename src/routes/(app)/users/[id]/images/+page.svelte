@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import Dialog from '$lib/components/base/dialog.svelte';
-	import Image from '$lib/components/Image.svelte';
+	import { browser } from '$app/env';
+	import Dialog from '#lib/components/base/dialog.svelte';
+	import Image from '#lib/components/Image.svelte';
 	import {
 		failImageJobRequest,
 		replaceImageJobRequest,
 		startImageJobRequest,
 		type ImageGenerationJobResponse
-	} from '$lib/stores/image-jobs';
+	} from '#lib/stores/image-jobs.js';
 	import ImageIcon from 'virtual:icons/octicon/image-24';
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 	import Ratio from 'virtual:icons/octicon/screen-normal-16';
 	import Upload from 'virtual:icons/octicon/upload-16';
 	import type { PageProps } from './$types';
-	import { getUserProfileContext } from '$lib/user-profile-context';
+	import { getUserProfileContext } from '#lib/user-profile-context.js';
 
 	let { data }: PageProps = $props();
 	const profileState = getUserProfileContext();
@@ -99,6 +99,7 @@
 				if (!response.ok) {
 					throw new Error('Image request failed');
 				}
+
 				return (await response.json()) as ImageJob[];
 			})
 			.then((jobs) => {

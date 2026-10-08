@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Select from '$lib/components/base/select.svelte';
+	import Select from '#lib/components/base/select.svelte';
 	import ChatMultiple from 'virtual:icons/octicon/comment-discussion-24';
 	import Image from 'virtual:icons/octicon/image-24';
 

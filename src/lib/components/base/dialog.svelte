@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { escapeKey } from '$lib/actions/escape-key.svelte';
+	import { escapeKey } from '#lib/actions/escape-key.svelte.js';
 	import { fade } from 'svelte/transition';
-	import { focusTrap } from '$lib/actions/focus-trap.svelte';
+	import { focusTrap } from '#lib/actions/focus-trap.svelte.js';
 	import { twMerge } from 'tailwind-merge';
 	import X from 'virtual:icons/octicon/x-16';
 

@@ -8,7 +8,7 @@
 		replaceImageJobRequest,
 		startImageJobRequest,
 		type ImageGenerationJobResponse
-	} from '$lib/stores/image-jobs';
+	} from '#lib/stores/image-jobs.js';
 
 	type ImageJob = ImageGenerationJobResponse;
 

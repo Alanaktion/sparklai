@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { ChatType } from '$lib/types';
+	import type { ChatType } from '#lib/types.js';
 	import {
 		extractConversationSummary,
 		isConversationSummaryMessage
-	} from '$lib/chat/conversations';
-	import { looksNonEnglish } from '$lib/language';
-	import { parseInlineItalics } from '$lib/text';
-	import Dialog from '$lib/components/base/dialog.svelte';
+	} from '#lib/chat/conversations.js';
+	import { looksNonEnglish } from '#lib/language.js';
+	import { parseInlineItalics } from '#lib/text.js';
+	import Dialog from '#lib/components/base/dialog.svelte';
 	import { twMerge } from 'tailwind-merge';
 	import Image from './Image.svelte';
 

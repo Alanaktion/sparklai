@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import Dialog from '$lib/components/base/dialog.svelte';
-	import Post from '$lib/components/Post.svelte';
-	import type { PostType } from '$lib/types';
+	import { browser } from '$app/env';
+	import Dialog from '#lib/components/base/dialog.svelte';
+	import Post from '#lib/components/Post.svelte';
+	import type { PostType } from '#lib/types.js';
 	import {
 		dismissImageJob,
 		failImageJobRequest,
 		replaceImageJobRequest,
 		startImageJobRequest,
 		type ImageGenerationJobResponse
-	} from '$lib/stores/image-jobs';
+	} from '#lib/stores/image-jobs.js';
 	import PencilAi from 'virtual:icons/octicon/pencil-ai-16';
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import type { PageProps } from './$types';
-	import { getUserProfileContext } from '$lib/user-profile-context';
+	import { getUserProfileContext } from '#lib/user-profile-context.js';
 
 	let { data }: PageProps = $props();
 	const profileState = getUserProfileContext();
@@ -65,14 +65,12 @@
 				if (!response.ok) {
 					throw new Error('Post creation failed');
 				}
+
 				return (await response.json()) as NewPostResponse;
 			})
 			.then((body) => {
-				const nextPost: UserPagePost = {
-					...body.post,
-					image: null,
-					media: null
-				};
+				const nextPost: UserPagePost = { ...body.post, image: null, media: null };
+
 				posts = [nextPost, ...posts];
 				if (body.image_job && Number.isFinite(body.image_job.id)) {
 					recentlyQueuedImageJobIds = [body.image_job.id, ...recentlyQueuedImageJobIds].slice(

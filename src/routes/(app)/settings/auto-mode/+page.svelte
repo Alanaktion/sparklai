@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onDestroy, onMount, untrack } from 'svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import CheckCircle from 'virtual:icons/octicon/check-circle-24';
 	import Alert from 'virtual:icons/octicon/alert-24';
 	import { resolve } from '$app/paths';
 	import type { PageProps } from './$types';
 
-	// Feature-specific response shapes, defined here rather than in `$lib/types.ts` — matches how
+	// Feature-specific response shapes, defined here rather than in `#lib/types.ts` — matches how
 	// `ModelPreferencesResponse`/`ImageGenerationJobResponse` are handled (see that file's header
 	// comment): only "core" entity shapes are centralized there.
 	type CreatorAutoModeSettings = {
@@ -340,7 +340,7 @@
 
 		<div class="mt-6">
 			<a
-				href={resolve('/settings')}
+				href={resolve('settings')}
 				class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
 			>
 				Back to Profile Settings

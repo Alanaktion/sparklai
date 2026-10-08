@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import type { PostType, UserType } from '$lib/types';
+	import { browser } from '$app/env';
+	import type { PostType, UserType } from '#lib/types.js';
 	import Loader from 'virtual:icons/octicon/issue-draft-16';
 	import Loader24 from 'virtual:icons/octicon/issue-draft-24';
 	import PersonAdd from 'virtual:icons/octicon/person-add-16';
@@ -10,9 +10,9 @@
 	import type { PageProps } from './$types';
 	let { data }: PageProps = $props();
 
-	import Avatar from '$lib/components/Avatar.svelte';
-	import Dialog from '$lib/components/base/dialog.svelte';
-	import Post from '$lib/components/Post.svelte';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import Dialog from '#lib/components/base/dialog.svelte';
+	import Post from '#lib/components/Post.svelte';
 	import { resolve } from '$app/paths';
 
 	const POSTS_PAGE_SIZE = 15;
@@ -352,11 +352,11 @@
 							<div class="min-w-0 flex-1">
 								<a
 									class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-									href={resolve(`/users/${u.id}`)}
+									href={resolve(`users/${u.id}`)}
+									><div class="absolute inset-0"></div>
+									{u.name}</a
 								>
-									<div class="absolute inset-0"></div>
-									{u.name}
-								</a>
+
 								<p class="text-sm text-gray-400 group-hover:text-blue-400 dark:text-gray-500">
 									{u.pronouns}
 								</p>
