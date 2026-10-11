@@ -179,7 +179,9 @@ async def test_stream_image_generates_and_attaches_to_a_message(
     ).json()
     image_message = next(message for message in messages if message["images"])
     assert image_message["content"] == "a cat astronaut"
-    assert image_message["images"] == [{"index": 0, "width": 512, "height": 512}]
+    (image,) = image_message["images"]
+    assert image["version"]
+    assert (image["index"], image["width"], image["height"]) == (0, 512, 512)
 
     image_response = await client.get(
         f"/api/sessions/{session['id']}/messages/{image_message['id']}/images/0",
@@ -405,9 +407,7 @@ async def test_branching_duplicates_generated_image_files(
     )
 
     branch = (
-        await client.post(
-            f"/api/sessions/{session['id']}/branch", json={}, headers=auth_headers
-        )
+        await client.post(f"/api/sessions/{session['id']}/branch", json={}, headers=auth_headers)
     ).json()
     branch_image_message = next(message for message in branch["messages"] if message["images"])
 
@@ -429,3 +429,35 @@ async def test_branching_duplicates_generated_image_files(
     )
     assert original_image.status_code == 200
     assert original_image.content == b"PNGDATA"
+
+
+async def test_regenerated_image_gets_a_new_version_even_if_the_message_id_is_reused(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict, monkeypatch
+) -> None:
+    provider = await make_comfyui_provider(client, auth_headers)
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    install_stub(monkeypatch)
+
+    async def generate_and_get_image_message() -> dict:
+        async with client.stream(
+            "POST",
+            f"/api/sessions/{session['id']}/images/stream",
+            json={"provider_id": provider["id"], "prompt": "x"},
+            headers=auth_headers,
+        ):
+            pass
+        messages = (
+            await client.get(f"/api/sessions/{session['id']}/messages", headers=auth_headers)
+        ).json()
+        return next(message for message in reversed(messages) if message["images"])
+
+    first = await generate_and_get_image_message()
+    await client.delete(
+        f"/api/sessions/{session['id']}/messages/{first['id']}", headers=auth_headers
+    )
+    second = await generate_and_get_image_message()
+
+    # SQLite hands the freed id back out; the version is what tells them apart.
+    assert second["images"][0]["version"]
+    assert second["images"][0]["version"] != first["images"][0]["version"]

@@ -1,6 +1,7 @@
 """Session and message helpers: greetings, swipes, titles, prompt context."""
 
 from collections.abc import Iterable, Mapping, Sequence
+from pathlib import Path
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -136,7 +137,12 @@ def message_image_entries(message: Message) -> list[dict]:
 
 def message_images(message: Message) -> list[MessageImage]:
     return [
-        MessageImage(index=index, width=item.get("width"), height=item.get("height"))
+        MessageImage(
+            index=index,
+            version=Path(str(item.get("path") or "")).stem,
+            width=item.get("width"),
+            height=item.get("height"),
+        )
         for index, item in enumerate(message_image_entries(message))
     ]
 

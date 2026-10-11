@@ -665,9 +665,7 @@ async def test_branch_copies_messages_up_to_the_chosen_point(
     assert [message["content"] for message in branch["messages"]] == ["Hi!", "Hi Haruhi"]
 
     # The original session still has its own reply; the branch never got one.
-    original = (
-        await client.get(f"/api/sessions/{session['id']}", headers=auth_headers)
-    ).json()
+    original = (await client.get(f"/api/sessions/{session['id']}", headers=auth_headers)).json()
     assert [message["role"] for message in original["messages"]] == [
         "assistant",
         "user",

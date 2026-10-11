@@ -16,7 +16,7 @@
 	let failed = $state(false);
 
 	$effect(() => {
-		const cached = cachedMessageImage(sessionId, messageId, image.index);
+		const cached = cachedMessageImage(sessionId, messageId, image.index, image.version);
 		if (cached) {
 			fetched = cached;
 			return;
@@ -26,7 +26,7 @@
 		if (!token) return;
 
 		let active = true;
-		loadMessageImage(token, sessionId, messageId, image.index)
+		loadMessageImage(token, sessionId, messageId, image.index, image.version)
 			.then((loaded) => {
 				if (active) fetched = loaded;
 			})

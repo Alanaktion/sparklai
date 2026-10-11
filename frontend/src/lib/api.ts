@@ -520,9 +520,11 @@ export function fetchMessageImage(
 	token: string,
 	sessionId: number,
 	messageId: number,
-	index: number
+	index: number,
+	version: string
 ): Promise<Blob> {
-	return fetch(`${API_BASE}/sessions/${sessionId}/messages/${messageId}/images/${index}`, {
+	const url = `${API_BASE}/sessions/${sessionId}/messages/${messageId}/images/${index}`;
+	return fetch(`${url}?v=${encodeURIComponent(version)}`, {
 		headers: bearer(token)
 	}).then(async (response) => {
 		if (!response.ok) {
@@ -560,6 +562,8 @@ export type MessageRole = 'system' | 'user' | 'assistant';
 /** A ComfyUI-generated image attached to a message, fetched from `fetchMessageImage`. */
 export type MessageImage = {
 	index: number;
+	/** Changes whenever the underlying file does; message ids can be reused. */
+	version: string;
 	width: number | null;
 	height: number | null;
 };

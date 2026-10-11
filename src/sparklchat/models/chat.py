@@ -83,6 +83,10 @@ class MessageImage(SQLModel):
     """
 
     index: int
+    # Opaque per-file token. SQLite reuses the id of a deleted last message, so
+    # `(message id, index)` alone can name a different image later; clients key
+    # their caches (and the request URL) on this too.
+    version: str
     width: int | None
     height: int | None
 
