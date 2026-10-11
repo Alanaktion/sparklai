@@ -447,6 +447,11 @@
 	let editingTitle = $state(false);
 	let titleDraft = $state('');
 
+	function focusAndSelect(node: HTMLInputElement) {
+		node.focus();
+		node.select();
+	}
+
 	function startRename() {
 		if (!session) return;
 		titleDraft = session.title;
@@ -625,14 +630,13 @@
 		<div class="title">
 			{#if editingTitle}
 				<div class="rename">
-					<!-- svelte-ignore a11y_autofocus -->
 					<input
 						type="text"
 						maxlength="200"
 						aria-label="Chat title"
 						bind:value={titleDraft}
 						onkeydown={titleKeydown}
-						autofocus
+						{@attach focusAndSelect}
 					/>
 					<button type="button" onclick={saveTitle}>Save</button>
 					<button type="button" onclick={() => (editingTitle = false)}>Cancel</button>
@@ -646,7 +650,7 @@
 				</h1>
 			{/if}
 			{#if character}
-				<span class="muted">{character.name}</span>
+				<a class="muted char-link" href={`/characters/${character.id}`}>{character.name}</a>
 			{/if}
 		</div>
 		<span class="spacer"></span>
@@ -886,6 +890,14 @@
 		font-size: 0.9rem;
 	}
 
+	.char-link {
+		text-decoration: none;
+	}
+
+	.char-link:hover {
+		text-decoration: underline;
+	}
+
 	.title {
 		display: grid;
 		min-width: 0;
@@ -908,6 +920,11 @@
 	.rename input {
 		min-width: 0;
 		flex: 1;
+		padding: 0.25rem 0.5rem;
+	}
+
+	.rename button {
+    	font-size: 0.75rem;
 	}
 
 	.rename-btn {
@@ -915,7 +932,7 @@
 		font-size: 0.75rem;
 	}
 
-	.title span {
+	.title .char-link {
 		font-size: 0.78rem;
 	}
 

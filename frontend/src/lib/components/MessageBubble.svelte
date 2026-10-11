@@ -76,7 +76,13 @@
 	class:assistant={message.role === 'assistant'}
 	class:system={message.role === 'system'}
 >
-	<p class="speaker">{speaker}</p>
+	<p class="speaker">
+		{#if message.role === 'assistant' && avatar && avatar.characterId > 0}
+			<a href={`/characters/${avatar.characterId}`}>{speaker}</a>
+		{:else}
+			{speaker}
+		{/if}
+	</p>
 
 	{#if editing}
 		<textarea bind:value={draft} rows="4" aria-label="Edit message"></textarea>
@@ -149,7 +155,7 @@
 		border-radius: var(--radius);
 	}
 
-	.user {
+	.user .message {
 		background: var(--surface-2);
 	}
 
@@ -163,6 +169,15 @@
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		color: var(--muted);
+	}
+
+	.speaker a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.speaker a:hover {
+		text-decoration: underline;
 	}
 
 	.content {
