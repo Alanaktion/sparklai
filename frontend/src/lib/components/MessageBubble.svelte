@@ -91,11 +91,12 @@
 			<button onclick={() => (editing = false)} disabled={busy}>Cancel</button>
 		</div>
 	{:else}
-		<div class="content"><RichText text={message.content} /></div>
-		{#if message.images.length > 0}
+		{#if message.images.length === 0}
+			<div class="content"><RichText text={message.content} /></div>
+		{:else}
 			<div class="images">
 				{#each message.images as image (image.index)}
-					<GeneratedImage sessionId={message.session_id} messageId={message.id} {image} />
+					<GeneratedImage sessionId={message.session_id} messageId={message.id} {image} alt={message.content} />
 				{/each}
 			</div>
 		{/if}

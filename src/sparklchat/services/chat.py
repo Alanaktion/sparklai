@@ -403,6 +403,14 @@ def replace_active_content(message: Message, content: str) -> None:
         message.meta = {**(message.meta or {}), "swipes": swipes}
 
 
+# A generated-image message stores its prompt as `content`; the model never sees
+# the picture, so it is told what the text is rather than left to read it as speech.
+IMAGE_TURN_TEMPLATE = (
+    "[An image was sent in the chat. This is not a text message; it is the "
+    "description (prompt) of the image that was sent: {prompt}]"
+)
+
+
 def history_turns(
     messages: Sequence[Message], speakers: Mapping[int, str] | None = None
 ) -> list[HistoryTurn]:
@@ -417,6 +425,8 @@ def history_turns(
         if message.role not in {"user", "assistant"} or not message.content.strip():
             continue
         content = message.content
+        if (message.meta or {}).get("kind") == "image":
+            content = IMAGE_TURN_TEMPLATE.format(prompt=content.strip())
         if label and message.role == "assistant":
             name = (speakers or {}).get(message.speaker_id or -1)
             if name:

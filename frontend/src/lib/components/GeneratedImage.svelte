@@ -7,9 +7,10 @@
 		sessionId: number;
 		messageId: number;
 		image: MessageImage;
+		alt?: string;
 	};
 
-	let { sessionId, messageId, image }: Props = $props();
+	let { sessionId, messageId, image, alt = 'Generated image' }: Props = $props();
 
 	let fetched = $state<string | null>(null);
 	let failed = $state(false);
@@ -39,7 +40,7 @@
 </script>
 
 {#if fetched}
-	<img src={fetched} alt="Generated" width={image.width ?? undefined} height={image.height ?? undefined} />
+	<img src={fetched} {alt} width={image.width ?? undefined} height={image.height ?? undefined} />
 {:else if failed}
 	<p class="muted">Image failed to load.</p>
 {:else}
