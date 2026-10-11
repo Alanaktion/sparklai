@@ -512,7 +512,10 @@ async def update_session(
     data = payload.model_dump(exclude_unset=True)
 
     if data.get("title") is not None:
-        session.title = data["title"]
+        title = data["title"].strip()
+        if not title:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Title cannot be empty")
+        session.title = title
     if "provider_id" in data:
         if data["provider_id"] is not None:
             await _owned_provider(db, data["provider_id"], current_user.id)

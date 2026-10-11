@@ -444,6 +444,40 @@
 		}
 	}
 
+	let editingTitle = $state(false);
+	let titleDraft = $state('');
+
+	function startRename() {
+		if (!session) return;
+		titleDraft = session.title;
+		editingTitle = true;
+	}
+
+	async function saveTitle() {
+		const token = auth.token;
+		if (!token || !session) return;
+		const title = titleDraft.trim();
+		if (!title || title === session.title) {
+			editingTitle = false;
+			return;
+		}
+		try {
+			session = await updateSession(token, session.id, { title });
+			editingTitle = false;
+		} catch (cause) {
+			streamError = errorMessage(cause);
+		}
+	}
+
+	function titleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			void saveTitle();
+		} else if (event.key === 'Escape') {
+			editingTitle = false;
+		}
+	}
+
 	async function changeProvider(event: Event) {
 		const token = auth.token;
 		if (!token || !session) return;
@@ -589,7 +623,28 @@
 			/>
 		{/if}
 		<div class="title">
-			<h1>{session?.title ?? 'Chat'}</h1>
+			{#if editingTitle}
+				<div class="rename">
+					<!-- svelte-ignore a11y_autofocus -->
+					<input
+						type="text"
+						maxlength="200"
+						aria-label="Chat title"
+						bind:value={titleDraft}
+						onkeydown={titleKeydown}
+						autofocus
+					/>
+					<button type="button" onclick={saveTitle}>Save</button>
+					<button type="button" onclick={() => (editingTitle = false)}>Cancel</button>
+				</div>
+			{:else}
+				<h1>
+					{session?.title ?? 'Chat'}
+					{#if session}
+						<button type="button" class="rename-btn" onclick={startRename}>Rename</button>
+					{/if}
+				</h1>
+			{/if}
 			{#if character}
 				<span class="muted">{character.name}</span>
 			{/if}
@@ -842,6 +897,22 @@
 		font-size: 1rem;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.rename {
+		display: flex;
+		gap: 0.4rem;
+		align-items: center;
+	}
+
+	.rename input {
+		min-width: 0;
+		flex: 1;
+	}
+
+	.rename-btn {
+		margin-left: 0.5rem;
+		font-size: 0.75rem;
 	}
 
 	.title span {

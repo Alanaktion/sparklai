@@ -219,6 +219,25 @@ async def test_session_updates(
     assert response.json()["use_character_book"] is False
 
 
+async def test_session_title_is_trimmed_and_validated(
+    client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
+) -> None:
+    character = await make_character(client, auth_headers, v2_card)
+    session = await make_session(client, auth_headers, character["id"])
+    url = f"/api/sessions/{session['id']}"
+
+    response = await client.patch(url, json={"title": "  Spaced  "}, headers=auth_headers)
+    assert response.json()["title"] == "Spaced"
+
+    blank = await client.patch(url, json={"title": "   "}, headers=auth_headers)
+    assert blank.status_code == 422
+    too_long = await client.patch(url, json={"title": "x" * 201}, headers=auth_headers)
+    assert too_long.status_code == 422
+
+    unchanged = await client.get(url, headers=auth_headers)
+    assert unchanged.json()["title"] == "Spaced"
+
+
 async def test_delete_session(
     client: AsyncClient, auth_headers: dict[str, str], v2_card: dict
 ) -> None:
