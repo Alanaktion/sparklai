@@ -150,6 +150,27 @@ class ComfyUIClient(BaseClient):
         version = ((data or {}).get("system") or {}).get("comfyui_version")
         return f"ComfyUI reachable{f' (version {version})' if version else ''}"
 
+    async def list_models(self) -> list[str]:
+        """Checkpoint and UNet filenames installed on the server."""
+        names: set[str] = set()
+        for node, field in (
+            ("CheckpointLoaderSimple", "ckpt_name"),
+            ("UNETLoader", "unet_name"),
+        ):
+            try:
+                data = await self._get_json(f"/object_info/{node}")
+            except ProviderError:
+                continue  # that loader may not be installed
+            try:
+                options = data[node]["input"]["required"][field][0]
+            except (KeyError, IndexError, TypeError):
+                continue
+            if isinstance(options, list):
+                names.update(option for option in options if isinstance(option, str))
+        if not names:
+            raise ProviderError("ComfyUI reported no checkpoint or UNet models")
+        return sorted(names)
+
     def _view_url(self, file: OutputFile) -> str:
         parts = [f"filename={quote(file.filename)}"]
         if file.subfolder:

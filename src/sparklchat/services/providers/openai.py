@@ -36,6 +36,13 @@ class OpenAIClient(BaseClient):
             ) from exc
         return content or ""
 
+    async def list_models(self) -> list[str]:
+        data = await self._get_json("/models")
+        items = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            raise ProviderError(f"{self.provider_type} returned an unexpected models payload")
+        return sorted({item["id"] for item in items if isinstance(item, dict) and item.get("id")})
+
     async def stream(self, messages: Sequence[ChatMessage]) -> AsyncIterator[str]:
         payload = self._payload(messages, stream=True)
         async for event in self._stream_sse(self._url("/chat/completions"), payload):

@@ -15,6 +15,7 @@ from sparklchat.services.providers import (
     ProviderConfig,
     ProviderError,
 )
+from sparklchat.services.providers.ollama import OllamaClient
 
 
 class StubClient(BaseClient):
@@ -366,3 +367,20 @@ async def test_streaming_completion_reports_errors_as_events(
 
     assert "event: error" in payload
     assert "stream blew up" in payload
+
+
+async def test_models_endpoint_uses_typed_key(
+    client: AsyncClient, auth_headers: dict[str, str], monkeypatch
+) -> None:
+    async def fake(self: OllamaClient) -> list[str]:
+        assert self.config.api_key == "typed-key"
+        return ["m1", "m2"]
+
+    monkeypatch.setattr(OllamaClient, "list_models", fake)
+    response = await client.post(
+        "/api/providers/models",
+        json={"provider_type": "ollama", "api_key": "typed-key"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert response.json() == {"models": ["m1", "m2"]}

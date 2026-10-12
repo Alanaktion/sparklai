@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		createProvider,
+		listProviderModels,
 		updateProvider,
 		type Provider,
 		type ProviderInput,
@@ -53,6 +54,50 @@
 	let maxTokens = $state(initial.maxTokens);
 	let topP = $state(initial.topP);
 	let extraParams = $state(initial.extraParams);
+
+	// Models the endpoint advertises, fetched on demand. The select offers them
+	// plus "Custom…", which reveals a free-text input for anything unlisted.
+	const CUSTOM = '__custom__';
+	let models = $state<string[]>([]);
+	let modelsBusy = $state(false);
+	let modelsError = $state<string | null>(null);
+	let customModel = $state(false);
+
+	const modelChoice = $derived(
+		customModel || (model !== '' && !models.includes(model)) ? CUSTOM : model
+	);
+
+	function chooseModel(value: string) {
+		if (value === CUSTOM) {
+			customModel = true;
+		} else {
+			customModel = false;
+			model = value;
+		}
+	}
+
+	async function loadModels() {
+		const token = auth.token;
+		if (!token) {
+			modelsError = 'You are signed out.';
+			return;
+		}
+		modelsBusy = true;
+		modelsError = null;
+		try {
+			models = await listProviderModels(token, {
+				provider_type: providerType,
+				base_url: baseUrl.trim() || null,
+				api_key: apiKey.trim() || null,
+				provider_id: provider?.id ?? null
+			});
+		} catch (cause) {
+			models = [];
+			modelsError = errorMessage(cause);
+		} finally {
+			modelsBusy = false;
+		}
+	}
 
 	let busy = $state(false);
 	let error = $state<string | null>(null);
@@ -164,14 +209,33 @@
 		</label>
 		<label>
 			<span>Model {#if isComfyUI}<em>optional</em>{/if}</span>
-			<input
-				bind:value={model}
-				required={!isComfyUI}
-				maxlength="200"
-				placeholder={isComfyUI
-					? 'Checkpoint/UNet override, e.g. sd_xl_base_1.0.safetensors'
-					: ''}
-			/>
+			{#if models.length > 0}
+				<select value={modelChoice} onchange={(event) => chooseModel(event.currentTarget.value)}>
+					{#if isComfyUI}
+						<option value="">Workflow default</option>
+					{/if}
+					{#each models as option (option)}
+						<option value={option}>{option}</option>
+					{/each}
+					<option value={CUSTOM}>Custom…</option>
+				</select>
+			{/if}
+			{#if models.length === 0 || modelChoice === CUSTOM}
+				<input
+					bind:value={model}
+					required={!isComfyUI}
+					maxlength="200"
+					placeholder={isComfyUI
+						? 'Checkpoint/UNet override, e.g. sd_xl_base_1.0.safetensors'
+						: ''}
+				/>
+			{/if}
+			<button type="button" class="load" onclick={loadModels} disabled={modelsBusy}>
+				{modelsBusy ? 'Loading…' : models.length > 0 ? 'Refresh models' : 'Load models'}
+			</button>
+			{#if modelsError}
+				<span class="error" role="alert">{modelsError}</span>
+			{/if}
 		</label>
 	</div>
 
@@ -278,6 +342,11 @@
 		font-style: normal;
 		font-size: 0.75rem;
 		color: var(--muted);
+	}
+
+	.load {
+		justify-self: start;
+		font-size: 0.78rem;
 	}
 
 	.inline {

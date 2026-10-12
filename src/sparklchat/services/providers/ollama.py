@@ -34,6 +34,15 @@ class OllamaClient(BaseClient):
         data = await self._post_json(self._url("/api/chat"), self._payload(messages, stream=False))
         return _text_from(data)
 
+    async def list_models(self) -> list[str]:
+        data = await self._get_json("/api/tags")
+        items = data.get("models") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            raise ProviderError("ollama returned an unexpected models payload")
+        return sorted(
+            {item["name"] for item in items if isinstance(item, dict) and item.get("name")}
+        )
+
     async def stream(self, messages: Sequence[ChatMessage]) -> AsyncIterator[str]:
         payload = self._payload(messages, stream=True)
         async for event in self._stream_json_lines(self._url("/api/chat"), payload):

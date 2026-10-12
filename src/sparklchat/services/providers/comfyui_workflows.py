@@ -22,6 +22,7 @@ DEFAULT_MODELS: dict[str, str] = {
     "image": "z_image_turbo_bf16.safetensors",
     "anime": "NetaYumev35_pretrained_all_in_one.safetensors",
     "z_image_turbo": "z_image_turbo_bf16.safetensors",
+    "sdxl": "realDream_sdxlPony17_fp16.safetensors",
 }
 
 WORKFLOW_TEMPLATES: dict[str, dict] = {

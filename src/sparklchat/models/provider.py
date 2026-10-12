@@ -108,6 +108,20 @@ class ProviderTestResult(SQLModel):
     reply: str | None = None
 
 
+class ProviderModelsRequest(SQLModel):
+    """Connection details typed into the editor, which may not be saved yet."""
+
+    provider_type: ProviderType = "openai"
+    base_url: str | None = Field(default=None, max_length=500)
+    # Blank + `provider_id` set falls back to that provider's stored key.
+    api_key: str | None = Field(default=None, max_length=500)
+    provider_id: int | None = None
+
+
+class ProviderModels(SQLModel):
+    models: list[str]
+
+
 class CompletionMessage(SQLModel):
     role: ChatRole = "user"
     content: str = ""

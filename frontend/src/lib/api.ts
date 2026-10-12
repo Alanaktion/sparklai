@@ -225,6 +225,24 @@ export function updateProvider(
 	return apiFetch<Provider>(`/providers/${id}`, jsonInit('PATCH', patch, token));
 }
 
+export type ProviderModelsQuery = {
+	provider_type: ProviderType;
+	base_url?: string | null;
+	api_key?: string | null;
+	provider_id?: number | null;
+};
+
+export async function listProviderModels(
+	token: string,
+	query: ProviderModelsQuery
+): Promise<string[]> {
+	const result = await apiFetch<{ models: string[] }>(
+		'/providers/models',
+		jsonInit('POST', query, token)
+	);
+	return result.models;
+}
+
 export function deleteProvider(token: string, id: number): Promise<void> {
 	return apiFetch<void>(`/providers/${id}`, { method: 'DELETE', headers: bearer(token) });
 }

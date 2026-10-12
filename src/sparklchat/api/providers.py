@@ -15,6 +15,8 @@ from sparklchat.models.provider import (
     CompletionResult,
     Provider,
     ProviderCreate,
+    ProviderModels,
+    ProviderModelsRequest,
     ProviderPublic,
     ProviderTestResult,
     ProviderUpdate,
@@ -25,6 +27,7 @@ from sparklchat.services.crypto import EncryptionError, decrypt, encrypt
 from sparklchat.services.providers import (
     BaseClient,
     ChatMessage,
+    ProviderConfig,
     ProviderError,
     build_client,
     config_for,
@@ -132,6 +135,27 @@ async def list_providers(db: SessionDep, current_user: CurrentUserDep) -> list[P
     default_id = await _default_provider_id(db, current_user.id)
     statement = select(Provider).where(Provider.user_id == current_user.id).order_by(Provider.name)
     return [_public(row, default_id) for row in (await db.exec(statement)).all()]
+
+
+@router.post("/models")
+async def list_models(
+    payload: ProviderModelsRequest, db: SessionDep, current_user: CurrentUserDep
+) -> ProviderModels:
+    """List the models an endpoint advertises, from unsaved editor values."""
+    api_key = (payload.api_key or "").strip() or None
+    if api_key is None and payload.provider_id is not None:
+        api_key = _stored_key(await _owned(db, payload.provider_id, current_user.id))
+    base_url = (payload.base_url or "").strip() or default_base_url(payload.provider_type)
+    if not base_url:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "base_url is required")
+    config = ProviderConfig(
+        provider_type=payload.provider_type, base_url=base_url, model="", api_key=api_key
+    )
+    try:
+        models = await build_client(config).list_models()
+    except ProviderError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+    return ProviderModels(models=models)
 
 
 @router.get("/{provider_id}")

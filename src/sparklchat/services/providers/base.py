@@ -152,6 +152,19 @@ class BaseClient:
     def stream(self, messages: Sequence[ChatMessage]) -> AsyncIterator[str]:
         raise NotImplementedError
 
+    async def list_models(self) -> list[str]:
+        """Model names the endpoint advertises, for the editor's dropdown."""
+        raise ProviderError(f"{self.provider_type} does not support listing models")
+
+    async def _get_json(self, path: str) -> Any:
+        async with self._client() as http:
+            response = await http.get(self._url(path), headers=self._headers())
+            await self._raise_for_status(response)
+            try:
+                return response.json()
+            except json.JSONDecodeError as exc:
+                raise ProviderError(f"{self.provider_type} returned invalid JSON: {exc}") from exc
+
     def generate(self, prompt: str, **kwargs: Any) -> AsyncIterator[dict[str, Any]]:
         """Image generation; only `ComfyUIClient` implements this."""
         raise NotImplementedError

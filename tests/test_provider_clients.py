@@ -239,3 +239,34 @@ async def test_ollama_stream_reads_newline_delimited_json() -> None:
         chunks = [chunk async for chunk in client.stream(MESSAGES)]
 
     assert chunks == ["Hel", "lo"]
+
+
+async def test_openai_lists_model_ids() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        return httpx.Response(200, json={"data": [{"id": "b"}, {"id": "a"}]})
+
+    async with client_for(config(), handler) as client:
+        assert await client.list_models() == ["a", "b"]
+
+
+async def test_ollama_lists_model_names() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/tags"
+        return httpx.Response(200, json={"models": [{"name": "llama3:8b"}]})
+
+    cfg = config(provider_type="ollama", base_url="http://ollama")
+    async with client_for(cfg, handler) as client:
+        assert await client.list_models() == ["llama3:8b"]
+
+
+async def test_comfyui_lists_checkpoints_and_unets() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("CheckpointLoaderSimple"):
+            data = {"CheckpointLoaderSimple": {"input": {"required": {"ckpt_name": [["a.st"]]}}}}
+            return httpx.Response(200, json=data)
+        return httpx.Response(404)
+
+    cfg = config(provider_type="comfyui", base_url="http://comfy")
+    async with client_for(cfg, handler) as client:
+        assert await client.list_models() == ["a.st"]
